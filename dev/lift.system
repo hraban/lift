@@ -1,1 +1,69 @@
-;;;-*- Mode: Lisp; Package: COMMON-LISP-USER -*-#| simple-header$Id: lift.system,v 1.7 2005/07/29 20:34:12 gwking Exp $Copyright 2001 - 2003 Gary KingDISCUSSION|#(in-package :common-lisp-user);;; ---------------------------------------------------------------------------;;; LIsp Framework for Testing (LIFT);;; ---------------------------------------------------------------------------(eksl-define-logical-pathname-translations (lift)  (source));;; ---------------------------------------------------------------------------(define-eksl-system :basic-lift  (("lift")   (("notes"     "test-lift"     "lift-examples"     "lift-notes"     "lift.asd")     :associates? t))    :base-dir "lift:source;"  :bin-identifiers (:platform :vendor)  :depends-on (moptilities));;; ---------------------------------------------------------------------------(define-eksl-module :lift-prototypes  (("prototypes"))  :system :basic-lift);;; ---------------------------------------------------------------------------(define-eksl-system :lift  nil  :base-dir "lift:source;"  :bin-identifiers (:platform :vendor)  :depends-on (:basic-lift :lift-prototypes)  :nice-name "LIFT");;; ---------------------------------------------------------------------------(define-eksl-module :randomized-testing   ("lift-randomized")  :system lift  :depends-on (:eksl-utilities-minimal :variates));;; ---------------------------------------------------------------------------#+DIGITOOL(define-eksl-module :lift-interface  ("lift-interface")  :system lift  :depends-on (:advise));;; ***************************************************************************;;; *                              End of File                                *;;; ***************************************************************************
+;;;-*- Mode: Lisp; Package: COMMON-LISP-USER -*-
+
+#| simple-header
+
+$Id: lift.system,v 1.7 2005/07/29 20:34:12 gwking Exp $
+
+Copyright 2001 - 2003 Gary King
+
+DISCUSSION
+
+|#
+
+(in-package :common-lisp-user)
+
+;;; ---------------------------------------------------------------------------
+;;; LIsp Framework for Testing (LIFT)
+;;; ---------------------------------------------------------------------------
+
+(eksl-define-logical-pathname-translations (lift)
+  (source))
+
+;;; ---------------------------------------------------------------------------
+
+(define-eksl-system :basic-lift
+  (("lift")
+   (("notes"
+     "test-lift"
+     "lift-examples"
+     "lift-notes"
+     "lift.asd") 
+    :associates? t))
+  
+  :base-dir "lift:source;"
+  :bin-identifiers (:platform :vendor)
+  :depends-on (moptilities))
+
+;;; ---------------------------------------------------------------------------
+
+(define-eksl-module :lift-prototypes
+  (("prototypes"))
+  :system :basic-lift)
+
+;;; ---------------------------------------------------------------------------
+
+(define-eksl-system :lift
+  nil
+  :base-dir "lift:source;"
+  :bin-identifiers (:platform :vendor)
+  :depends-on (:basic-lift :lift-prototypes)
+  :nice-name "LIFT")
+
+;;; ---------------------------------------------------------------------------
+
+(define-eksl-module :randomized-testing 
+  ("lift-randomized")
+  :system lift
+  :depends-on (:eksl-utilities-minimal :variates))
+
+;;; ---------------------------------------------------------------------------
+
+#+DIGITOOL
+(define-eksl-module :lift-interface
+  ("lift-interface")
+  :system lift
+  :depends-on (:advise))
+
+;;; ***************************************************************************
+;;; *                              End of File                                *
+;;; ***************************************************************************
