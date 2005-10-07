@@ -144,7 +144,7 @@ DEALINGS IN THE SOFTWARE.
 (defun vars-from-assignment (assignment)
   (cond ((is-binding-p assignment)
          (mapcar #'car (second assignment)))
-        ((u:dotted-pair-p assignment)
+        ((metatilities:dotted-pair-p assignment)
          (car assignment))
         ((atom (car assignment))
          (car assignment))
