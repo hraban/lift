@@ -474,10 +474,12 @@ Ensure same compares value-or-values-1 value-or-values-2 or each value of value-
   (when (and (consp test)
              (eq (first test) 'function))
     (setf test (second test)))
-  `(loop for value in (multiple-value-list ,form)
-         for other-value in (multiple-value-list ,values) do
-         (unless (,test value other-value)
-           (maybe-raise-not-same-condition value other-value ',test ,report ,args))))
+  `(progn
+     (loop for value in (multiple-value-list ,form)
+           for other-value in (multiple-value-list ,values) do
+           (unless (,test value other-value)
+             (maybe-raise-not-same-condition value other-value ',test ,report ,args)))
+     (values t)))
 
 ;;; ---------------------------------------------------------------------------
 
