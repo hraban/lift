@@ -31,17 +31,17 @@ DEALINGS IN THE SOFTWARE.
 (defpackage :asdf-lift (:use #:asdf #:cl))
 (in-package :asdf-lift)
 
-(defsystem "BASIC-LIFT"
+(defsystem BASIC-LIFT
   :version "1.0"
   :components ((:file "lift"))
-  :depends-on ("MOPTILITIES"))
+  :depends-on (MOPTILITIES))
 
-(defsystem "LIFT-WITH-PROTOTYPES"
+(defsystem LIFT-WITH-PROTOTYPES
   :version "1.0"
-  :depends-on ("BASIC-LIFT")
+  :depends-on (BASIC-LIFT)
   :components ((:file "prototypes")))
 
-(defsystem "LIFT"
+(defsystem LIFT
   :version "1.0"
   :author "Gary Warren King <gwking@metabang.com>"
   :version "1.0"
@@ -49,8 +49,8 @@ DEALINGS IN THE SOFTWARE.
   :licence "MIT Style License"
   :description "LIsp Framework for Testing"
   :long-description "LIFT is yet another SUnit variant."
-  :depends-on ("BASIC-LIFT" 
+  :depends-on (BASIC-LIFT 
                #+Ignore 
-               "LIFT-WITH-PROTOTYPES"))
+               LIFT-WITH-PROTOTYPES))
 
 
