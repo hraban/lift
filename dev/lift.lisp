@@ -247,7 +247,7 @@ All other CLOS slot options are processed normally."
 ;;; global environment thingies
 ;;; ---------------------------------------------------------------------------
 
-(defconstant +test-method-prefix+ "%TEST-")
+(defparameter +test-method-prefix+ "%TEST-")
 (defvar *current-suite-class-name* nil)
 (defvar *current-case-method-name* nil)
 
@@ -281,27 +281,27 @@ the test is running. Note that this may interact oddly with ensure-warning.")
 ;;; Error messages and warnings
 ;;; ---------------------------------------------------------------------------
 
-(defconstant +lift-test-name-not-supplied-with-test-class+
+(defparameter +lift-test-name-not-supplied-with-test-class+
   "if you specify a test-class, you must also specify a test-name.")
 
-(defconstant +lift-test-class-not-found+
+(defparameter +lift-test-class-not-found+
   "test class '~S' not found.")
 
-(defconstant +lift-confused-about-arguments+
+(defparameter +lift-confused-about-arguments+
   "I'm confused about what you said?!")
 
-(defconstant +lift-no-current-test-class+
+(defparameter +lift-no-current-test-class+
   "There is no current-test-class to use as a default.")
 
-(defconstant +lift-could-not-find-test+
+(defparameter +lift-could-not-find-test+
   "Could not find test: ~S.~S")
 
-(defconstant +run-tests-null-test-case+
+(defparameter +run-tests-null-test-case+
   "There is no current test-suite (possibly because ~
    none have been defined yet?). You can specify the ~
    test-suite to test by evaluating (run-tests :suite <suitename>).")
 
-(defconstant +lift-unable-to-parse-test-name-and-class+ 
+(defparameter +lift-unable-to-parse-test-name-and-class+ 
   "")
 
 
@@ -319,11 +319,11 @@ the test is running. Note that this may interact oddly with ensure-warning.")
 ;;; ---------------------------------------------------------------------------
 
 (define-condition test-class-not-defined (lift-compile-error)
-                  ((class-name :reader class-name
-                               :initarg :class-name))
+                  ((test-class-name :reader test-class-name
+                                    :initarg :test-class-name))
   (:report (lambda (c s)
              (format s "Test class ~A not defined before it was used."
-                     (class-name c)))))
+                     (test-class-name c)))))
 
 ;;; ---------------------------------------------------------------------------
 
@@ -861,7 +861,7 @@ Test-options are :setup, :teardown, :test, :tests,
                      (not (member class done)))
             (push class done)
             (setf slots (append slots (test-slot-names (make-instance class))))))
-        (error 'test-class-not-defined :class-name super)))
+        (error 'test-class-not-defined :test-class-name super)))
     (remove-duplicates (append (def :direct-slot-names) slots)))) 
 
 ;;; ---------------------------------------------------------------------------

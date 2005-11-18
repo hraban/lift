@@ -31,6 +31,24 @@ DEALINGS IN THE SOFTWARE.
 (defpackage :asdf-lift (:use #:asdf #:cl))
 (in-package :asdf-lift)
 
+(defsystem LIFT
+  :version "1.0"
+  :author "Gary Warren King <gwking@metabang.com>"
+  :version "1.0"
+  :maintainer "Gary Warren King <gwking@metabang.com>"
+  :licence "MIT Style License"
+  :description "LIsp Framework for Testing"
+  :long-description "LIFT is yet another SUnit variant."
+  
+  :components ((:module "dev" 
+                        :components ((:file "lift")
+                                     (:file "prototypes"
+                                            :depends-on ("lift")))))
+  
+  :depends-on (moptilities))
+
+
+#| Gary King 2005-11-17: unnecessary (?) complexity
 (defsystem BASIC-LIFT
   :version "1.0"
   :components ((:file "lift"))
@@ -52,5 +70,6 @@ DEALINGS IN THE SOFTWARE.
   :depends-on (BASIC-LIFT 
                #+Ignore 
                LIFT-WITH-PROTOTYPES))
+|#
 
 
