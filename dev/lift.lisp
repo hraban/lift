@@ -2,10 +2,6 @@
 
 #| simple-header
 
-$Id: lift.lisp,v 1.29 2005/06/09 00:59:34 gwking Exp $
-$Author: gwking $
-$Date: 2005/06/09 00:59:34 $
-
 Copyright (c) 2001-2003 Gary Warren King (gwking@cs.umass.edu) 
 
 Permission is hereby granted, free of charge, to any person obtaining a 

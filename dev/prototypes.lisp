@@ -2,10 +2,6 @@
 
 #| simple-header
 
-$Id: prototypes.lisp,v 1.2 2005/02/02 02:29:21 gwking Exp $
-$Author: gwking $
-$Date: 2005/02/02 02:29:21 $
-
 Copyright (c) 2001-2003 Gary Warren King (gwking@cs.umass.edu) 
 
 Permission is hereby granted, free of charge, to any person obtaining a 
@@ -313,12 +309,12 @@ DEALINGS IN THE SOFTWARE.
 
 (defmethod do-testing :around ((test-suite process-test-mixin) result fn)
   (declare (ignore fn))
-  (with-timeout ((maximum-time test-suite)
-                   (report-test-problem
-                    'test-timeout-failure result test-suite (current-method test-suite)
-                    (make-instance 'test-timeout-condition
-                      :maximum-time (maximum-time test-suite)))
-                   result)
+  (metatilities:with-timeout ((maximum-time test-suite)
+                              (report-test-problem
+                               'test-timeout-failure result test-suite (current-method test-suite)
+                               (make-instance 'test-timeout-condition
+                                 :maximum-time (maximum-time test-suite)))
+                              result)
     (call-next-method)))
 
 ;;; ---------------------------------------------------------------------------

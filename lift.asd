@@ -42,6 +42,7 @@ DEALINGS IN THE SOFTWARE.
   
   :components ((:module "dev" 
                         :components ((:file "lift")
+                        #+Ignore
                                      (:file "prototypes"
                                             :depends-on ("lift")))))
   
