@@ -31,6 +31,8 @@ DEALINGS IN THE SOFTWARE.
 (defpackage :asdf-lift (:use #:asdf #:cl))
 (in-package :asdf-lift)
 
+(asdf:operate 'asdf:load-op 'asdf-system-connections)
+
 (defsystem LIFT
   :version "1.0"
   :author "Gary Warren King <gwking@metabang.com>"
@@ -47,6 +49,17 @@ DEALINGS IN THE SOFTWARE.
                                             :depends-on ("lift")))))
   
   :depends-on (moptilities))
+
+;;; ---------------------------------------------------------------------------
+
+(asdf:defsystem-connection lift-and-metatilities
+  :requires (lift metatilities-base)
+  :perform (load-op :after (op c)
+                    (use-package (find-package "LIFT") 
+                                 (find-package "METATILITIES")))) 
+
+
+
 
 
 #| Gary King 2005-11-17: unnecessary (?) complexity
