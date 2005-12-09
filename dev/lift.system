@@ -36,6 +36,7 @@ DISCUSSION
 
 ;;; ---------------------------------------------------------------------------
 
+#+Ignore
 (define-eksl-module :lift-prototypes
   (("prototypes"))
   :system :basic-lift)
@@ -51,6 +52,7 @@ DISCUSSION
 
 ;;; ---------------------------------------------------------------------------
 
+#+Ignore
 (define-eksl-module :randomized-testing 
   ("lift-randomized")
   :system lift
