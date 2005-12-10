@@ -16,12 +16,12 @@ DISCUSSION
 ;;; LIsp Framework for Testing (LIFT)
 ;;; ---------------------------------------------------------------------------
 
-(eksl-define-logical-pathname-translations (lift)
+(glu-define-logical-pathname-translations (lift)
   (source))
 
 ;;; ---------------------------------------------------------------------------
 
-(define-eksl-system :basic-lift
+(define-glu-system :basic-lift
   (("lift")
    (("notes"
      "test-lift"
@@ -37,13 +37,13 @@ DISCUSSION
 ;;; ---------------------------------------------------------------------------
 
 #+Ignore
-(define-eksl-module :lift-prototypes
+(define-glu-module :lift-prototypes
   (("prototypes"))
   :system :basic-lift)
 
 ;;; ---------------------------------------------------------------------------
 
-(define-eksl-system :lift
+(define-glu-system :lift
   nil
   :base-dir "lift:source;"
   :bin-identifiers (:platform :vendor)
@@ -53,15 +53,15 @@ DISCUSSION
 ;;; ---------------------------------------------------------------------------
 
 #+Ignore
-(define-eksl-module :randomized-testing 
+(define-glu-module :randomized-testing 
   ("lift-randomized")
   :system lift
-  :depends-on (:eksl-utilities-minimal :variates))
+  :depends-on (:glu-utilities-minimal :variates))
 
 ;;; ---------------------------------------------------------------------------
 
 #+DIGITOOL
-(define-eksl-module :lift-interface
+(define-glu-module :lift-interface
   ("lift-interface")
   :system lift
   :depends-on (:advise))
