@@ -27,7 +27,7 @@ DEALINGS IN THE SOFTWARE.
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (unless (find-package :lift)
     (defpackage lift
-      (:use common-lisp mopu #+MCL ccl))))
+      (:use common-lisp mopu))))
 
 (in-package lift)
 
@@ -852,7 +852,7 @@ Test-options are :setup, :teardown, :test, :tests,
         (slots nil))
     (dolist (super (def :superclasses))
       (if (find-class super nil)
-        (dolist (class (mopu-class-precedence-list super))
+        (dolist (class (superclasses super))
           (when (and (test-suite-p class) 
                      (not (member class done)))
             (push class done)
@@ -1004,7 +1004,7 @@ Test-options are :setup, :teardown, :test, :tests,
   "Returns a list of testsuite classes. The optional parameter provides
 control over where in the test hierarchy the search begins."
   (let* ((class (find-class start-at nil))
-         (subclasses (and class (subclasses* class))))
+         (subclasses (and class (subclasses class :proper? t))))
     (loop for subclass in subclasses
           when (subtypep subclass 'test-mixin) 
           collect (class-name subclass))))
@@ -1065,7 +1065,7 @@ control over where in the test hierarchy the search begins."
     (loop for method in methods do
           (run-test-internal case method result))
     (when *test-do-children?*
-      (loop for subclass in (mopu-class-direct-subclasses (class-of case))
+      (loop for subclass in (direct-subclasses (class-of case))
             when (test-suite-p subclass) do
             (run-tests-internal (make-instance (class-name subclass)) 
                                 :result result)))))
@@ -1330,7 +1330,7 @@ control over where in the test hierarchy the search begins."
   (let ((classes-removed nil)
         (class (find-class classname nil)))
     (when class
-      (loop for subclass in (subclasses* class) do
+      (loop for subclass in (subclasses class :proper? t) do
             (push subclass classes-removed)
             (remove-methods (class-name subclass) :verbose? t)
             #+Ignore
@@ -1576,11 +1576,11 @@ control over where in the test hierarchy the search begins."
 (defmethod testsuite-methods ((classname symbol))
   (remove-if-not
    (lambda (gf)
-     (let ((name (mopu-generic-function-name gf)))
+     (let ((name (generic-function-name gf)))
        (etypecase name
          (symbol (test-method-name-p (symbol-name name)))
          (cons nil))))
-   (generic-function-list classname)))
+   (generic-functions classname)))
 
 ;;; ---------------------------------------------------------------------------
 
@@ -1600,7 +1600,7 @@ control over where in the test hierarchy the search begins."
 ;;; ---------------------------------------------------------------------------
 
 (defmethod testsuite-method->name ((gf standard-generic-function))
-  (method-name->test-name (symbol-name (mopu-generic-function-name gf))))
+  (method-name->test-name (symbol-name (generic-function-name gf))))
 
 ;;; ---------------------------------------------------------------------------
 
@@ -1636,8 +1636,8 @@ control over where in the test hierarchy the search begins."
   (let ((gf (testsuite-name->gf case name))
         (class (class-of case)))
     (when gf
-      (loop for m in (mopu-generic-function-methods gf) do
-            (when (member class (mopu-method-specializers m))
+      (loop for m in (generic-function-methods gf) do
+            (when (member class (method-specializers m))
               (return-from testsuite-name->method (values m gf)))))))
 
 ;;; ---------------------------------------------------------------------------
