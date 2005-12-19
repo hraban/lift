@@ -31,7 +31,18 @@ DEALINGS IN THE SOFTWARE.
 (defpackage :asdf-lift (:use #:asdf #:cl))
 (in-package :asdf-lift)
 
-(asdf:operate 'asdf:load-op 'asdf-system-connections)
+;; try hard
+(unless (find-system 'asdf-system-connections nil)
+ (when (find-package 'asdf-install)
+   (funcall (intern "INSTALL" "ASDF-INSTALL") 'asdf-system-connections)))
+;; give up with a useful (?) error message
+(unless (find-system 'asdf-system-connections nil)
+  (error "The LIFT system requires ASDF-SYSTEM-CONNECTIONS. See 
+http://www.cliki.net/asdf-system-connections for details and download
+instructions."))
+
+;; now make sure it's loaded
+(operate 'load-op 'asdf-system-connections)
 
 (defsystem LIFT
   :version "1.0"
@@ -48,7 +59,7 @@ DEALINGS IN THE SOFTWARE.
                                      (:file "prototypes"
                                             :depends-on ("lift")))))
   
-  :depends-on (moptilities))
+  :depends-on (asdf-system-connections moptilities))
 
 ;;; ---------------------------------------------------------------------------
 
