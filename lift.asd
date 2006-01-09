@@ -57,7 +57,11 @@ instructions."))
                         :components ((:file "lift")
                         #+Ignore
                                      (:file "prototypes"
-                                            :depends-on ("lift")))))
+                                            :depends-on ("lift"))))
+               
+               (:module "website"
+                        :components ((:module "source"
+                                              :components ((:static-file "index.lml"))))))
   
   :depends-on (asdf-system-connections moptilities))
 
