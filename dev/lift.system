@@ -58,13 +58,7 @@ DISCUSSION
   :system lift
   :depends-on (:glu-utilities-minimal :variates))
 
-;;; ---------------------------------------------------------------------------
 
-#+DIGITOOL
-(define-glu-module :lift-interface
-  ("lift-interface")
-  :system lift
-  :depends-on (:advise))
 
 ;;; ***************************************************************************
 ;;; *                              End of File                                *

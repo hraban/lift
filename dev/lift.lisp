@@ -1459,8 +1459,8 @@ control over where in the test hierarchy the search begins."
 
        #+MCL
        ,@(when name-supplied?
-           `((let ((*warn-if-redefine* nil))
-               (record-source-file ',test-name 'test-case))))
+           `((let ((ccl:*warn-if-redefine* nil))
+               (ccl:record-source-file ',test-name 'test-case))))
        
        (defmethod ,test-name ((test ,test-class))
          (with-test-slots ,@body))
@@ -1530,8 +1530,8 @@ control over where in the test hierarchy the search begins."
     ;; build basic class and standard class
     `(progn
        #+MCL
-       (record-source-file ',(def :testsuite-name) 'test-suite)
-       (let (#+MCL (*record-source-file* nil))
+       (ccl:record-source-file ',(def :testsuite-name) 'test-suite)
+       (let (#+MCL (ccl:*record-source-file* nil))
          (defclass ,(def :testsuite-name) (,@(def :superclasses))
            nil
            ,@(when (def :documentation)
