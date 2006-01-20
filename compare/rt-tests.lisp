@@ -1,9 +1,15 @@
+#|
+non-interactive
+can you change the test
+|#
+
 (in-package #:cl)
 (defpackage #:kmrcl-tests-rt
   (:use #:kmrcl #:cl #:rtest))
 (in-package #:kmrcl-tests-rt)
 
 (rem-all-tests)
+
 
 (deftest :str.0 (substitute-chars-strings "" nil) "")
 (deftest :str.1 (substitute-chars-strings "abcd" nil) "abcd")
@@ -47,3 +53,4 @@
   ("ab|" "|ef"))
 (deftest :sdstl.4 (string-delimited-string-to-list "ab|cd|ef" "ab")
   ("" "|cd|ef"))
+

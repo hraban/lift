@@ -1,8 +1,21 @@
 RT
 
 non-interactive
+  no, can use *do-tests-when-defined*
 samep only??
+  equalp-with-case
+
+more verbose than RT
+
+
++ optimization settings
++ expected failures
++ notes
+
+
+(rem-all-tests)
+(deftest :zero-check -0.0 0.0)
+(do-test)
 
 LIFT
 
-more verbose than RT
