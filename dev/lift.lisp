@@ -49,8 +49,16 @@ DEALINGS IN THE SOFTWARE.
           *test-print-when-defined?*
           *test-evaluate-when-defined?*
           *test-describe-if-not-successful?*
-          *test-select-listener-on-problem?*    ; not implemented
+          
+          ;;?? not implemented
+          ;; *test-select-listener-on-problem?*    
+          
           *test-scratchpad*
+          
+          *lift-equality-test*
+          *test-print-length*
+          *test-print-level*
+          *test-output*
           
           ;; Other
           ensure
@@ -59,7 +67,9 @@ DEALINGS IN THE SOFTWARE.
           ensure-warning
           ensure-error
           
-          with-test
+          ;;?? Not yet
+          ;; with-test
+          
           list-tests
           
           testsuites
@@ -254,22 +264,32 @@ All other CLOS slot options are processed normally."
 
 (defvar *testsuite-test-count* nil
   "Temporary variable used to 'communicate' between deftestsuite and addtest.")
-(defvar *test-output* *debug-io*)
+(defvar *test-output* *debug-io*
+  "The destination for output from LIFT. Defaults to *debug-io*.")
 (defvar *test-break-on-errors?* nil)
 (defvar *test-do-children?* t)
 (defparameter *test-ignore-warnings?* nil
   "If true, LIFT will not cause a test to fail if a warning occurs while
 the test is running. Note that this may interact oddly with ensure-warning.")
-(defparameter *test-print-level* 4)
-(defparameter *test-print-length* 4)
 (defparameter *test-print-when-defined?* nil)
 (defparameter *test-evaluate-when-defined?* t)
 (defparameter *test-scratchpad* nil
   "A place to put things.")
 
-(defvar *test-select-listener-on-problem?* t)
-(defvar *test-describe-if-not-successful?* t)
+(defparameter *lift-equality-test* 'equal
+  "The function used in ensure-same to test if two things are equal. If metatilities is loaded, then you might want to use samep.")
 
+(defvar *test-select-listener-on-problem?* t
+  "Not implemented")
+
+(defvar *test-describe-if-not-successful?* t
+  "If true, then a complete test description is printed when there are any test warnings or failures. Otherwise, one would need to explicity call describe.")
+
+(defvar *test-print-length* :follow-print
+  "The print-length in effect when LIFT prints test results. It works exactly like *print-length* except that it can also take on the value :follow-print. In this case, it will be set to whatever *print-length* is.")
+(defvar *test-print-level* :follow-print
+  "The print-level in effect when LIFT prints test results. It works exactly like *print-level* except that it can also take on the value :follow-print. In this case, it will be set to whatever *print-level* is.")
+          
 (defvar *test-environment* nil)
 
 
@@ -461,7 +481,7 @@ the test is running. Note that this may interact oddly with ensure-warning.")
 
 ;;; ---------------------------------------------------------------------------
 
-(defmacro ensure-same (form values &key (test 'equal) (report nil) (args nil))
+(defmacro ensure-same (form values &key (test nil test-specified-p) (report nil) (args nil))
   "\(ensure-same value-or-values-1 value-or-values-2
   &key \(test 'equal\) report args\)
 
@@ -473,8 +493,11 @@ Ensure same compares value-or-values-1 value-or-values-2 or each value of value-
   `(progn
      (loop for value in (multiple-value-list ,form)
            for other-value in (multiple-value-list ,values) do
-           (unless (,test value other-value)
-             (maybe-raise-not-same-condition value other-value ',test ,report ,args)))
+           (unless (funcall ',(if test-specified-p test *lift-equality-test*)
+                            value other-value)
+             (maybe-raise-not-same-condition 
+              value other-value
+              ',(if test-specified-p test *lift-equality-test*) ,report ,args)))
      (values t)))
 
 ;;; ---------------------------------------------------------------------------
@@ -558,8 +581,6 @@ Ensure same compares value-or-values-1 value-or-values-2 or each value of value-
 (defgeneric testsuite-methods (test-suite)
   (:documentation "Returns a list of the test methods defined for test. I.e.,
 the methods that should be run to do the tests for this test."))
-
-
 
 ;;; ---------------------------------------------------------------------------
 
@@ -1143,7 +1164,19 @@ control over where in the test hierarchy the search begins."
     problem))
 
 ;;; ---------------------------------------------------------------------------
-;;; test-result
+;;; test-result and printing
+;;; ---------------------------------------------------------------------------
+
+(defun get-test-print-length ()
+  (let ((foo *test-print-length*))
+    (if (eq foo :follow-print) *print-length* foo)))
+
+;;; ---------------------------------------------------------------------------
+
+(defun get-test-print-level ()
+  (let ((foo *test-print-level*))
+    (if (eq foo :follow-print) *print-level* foo)))
+
 ;;; ---------------------------------------------------------------------------
 
 (defmethod start-test ((result test-result) (case test-mixin) method-name) 
@@ -1180,45 +1213,50 @@ control over where in the test hierarchy the search begins."
 (defmethod print-object ((tr test-result) stream)
   (let ((complete-success? (and (null (errors tr))
                                 (null (failures tr))))) 
-    (print-unreadable-object (tr stream)
-      (cond ((null (tests-run tr))
-             (format stream "~A: no tests defined" (test-class-name tr)))
-            
-            ((eq (test-mode tr) :single)
-             (cond ((test-interactive? tr)
-                    ;; interactive
-                    (cond (complete-success?
-                           (format stream "Test passed"))
-                          ((errors tr)
-                           (format stream "Error during testing"))
-                          (t
-                           (format stream "Test failed"))))
-                   
-                   (t
-                    ;; from run-test
-                    (format stream "~A.~A ~A" 
-                            (test-class-name tr) 
-                            (first (first (tests-run tr)))
-                            (cond (complete-success?
-                                   "passed")
-                                  ((errors tr)
-                                   "Error")
-                                  (t
-                                   "failed")))))
-             (when (and (not complete-success?) *test-describe-if-not-successful?*)
-               (format stream "~%") 
-               (print-test-result-details stream tr)))
-            
-            (t
-             ;; multiple tests run
-             (format stream "Results for ~A " (test-class-name tr))
-             (if complete-success?
-               (format stream "[~A Successful test~:P]"
-                       (length (tests-run tr)))
-               (format stream "~A Test~:P~[~:;, ~:*~A Failure~:P~]~[~:;, ~:*~A Error~:P~]." 
-                       (length (tests-run tr))
-                       (length (failures tr))
-                       (length (errors tr)))))))))
+    (let* ((*print-level* (get-test-print-level))
+           (*print-length* (get-test-print-length)))
+      (print-unreadable-object (tr stream)
+        (cond ((null (tests-run tr))
+               (format stream "~A: no tests defined" (test-class-name tr)))
+              
+              ((eq (test-mode tr) :single)
+               (cond ((test-interactive? tr)
+                      ;; interactive
+                      (cond (complete-success?
+                             (format stream "Test passed"))
+                            ((errors tr)
+                             (format stream "Error during testing"))
+                            (t
+                             (format stream "Test failed"))))
+                     
+                     (t
+                      ;; from run-test
+                      (format stream "~A.~A ~A" 
+                              (test-class-name tr) 
+                              (first (first (tests-run tr)))
+                              (cond (complete-success?
+                                     "passed")
+                                    ((errors tr)
+                                     "Error")
+                                    (t
+                                     "failed"))))))
+              
+              (t
+               ;; multiple tests run
+               (format stream "Results for ~A " (test-class-name tr))
+               (if complete-success?
+                 (format stream "[~A Successful test~:P]"
+                         (length (tests-run tr)))
+                 (format stream "~A Test~:P~[~:;, ~:*~A Failure~:P~]~[~:;, ~:*~A Error~:P~]." 
+                         (length (tests-run tr))
+                         (length (failures tr))
+                         (length (errors tr))))))
+        
+        ;; not that suites with no tests think that they are completely successful
+        ;; optimisitc little buggers, huh?
+        (when (and (not complete-success?) *test-describe-if-not-successful?*)
+          (format stream "~%") 
+          (print-test-result-details stream tr))))))
 
 ;;; ---------------------------------------------------------------------------
 
@@ -1229,17 +1267,18 @@ control over where in the test hierarchy the search begins."
     (unless *test-is-being-defined?*
       (format stream "~&Test Report for ~A: ~D test~:P run" 
               (test-class-name result) (length (tests-run result))))
-    
-    (cond ((or (failures result) (errors result))
-           (format stream "~[~:;, ~:*~A Failure~:P~]~[~:;, ~:*~A Error~:P~]." 
-                   number-of-failures
-                   number-of-errors)
-           (format stream "~%~%")
-           
-           (print-test-result-details stream result))
-          (t
-           (unless *test-is-being-defined?*
-             (format stream ", all passed!"))))
+    (let* ((*print-level* (get-test-print-level))
+           (*print-length* (get-test-print-length)))
+      (cond ((or (failures result) (errors result))
+             (format stream "~[~:;, ~:*~A Failure~:P~]~[~:;, ~:*~A Error~:P~]." 
+                     number-of-failures
+                     number-of-errors)
+             (format stream "~%~%")
+             
+             (print-test-result-details stream result))
+            (t
+             (unless *test-is-being-defined?*
+               (format stream ", all passed!")))))
     
     (values)))
 
@@ -1259,9 +1298,7 @@ control over where in the test hierarchy the search begins."
          (method (test-method report))
          (condition (test-condition report))
          (code (test-report-code suite method))
-         (testsuite-name (testsuite-method->name method))
-         (*print-length* *test-print-length*)
-         (*print-level* *test-print-level*))
+         (testsuite-name (testsuite-method->name method)))
     
     (format stream "~&~A~(~A : ~A~)" prefix (type-of suite) testsuite-name)
     (let ((doc-string (gethash (intern testsuite-name) 
@@ -1328,22 +1365,27 @@ control over where in the test hierarchy the search begins."
 (defun remove-previous-definitions (classname)
   "Remove the methods of this class and all its subclasses."
   (let ((classes-removed nil)
-        (class (find-class classname nil)))
+        (class (find-class classname nil))
+        (removed-count 0))
     (when class
-      (loop for subclass in (subclasses class :proper? t) do
+      (loop for subclass in (subclasses class :proper? nil) do
             (push subclass classes-removed)
-            (remove-methods (class-name subclass) :verbose? t)
+            (incf removed-count
+                  (remove-methods (class-name subclass) :verbose? nil))
             #+Ignore
             ;;?? causing more trouble than it solves...??
             (setf (find-class (class-name subclass)) nil))
       
-      (unless (or (null classes-removed) (length-1-list-p classes-removed))
+      (unless (length-1-list-p classes-removed)
         (format *test-output* 
-                "~&;;; Removing Test Class ~A and its subclasses (~{~<~s~>~^, ~})."
+                "~&;;; Removed Test suite ~(~A~) and its subclasses (~{~<~s~>~^, ~})."
                 classname (sort 
-                           (delete classname 
-                                   (mapcar #'class-name classes-removed))
-                           #'string-lessp))))))
+                           (delete classname (mapcar #'class-name classes-removed))
+                           #'string-lessp)))
+      (unless (zerop removed-count)
+        (format *test-output* 
+                "~&;;; Removed ~D methods from test suite ~(~A~)~@[ and its subclasses~]."
+                removed-count classname (not (length-1-list-p classes-removed)))))))
 
 ;;; ---------------------------------------------------------------------------
 

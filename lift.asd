@@ -54,7 +54,10 @@ instructions."))
   :long-description "LIFT is yet another SUnit variant."
   
   :components ((:module "dev" 
-                        :components ((:file "lift")
+                        :components ((:static-file "notes.text")
+                                     
+                                     (:file "lift")
+                                      
                         #+Ignore
                                      (:file "prototypes"
                                             :depends-on ("lift"))))
@@ -71,7 +74,9 @@ instructions."))
   :requires (lift metatilities-base)
   :perform (load-op :after (op c)
                     (use-package (find-package "LIFT") 
-                                 (find-package "METATILITIES")))) 
+                                 (find-package "METATILITIES"))
+                    (funcall (intern "EXPORT-EXPORTED-SYMBOLS" "METATILITIES")
+                             "LIFT" "METATILITIES"))) 
 
 
 

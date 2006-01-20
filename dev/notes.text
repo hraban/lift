@@ -1,5 +1,10 @@
 (in-package lift)
 
+LIFT: full-describe
+ok - LIFT: variable to control behavior on warning / failure: print full report, etc.
+LIFT: handle macros better
+LIFT: code walker -- even a simple one that just tree searched for macros
+
 (list lift::*test-is-being-compiled?*
       lift::*test-is-being-defined?*
       lift::*test-is-being-executed?*
