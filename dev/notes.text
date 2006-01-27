@@ -1,7 +1,5 @@
 (in-package lift)
 
-LIFT: full-describe
-ok - LIFT: variable to control behavior on warning / failure: print full report, etc.
 LIFT: handle macros better
 LIFT: code walker -- even a simple one that just tree searched for macros
 
@@ -360,3 +358,5 @@ something wrong with loading or compiling addtest, the numbers don't get
   change to getting count at start of deftestsuite and then add 1 to a special 
   for each
 no - use dynamic scope for *test-is-being-compiled?* rather than unwind-protect
+ok - LIFT: better control of printing (:follow-print)
+ok - LIFT: variable to control behavior on warning / failure: print full report, etc.

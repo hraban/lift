@@ -776,6 +776,7 @@ Test-options are :setup, :teardown, :test, :tests,
     (initialize-current-definition)
     (setf (def :testsuite-name) testsuite-name)
     (setf (def :superclasses) superclasses)
+    (setf (def :deftestsuite) t)
     
     ;; parse clauses into defs
     (loop for clause in clauses-and-options do
@@ -853,7 +854,10 @@ Test-options are :setup, :teardown, :test, :tests,
                 ,(if *test-evaluate-when-defined?* 
                    `(unless (or *test-is-being-compiled?*
                                 *test-is-being-loaded?*)
-                      (let ((*test-break-on-errors?* *test-is-being-defined?*))
+                      (let ((*test-break-on-errors?* *test-break-on-errors?* 
+                             #+Ignore
+                             ;;?? Gary King 2006-01-23: what was I thinking?
+                             *test-is-being-defined?*))
                         (run-tests :suite ',testsuite-name)))
                    `(find-class ',testsuite-name)))
               
@@ -905,6 +909,10 @@ Test-options are :setup, :teardown, :test, :tests,
       
       (unless (def :testsuite-name)
         (signal-lift-error 'add-test +lift-no-current-test-class+))
+      (unless (or (def :deftestsuite) 
+                  (find-class (def :testsuite-name) nil))
+        (signal-lift-error 'add-test +lift-test-class-not-found+
+                           (def :testsuite-name)))
       
       `(eval-when (:compile-toplevel :load-toplevel :execute)
          (eval-when (:compile-toplevel)
