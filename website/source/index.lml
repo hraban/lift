@@ -11,11 +11,10 @@
     (generate-two-line-header
      "LIFT" "Fighting like cats")
     
-    ((:TABLE :CLASS "system-overview")
-     (:tr
-      (generate-system-sidebar)
-      
-      ((:TD :CLASS "system-description")
+    ((:DIV :CLASS "contents")
+     (generate-system-sidebar)
+     
+     ((:DIV :CLASS "system-description")
        (:H3 "What it is")
        (:P 
         "LIFT is yet another " (:B "LI") "sp " (:B "F") "ramework for " (:B "T") "esting   in the SUnit / JUnit mold. It is, however, much cooler and that's not just because it has a spunkier acronymn.")
@@ -57,7 +56,7 @@ darcs get http://common-lisp.net/project/cl-containers/moptilities/darcs/moptili
         ((:TABLE :BORDER "0") 
          ((:TR :ALIGN "left" :VALIGN "top")
           ((:TD) "18 Nov 2005")
-          (:TD "Finally get LIFT to an increasingly grateful (?!) world."))))))
+          (:TD "Finally get LIFT to an increasingly grateful (?!) world.")))))
     
     
     ((:DIV :CLASS "footer")
