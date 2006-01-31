@@ -386,8 +386,7 @@ the test is running. Note that this may interact oddly with ensure-warning.")
                               :accessor assertion
                               :initarg :assertion))
   (:report (lambda (c s)
-             (format s "Ensure failed: ~S" (assertion c))
-             (call-next-method))))
+             (format s "Ensure failed: ~S" (assertion c)))))
 
 ;;; ---------------------------------------------------------------------------
 
@@ -403,8 +402,7 @@ the test is running. Note that this may interact oddly with ensure-warning.")
   (:report (lambda (c s)
              (format s "Expected ~A but got ~S" 
                      (expected-condition-type c)
-                     (the-condition c))
-             (call-next-method))))
+                     (the-condition c)))))
 
 ;;; ---------------------------------------------------------------------------
 
@@ -417,8 +415,7 @@ the test is running. Note that this may interact oddly with ensure-warning.")
                          :initarg :test))
   (:report (lambda (c s)
              (format s "Ensure-same: ~S is not ~S to ~S"
-                     (first-value c) (test c) (second-value c))
-             (call-next-method))))
+                     (first-value c) (test c) (second-value c)))))
 
 ;;; ---------------------------------------------------------------------------
 
@@ -581,6 +578,74 @@ Ensure same compares value-or-values-1 value-or-values-2 or each value of value-
 (defgeneric testsuite-methods (test-suite)
   (:documentation "Returns a list of the test methods defined for test. I.e.,
 the methods that should be run to do the tests for this test."))
+
+;;; ---------------------------------------------------------------------------
+
+(defgeneric do-testing (test-suite result fn)
+  (:documentation ""))
+
+(defgeneric end-test (result case method-name)
+  (:documentation ""))
+
+(defgeneric initialize-test (test)
+  (:documentation ""))
+
+(defgeneric make-test-result (test-class test-mode)
+  (:documentation ""))
+
+(defgeneric run-test-internal (case method result)
+  (:documentation ""))
+
+(defgeneric run-tests-internal (case &key result)
+  (:documentation ""))
+
+(defgeneric start-test (result case method-name)
+  (:documentation ""))
+
+(defgeneric test-case-documentation (class-name)
+  (:documentation ""))
+
+(defgeneric (setf test-case-documentation) (value class-name)
+  (:documentation ""))
+
+(defgeneric test-code->name-table (class-name)
+  (:documentation ""))
+
+(defgeneric test-name->code-table (class-name)
+  (:documentation ""))
+
+(defgeneric (setf test-code->name-table) (value class-name)
+  (:documentation ""))
+
+(defgeneric (setf test-name->code-table) (value class-name)
+  (:documentation ""))
+
+(defgeneric test-report-code (test-suite method)
+  (:documentation ""))
+
+(defgeneric test-slots (class-name)
+  (:documentation ""))
+
+(defgeneric (setf test-slots) (value class-name)
+  (:documentation ""))
+
+(defgeneric test-suite-p (class)
+  (:documentation ""))
+
+(defgeneric testsuite-method->name (gf)
+  (:documentation ""))
+
+(defgeneric testsuite-name->gf (case name)
+  (:documentation ""))
+
+(defgeneric testsuite-name->method (class name)
+  (:documentation ""))
+
+(defgeneric testsuite-prototype (class-name)
+  (:documentation ""))
+
+(defgeneric (setf testsuite-prototype) (value class-name)
+  (:documentation ""))
 
 ;;; ---------------------------------------------------------------------------
 
@@ -811,64 +876,65 @@ Test-options are :setup, :teardown, :test, :tests,
           (push ',return *test-is-being-loaded?*))
         (eval-when (:execute)
           (push ',return *test-is-being-executed?*))
-        (unwind-protect
-          (let ((*test-is-being-defined?* t))
-            (handler-case 
-              (progn
-                ;; remove previous methods (do this _before_ we define the class)
-                (remove-previous-definitions ',(def :testsuite-name))
-                (setf *current-case-method-name* nil)
+        (let (#+MCL (ccl:*warn-if-redefine* nil))
+          (unwind-protect
+            (let ((*test-is-being-defined?* t))
+              (handler-case 
+                (progn
+                  ;; remove previous methods (do this _before_ we define the class)
+                  (remove-previous-definitions ',(def :testsuite-name))
+                  (setf *current-case-method-name* nil)
+                  
+                  ;; and then redefine the class
+                  ,(build-test-class)
+                  (setf *current-suite-class-name* ',(def :testsuite-name))
+                  
+                  ,@(when (def :export-p)
+                      `((export '(,(def :testsuite-name)))))
+                  ,@(when (def :export-slots?)
+                      `((export ',(def :direct-slot-names))))
+                  
+                  ;; make a place to save test-case information
+                  (empty-test-tables ',(def :testsuite-name))
+                  
+                  ;;; create methods
+                  ;; setup :before
+                  ,@(build-initialize-test-method) 
+                  
+                  ,@(loop for (nil . block) in *code-blocks* 
+                          when (and block 
+                                    (code block)
+                                    (eq (operate-when block) :methods)
+                                    (or (not (filter block))
+                                        (funcall (filter block)))) collect
+                          (funcall (code block)))
+                  
+                  ;; tests
+                  ,@(when test-list
+                      `((let ((*test-evaluate-when-defined?* nil))
+                          ,@(loop for test in (nreverse test-list) collect
+                                  `(addtest (,(def :testsuite-name)) 
+                                     ,@test))
+                          (setf *testsuite-test-count* nil))))
+                  
+                  ,(if *test-evaluate-when-defined?* 
+                     `(unless (or *test-is-being-compiled?*
+                                  *test-is-being-loaded?*)
+                        (let ((*test-break-on-errors?* *test-break-on-errors?* 
+                                                       #+Ignore
+                                                       ;;?? Gary King 2006-01-23: what was I thinking?
+                                                       *test-is-being-defined?*))
+                          (run-tests :suite ',testsuite-name)))
+                     `(find-class ',testsuite-name)))
                 
-                ;; and then redefine the class
-                ,(build-test-class)
-                (setf *current-suite-class-name* ',(def :testsuite-name))
-                
-                ,@(when (def :export-p)
-                    `((export '(,(def :testsuite-name)))))
-                ,@(when (def :export-slots?)
-                    `((export ',(def :direct-slot-names))))
-                
-                ;; make a place to save test-case information
-                (empty-test-tables ',(def :testsuite-name))
-                
-                ;;; create methods
-                ;; setup :before
-                ,@(build-initialize-test-method) 
-                
-                ,@(loop for (nil . block) in *code-blocks* 
-                        when (and block 
-                                  (code block)
-                                  (eq (operate-when block) :methods)
-                                  (or (not (filter block))
-                                      (funcall (filter block)))) collect
-                        (funcall (code block)))
-                
-                ;; tests
-                ,@(when test-list
-                    `((let ((*test-evaluate-when-defined?* nil))
-                        ,@(loop for test in (nreverse test-list) collect
-                                `(addtest (,(def :testsuite-name)) 
-                                   ,@test))
-                        (setf *testsuite-test-count* nil))))
-                
-                ,(if *test-evaluate-when-defined?* 
-                   `(unless (or *test-is-being-compiled?*
-                                *test-is-being-loaded?*)
-                      (let ((*test-break-on-errors?* *test-break-on-errors?* 
-                             #+Ignore
-                             ;;?? Gary King 2006-01-23: what was I thinking?
-                             *test-is-being-defined?*))
-                        (run-tests :suite ',testsuite-name)))
-                   `(find-class ',testsuite-name)))
-              
-              (condition (c) 
-                         (setf *testsuite-test-count* nil)
-                         (lift-report-condition c))))
-          
-          ;; cleanup
-          (setf *test-is-being-compiled?* (remove ',return *test-is-being-compiled?*))
-          (setf *test-is-being-loaded?* (remove ',return *test-is-being-loaded?*))
-          (setf *test-is-being-executed?* (remove ',return *test-is-being-executed?*)))))))
+                (condition (c) 
+                           (setf *testsuite-test-count* nil)
+                           (lift-report-condition c))))
+            
+            ;; cleanup
+            (setf *test-is-being-compiled?* (remove ',return *test-is-being-compiled?*))
+            (setf *test-is-being-loaded?* (remove ',return *test-is-being-loaded?*))
+            (setf *test-is-being-executed?* (remove ',return *test-is-being-executed?*))))))))
 
 ;;; ---------------------------------------------------------------------------
   
@@ -1496,6 +1562,7 @@ control over where in the test hierarchy the search begins."
 (defun build-test-test-method (test-class test-body)
   (multiple-value-bind (test-name body documentation name-supplied?)
                        (parse-test-body test-body)
+    (declare (ignorable name-supplied?))
     (unless (consp (first body))
       (setf body (list body)))
     
@@ -1506,14 +1573,15 @@ control over where in the test hierarchy the search begins."
        ,(when documentation
           `(setf (gethash ',test-name (test-case-documentation ',test-class))
                  ,documentation))
-
+       
        #+MCL
        ,@(when name-supplied?
-           `((let ((ccl:*warn-if-redefine* nil))
-               (ccl:record-source-file ',test-name 'test-case))))
+           `((ccl:record-source-file ',test-name 'test-case)))
        
-       (defmethod ,test-name ((test ,test-class))
-         (with-test-slots ,@body))
+       (defgeneric ,test-name (test-case)
+         (:method ((test ,test-class))
+                  (with-test-slots ,@body)))
+       
        (setf *current-case-method-name* 
              (intern (method-name->test-name (symbol-name ',test-name))))
        
