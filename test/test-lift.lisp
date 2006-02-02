@@ -2,11 +2,7 @@
 
 #| simple-header
 
-
-
-
-
-Copyright (c) 2001-2003 Gary Warren King (gwking@cs.umass.edu) 
+Copyright (c) 2001-2006 Gary Warren King (gwking@cs.umass.edu) 
 
 Permission is hereby granted, free of charge, to any person obtaining a 
 copy of this software and associated documentation files (the "Software"),
@@ -288,10 +284,10 @@ DEALINGS IN THE SOFTWARE.
   ())
 
 (deftestsuite test-creating-multiple-tests-helper ()
- Ê()
- Ê(:tests ((ensure-same 1 1)
- Ê Ê Ê Ê Ê (ensure-same 2 2))
- Ê Ê Ê Ê Ê((ensure-same 3 3))))
+ ()
+ (:tests ((ensure-same 1 1)
+          (ensure-same 2 2))
+         ((ensure-same 3 3))))
 
 (addtest (test-creating-multiple-tests)
   test-1
