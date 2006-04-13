@@ -490,11 +490,11 @@ Ensure same compares value-or-values-1 value-or-values-2 or each value of value-
   `(progn
      (loop for value in (multiple-value-list ,form)
            for other-value in (multiple-value-list ,values) do
-           (unless (funcall ',(if test-specified-p test *lift-equality-test*)
+           (unless (funcall ,(if test-specified-p (list 'quote test) '*lift-equality-test*)
                             value other-value)
              (maybe-raise-not-same-condition 
               value other-value
-              ',(if test-specified-p test *lift-equality-test*) ,report ,args)))
+              ,(if test-specified-p (list 'quote test) '*lift-equality-test*) ,report ,args)))
      (values t)))
 
 ;;; ---------------------------------------------------------------------------
@@ -522,7 +522,9 @@ Ensure same compares value-or-values-1 value-or-values-2 or each value of value-
    (current-values :initform nil :accessor current-values)
    (test-slot-names :initform nil :initarg :test-slot-names :reader test-slot-names)
    (current-step :initform :created :accessor current-step)
-   (current-method :initform nil :accessor current-method))
+   (current-method :initform nil :accessor current-method)
+   (save-equality-test :initform nil  :reader save-equality-test)
+   (equality-test :initform 'equal :initarg :equality-test :reader equality-test))
   (:documentation "A simple test suite")
   (:default-initargs
     :single-setup? nil))
@@ -547,7 +549,9 @@ Ensure same compares value-or-values-1 value-or-values-2 or each value of value-
   (:method ((test-suite test-mixin))
            (values))
   (:method :before ((test-suite test-mixin))
-           (setf (current-step test-suite) 'testsuite-setup))
+           (setf (current-step test-suite) 'testsuite-setup
+                 (slot-value test-suite 'save-equality-test) *lift-equality-test*
+                 *lift-equality-test* (equality-test test-suite)))
   (:method :after ((test-suite test-mixin))
            (initialize-prototypes test-suite)))
 
@@ -557,7 +561,9 @@ Ensure same compares value-or-values-1 value-or-values-2 or each value of value-
 (defgeneric testsuite-teardown (test-suite)
   (:documentation "Cleanup at the testsuite level.")
   (:method ((test-suite test-mixin))
-           (values)))
+           (values))
+  (:method :after ((test-suite test-mixin))
+           (setf *lift-equality-test* (save-equality-test test-suite))))
 
 (defgeneric more-prototypes-p (test-suite)
   (:documentation "Returns true if another prototype set exists for the case."))
@@ -810,6 +816,13 @@ the thing being defined.")
  :single-setup 0 :class-def
  nil 
  '((setf (def :single-setup) (first value)))
+ nil)
+
+(add-code-block
+ :equality-test 0 :class-def
+ nil 
+ '((push (first value) (def :default-initargs))
+   (push :equality-test (def :default-initargs)))
  nil)
 
 (defmacro deftestsuite (testsuite-name superclasses slots &rest
