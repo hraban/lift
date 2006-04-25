@@ -274,7 +274,7 @@ the test is running. Note that this may interact oddly with ensure-warning.")
 (defparameter *test-print-when-defined?* nil)
 (defparameter *test-evaluate-when-defined?* t)
 (defparameter *test-scratchpad* nil
-  "A place to put things.")
+  "A place to put things. This is set to nil before every test.")
 
 (defparameter *lift-equality-test* 'equal
   "The function used in ensure-same to test if two things are equal. If metatilities is loaded, then you might want to use samep.")
@@ -652,6 +652,11 @@ the methods that should be run to do the tests for this test."))
 
 (defgeneric (setf testsuite-prototype) (value class-name)
   (:documentation ""))
+
+;;; ---------------------------------------------------------------------------
+
+(defmethod setup-test :before ((test test-mixin))
+  (setf *test-scratchpad* nil))
 
 ;;; ---------------------------------------------------------------------------
 

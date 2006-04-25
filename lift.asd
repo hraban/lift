@@ -34,7 +34,7 @@ DEALINGS IN THE SOFTWARE.
 ;; try hard
 (unless (find-system 'asdf-system-connections nil)
  (when (find-package 'asdf-install)
-   (funcall (intern "INSTALL" "ASDF-INSTALL") 'asdf-system-connections)))
+   (funcall (intern (symbol-name :install) :asdf-install) 'asdf-system-connections)))
 ;; give up with a useful (?) error message
 (unless (find-system 'asdf-system-connections nil)
   (error "The LIFT system requires ASDF-SYSTEM-CONNECTIONS. See 
@@ -44,7 +44,7 @@ instructions."))
 ;; now make sure it's loaded
 (operate 'load-op 'asdf-system-connections)
 
-(defsystem LIFT
+(defsystem lift
   :version "1.0"
   :author "Gary Warren King <gwking@metabang.com>"
   :version "1.0"
@@ -73,10 +73,12 @@ instructions."))
 (asdf:defsystem-connection lift-and-metatilities
   :requires (lift metatilities-base)
   :perform (load-op :after (op c)
-                    (use-package (find-package "LIFT") 
-                                 (find-package "METATILITIES"))
-                    (funcall (intern "EXPORT-EXPORTED-SYMBOLS" "METATILITIES")
-                             "LIFT" "METATILITIES"))) 
+                    (use-package (find-package :lift) 
+                                 (find-package :metatilities))
+                    (funcall (intern 
+                              (symbol-name :export-exported-symbols)
+                              'metatilities)
+                             :lift :metatilities))) 
 
 
 
