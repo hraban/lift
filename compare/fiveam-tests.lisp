@@ -1,6 +1,6 @@
 (defpackage "KMRCL-TESTS-5AM"
   (:use "COMMON-LISP" "KMRCL" "5AM"))
-(in-package kmrcl-tests-5am)
+(in-package #:kmrcl-tests-5am)
 
 (def-suite test-strings :description "Test some KMRCL string tests.")
 (in-suite test-strings)

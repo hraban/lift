@@ -24,7 +24,7 @@ DEALINGS IN THE SOFTWARE.
 
 |#
 
-(in-package lift)
+(in-package #:lift)
 
 (pushnew :cases *deftest-clauses*)
 

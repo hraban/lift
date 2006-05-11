@@ -1,4 +1,4 @@
-(in-package lift)
+(in-package #:lift)
 
 (deftestsuite test-case-generation () ())
 (deftestsuite test-case-generation-simple (test-case-generation) ())

@@ -1,4 +1,4 @@
-(in-package lift)
+(in-package #:lift)
 
 If a test suite isn't defined and try to define a test for it, you get an odd error instead 
 

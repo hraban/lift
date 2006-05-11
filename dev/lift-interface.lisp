@@ -27,7 +27,7 @@ DISCUSSION
                 #:test-class-name
                 #:run-tests-internal))
 
-(in-package lift-interface)
+(in-package #:lift-interface)
 
 (defvar *lift-report-window* nil)
 

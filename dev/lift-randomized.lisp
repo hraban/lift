@@ -1,4 +1,4 @@
-(in-package lift)
+(in-package #:lift)
 
 ;;; ---------------------------------------------------------------------------
 ;;; randomized testing helpers

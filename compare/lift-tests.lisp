@@ -1,6 +1,6 @@
 (defpackage "KMRCL-TESTS-LIFT"
   (:use "COMMON-LISP" "KMRCL" "LIFT"))
-(in-package kmrcl-tests-lift)
+(in-package #:kmrcl-tests-lift)
 
 (deftestsuite test-strings () ())
 (addtest :str.0

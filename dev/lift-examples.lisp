@@ -28,7 +28,7 @@ DEALINGS IN THE SOFTWARE.
 
 |#
 
-(in-package lift)
+(in-package #:lift)
 
 ;;; ---------------------------------------------------------------------------
 ;;; a simple example

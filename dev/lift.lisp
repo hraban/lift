@@ -29,7 +29,7 @@ DEALINGS IN THE SOFTWARE.
     (defpackage lift
       (:use common-lisp mopu))))
 
-(in-package lift)
+(in-package #:lift)
 
 (export '(test-mixin
           test-suite-p
