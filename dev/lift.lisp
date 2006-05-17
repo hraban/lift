@@ -25,9 +25,9 @@ DEALINGS IN THE SOFTWARE.
 |#
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
-  (unless (find-package :lift)
-    (defpackage lift
-      (:use common-lisp mopu))))
+  (unless (find-package '#:lift)
+    (defpackage #:lift
+      (:use #:common-lisp #:mopu))))
 
 (in-package #:lift)
 
