@@ -2,7 +2,6 @@
 
 #| simple-header
 
-$Id: lift.asd,v 1.3 2005/08/09 01:56:18 gwking Exp $
 $Author: gwking $
 $Date: 2005/08/09 01:56:18 $
 
@@ -28,10 +27,10 @@ DEALINGS IN THE SOFTWARE.
 
 |#
 
-(defpackage :asdf-lift-tests (:use #:asdf #:cl))
-(in-package :asdf-lift-tests)
+(defpackage #:asdf-lift-test (:use #:asdf #:cl))
+(in-package #:asdf-lift-test)
 
-(defsystem lift-tests
+(defsystem lift-test
   :version "1.0"
   :author "Gary Warren King <gwking@metabang.com>"
   :maintainer "Gary Warren King <gwking@metabang.com>"
@@ -40,18 +39,13 @@ DEALINGS IN THE SOFTWARE.
   :long-description "LIFT is yet another SUnit variant. These are some self tests."
   
   :components ((:module "test" 
-                        :components ((:file "test-lift")
+                        :components ((:file "lift-test")
+                                     (:file "test-dynamic-variables"
+                                            :depends-on ("lift-test"))
                                      #+Ignore
-                                     (:file "test-prototypes"))))
+                                     (:file "test-prototypes" 
+                                            :depends-on ("lift-test")))))
   
-  :in-order-to ((test-op (load-op lift-tests)))
-  :perform (test-op :after (op c)
-                    (describe
-                     (funcall 
-                      (intern "RUN-TESTS" "LIFT") 
-                      :suite (intern 
-                              "TEST-LIFT"
-                              "LIFT"))))
   :depends-on (lift))
 
 (defmethod operation-done-p 
