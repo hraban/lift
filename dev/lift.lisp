@@ -2,7 +2,7 @@
 
 #| simple-header
 
-Copyright (c) 2001-2003 Gary Warren King (gwking@cs.umass.edu) 
+Copyright (c) 2001-2006 Gary Warren King (gwking@metabang.com) 
 
 Permission is hereby granted, free of charge, to any person obtaining a 
 copy of this software and associated documentation files (the "Software"),
@@ -774,12 +774,17 @@ the thing being defined.")
 
 (defvar *deftest-clauses*
   '(:setup :teardown :test :documentation :tests :export-p :export-slots
-    :single-setup))
+    :single-setup :dynamic-variables :equality-test))
 
 ;;; ---------------------------------------------------------------------------
 
 (defmacro deftest (testsuite-name superclasses slots &rest
                                   clauses-and-options) 
+  "
+### deftest
+
+The `deftest` form is obsolete, see `deftestsuite`."
+  
   (warn "Deftest is obsolete, use deftestsuite instead.")
   `(deftestsuite ,testsuite-name ,superclasses ,slots ,@clauses-and-options))
 
@@ -830,20 +835,76 @@ the thing being defined.")
    (push :equality-test (def :default-initargs)))
  nil)
 
+(add-code-block
+ :dynamic-variables 0 :class-def
+ nil 
+ '((setf (def :dynamic-variables) value))
+ nil)
+
 (defmacro deftestsuite (testsuite-name superclasses slots &rest
                                   clauses-and-options) 
-  "DEFTEST testsuite-name
-\({superclass-name}*\) \({slot-name | (slot-name
-[slot-option*])}*\) [(test-option)]*
+  "
+### deftestsuite
+ 
+    (deftestsuite testsuite-name ({superclass-name}*) 
+        ({slot-name | (slot-name [slot-option*])}*) 
+        [(test-option)*])
 
-Creates a test-suite named 'testsuite-name' and, optionally,
+Creates a test-suite named `testsuite-name` and, optionally,
 the code required for test setup, test tear-down and the
 actual test-cases. A test-suite is a collection of
 test-cases and other test-suites.
 
-Test-options are :setup, :teardown, :test, :tests,
-:documentation, and :export-p"
-  
+Test suites can have multiple superclasses (just like the classes 
+that they are). Usually, these will be other test classes and the class
+hierarchy becomes the test case hierarchy. If necessary, however,
+non-test-suite classes can also be used as superclasses.
+
+Slots are specified as in defclass with the following additions:
+
+* Initargs and accessors are automatically defined. If a slot is named
+`my-slot`, then the initarg will be `:my-slot` and the accessors will be
+`my-slot` and `(setf my-slot)`. 
+* If the second argument is not a CLOS slot option keyword, then it will be
+used as the `:initform` for the slot. I.e., if you have
+
+    (deftestsuite my-test ()
+      ((my-slot 23)))
+
+    then `my-slot` will be initialized to 23 during test setup.
+
+Test options are one of :setup, :teardown, :test, :tests,
+:documentation, :export-p, :dynamic-variables, :export-slots 
+or :equality-test. 
+
+* :documentation - a string specifying any documentation for the test.
+Should only be specified once.
+
+* :dynamic-variables - a list of atoms or pairs of the form (name value). These 
+specify any special variables that should be bound in a let around the body of 
+the test. The name should be symbol designating a special variable. The value (if 
+supplied) will be bound to the variable. If the value is not supplied, the 
+variable will be bound to nil. Should only be specified once.
+
+* :export-p - If true, the testsuite name will be exported from the current 
+package. Should only be specified once.
+
+* :export-slots - if true, any slots specified in the test suite will be 
+exported from the current package. Should only be specified once.
+
+* :setup - a list of forms to be evaluated before each test case is run. 
+Should only be specified once.
+
+* :teardown - a list of forms to be evaluated after each test case is run.
+Should only be specified once.
+
+* :test - Define a single test case. Can be specified 
+multiple times.
+
+* :tests - Define multiple test cases for this test suite. Can be specified 
+multiple times.
+
+"
   #+NO-LIFT-TESTS
   `(values)
   
@@ -1598,7 +1659,8 @@ control over where in the test hierarchy the search begins."
        
        (defgeneric ,test-name (test-case)
          (:method ((test ,test-class))
-                  (with-test-slots ,@body)))
+                  (let (,@(build-dynamics))
+                    (with-test-slots ,@body))))
        
        (setf *current-case-method-name* 
              (intern (method-name->test-name (symbol-name ',test-name))))
@@ -1608,6 +1670,16 @@ control over where in the test hierarchy the search begins."
                            )))
          (format *test-output* "~&;Test Created: ~(~S.~S~)." ',test-class ',test-name))
        *current-case-method-name*)))
+
+;;; ---------------------------------------------------------------------------
+
+(defun build-dynamics ()
+  (let ((result nil))
+    (dolist (putative-pair (def :dynamic-variables))
+      (if (atom putative-pair)
+        (push (list putative-pair nil) result)
+        (push putative-pair result)))
+    (nreverse result)))
 
 ;;; ---------------------------------------------------------------------------
 
