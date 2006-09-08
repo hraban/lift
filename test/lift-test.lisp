@@ -45,8 +45,8 @@ See file COPYING for license
     (ensure-same (failures tr) nil)
     (ensure-same (errors tr) nil)
     (ensure-same (test-mode tr) :single)
-    (ensure-same (test-interactive? tr) nil)
-    (ensure-same (tests-run tr) '("SIMPLE-ENSURE-TEST-1"))))
+;    (ensure-same (test-interactive? tr) nil)
+    (ensure-same (mapcar #'first (tests-run tr)) '("SIMPLE-ENSURE-TEST-1"))))
 
 ;;; ---------------------------------------------------------------------------
 
@@ -60,7 +60,7 @@ See file COPYING for license
     (ensure-same (length (tests-run tr)) 1 :report "Number of tests-run")
     (ensure-same (length (failures tr)) 1 :report "Number of failures")
     (ensure-same (errors tr) nil :report "Number of errors")
-    (ensure-same (tests-run tr) '("SIMPLE-ENSURE-TEST-2"))))
+    (ensure-same (mapcar #'first (tests-run tr)) '("SIMPLE-ENSURE-TEST-2"))))
 
 ;;; ---------------------------------------------------------------------------
 
@@ -74,7 +74,7 @@ See file COPYING for license
     (ensure-same (length (tests-run tr)) 1)
     (ensure-same (length (failures tr)) 0)
     (ensure-same (length (errors tr)) 1)
-    (ensure-same (tests-run tr) '("SIMPLE-ENSURE-TEST-3"))))
+    (ensure-same (mapcar #'first (tests-run tr)) '("SIMPLE-ENSURE-TEST-3"))))
 
 
 ;;; ---------------------------------------------------------------------------
@@ -124,7 +124,7 @@ See file COPYING for license
   setup-teardown-3
   (setf *test-scratchpad* nil)
   (run-test
-   :name setup-teardown-3
+   :name 'setup-teardown-3
    :suite 'lift-test-setup-teardown-3
    :result (make-test-result 'lift-test-setup-teardown-3 :single))
   (ensure-same (reverse *test-scratchpad*)
