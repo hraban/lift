@@ -1,32 +1,3 @@
-;;;-*- Mode: Lisp; Package: ASDF-LIFT -*-
-
-#| simple-header
-
-$Author: gwking $
-$Date: 2005/08/09 01:56:18 $
-
-Copyright (c) 2001-2003 Gary Warren King (gwking@cs.umass.edu) 
-
-Permission is hereby granted, free of charge, to any person obtaining a 
-copy of this software and associated documentation files (the "Software"),
-to deal in the Software without restriction, including without limitation
-the rights to use, copy, modify, merge, publish, distribute, sublicense, 
-and/or sell copies of the Software, and to permit persons to whom the 
-Software is furnished to do so, subject to the following conditions: 
-
-The above copyright notice and this permission notice shall be included in 
-all copies or substantial portions of the Software. 
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL 
-THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING 
-FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
-DEALINGS IN THE SOFTWARE. 
-
-|#
-
 (defpackage #:asdf-lift-test (:use #:asdf #:cl))
 (in-package #:asdf-lift-test)
 
@@ -34,7 +5,7 @@ DEALINGS IN THE SOFTWARE.
   :version "1.0"
   :author "Gary Warren King <gwking@metabang.com>"
   :maintainer "Gary Warren King <gwking@metabang.com>"
-  :licence "MIT Style License"
+  :licence "MIT Style License; see file COPYING for details"
   :description "Tests for LIsp Framework for Testing"
   :long-description "LIFT is yet another SUnit variant. These are some self tests."
   
@@ -42,7 +13,9 @@ DEALINGS IN THE SOFTWARE.
                         :components ((:file "lift-test")
                                      (:file "test-dynamic-variables"
                                             :depends-on ("lift-test"))
-                                     #+Ignore
+                                     (:file "equality-tests"
+                                            :depends-on ("lift-test"))
+				     #+(or)
                                      (:file "test-prototypes" 
                                             :depends-on ("lift-test")))))
   
