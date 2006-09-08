@@ -54,7 +54,6 @@ DEALINGS IN THE SOFTWARE.
           ;; *test-select-listener-on-problem?*    
           
           *test-scratchpad*
-          
           *lift-equality-test*
           *test-print-length*
           *test-print-level*
@@ -71,7 +70,6 @@ DEALINGS IN THE SOFTWARE.
           ;; with-test
           
           list-tests
-          
           testsuites
           testsuite-tests
           ))
@@ -286,9 +284,9 @@ the test is running. Note that this may interact oddly with ensure-warning.")
   "If true, then a complete test description is printed when there are any test warnings or failures. Otherwise, one would need to explicity call describe.")
 
 (defvar *test-print-length* :follow-print
-  "The print-length in effect when LIFT prints test results. It works exactly like *print-length* except that it can also take on the value :follow-print. In this case, it will be set to whatever *print-length* is.")
+  "The print-length in effect when LIFT prints test results. It works exactly like `*print-length*` except that it can also take on the value :follow-print. In this case, it will be set to the value of  `*print-length*`.")
 (defvar *test-print-level* :follow-print
-  "The print-level in effect when LIFT prints test results. It works exactly like *print-level* except that it can also take on the value :follow-print. In this case, it will be set to whatever *print-level* is.")
+  "The print-level in effect when LIFT prints test results. It works exactly like `*print-level*` except that it can also take on the value :follow-print. In this case, it will be set to whatever `*print-level*` is.")
           
 (defvar *test-environment* nil)
 
@@ -524,7 +522,8 @@ Ensure same compares value-or-values-1 value-or-values-2 or each value of value-
    (current-step :initform :created :accessor current-step)
    (current-method :initform nil :accessor current-method)
    (save-equality-test :initform nil  :reader save-equality-test)
-   (equality-test :initform 'equal :initarg :equality-test :reader equality-test))
+   (equality-test :initform 'equal :initarg :equality-test :reader equality-test)
+   (log-file :initform nil :initarg :log-file :reader log-file))
   (:documentation "A simple test suite")
   (:default-initargs
     :single-setup? nil))
@@ -836,6 +835,13 @@ The `deftest` form is obsolete, see `deftestsuite`."
  nil)
 
 (add-code-block
+ :log-file 0 :class-def
+ nil 
+ '((push (first value) (def :default-initargs))
+   (push :log-file (def :default-initargs)))
+ nil)
+
+(add-code-block
  :dynamic-variables 0 :class-def
  nil 
  '((setf (def :dynamic-variables) value))
@@ -885,6 +891,9 @@ specify any special variables that should be bound in a let around the body of
 the test. The name should be symbol designating a special variable. The value (if 
 supplied) will be bound to the variable. If the value is not supplied, the 
 variable will be bound to nil. Should only be specified once.
+
+* :equality-test - the name of the function to be used by default in calls
+to ensure-same. Should only be supplied once. 
 
 * :export-p - If true, the testsuite name will be exported from the current 
 package. Should only be specified once.
@@ -1147,16 +1156,20 @@ multiple times.
 
 ;;; ---------------------------------------------------------------------------
 
-(defmethod run-tests-internal ((test-class standard-class) &rest args &key &allow-other-keys)
+(defmethod run-tests-internal ((test-class standard-class) &rest 
+			       args &key &allow-other-keys)
   (apply #'run-tests-internal (class-name test-class) args))
 
 ;;; ---------------------------------------------------------------------------
 
-(defmethod run-tests-internal ((case test-mixin) &key 
-                               (result (make-test-result (class-of case) :multiple)))
-  (do-testing case result 
-              (lambda ()
-                (testsuite-run case result))))
+(defmethod run-tests-internal 
+    ((case test-mixin) &key 
+     (result (make-test-result (class-of case) :multiple))
+     (do-children? *test-do-children?*))
+  (let ((*test-do-children?* do-children?))
+    (do-testing case result 
+		(lambda ()
+		  (testsuite-run case result)))))
 
 ;;; ---------------------------------------------------------------------------
 
@@ -1194,7 +1207,8 @@ control over where in the test hierarchy the search begins."
   (:method ((suite test-mixin))
            (nreverse
             (mapcar (lambda (method)
-                      (intern (format nil "~@:(~A~)" (testsuite-method->name method))))
+                      (intern (format nil "~@:(~A~)" 
+				      (testsuite-method->name method))))
                     (testsuite-methods suite))))) 
 
 ;;; ---------------------------------------------------------------------------
@@ -1657,6 +1671,16 @@ control over where in the test hierarchy the search begins."
        ,@(when name-supplied?
            `((ccl:record-source-file ',test-name 'test-case)))
        
+       #+(or)
+       (defmethod lift-test ((suite ,test-class) (case (eql ',test-name)))
+	 (let (,@(build-dynamics))
+	   (with-test-slots ,@body)))
+
+       (defmethod ,test-name ((test ,test-class))
+	 (let (,@(build-dynamics))
+	   (with-test-slots ,@body)))
+
+       #+(or)
        (defgeneric ,test-name (test-case)
          (:method ((test ,test-class))
                   (let (,@(build-dynamics))
@@ -1786,7 +1810,7 @@ control over where in the test hierarchy the search begins."
    (lambda (gf)
      (let ((name (generic-function-name gf)))
        (etypecase name
-         (symbol (test-method-name-p (symbol-name name)))
+         (symbol (test-method-name-p name))
          (cons nil))))
    (generic-functions classname)))
 
@@ -1817,9 +1841,14 @@ control over where in the test hierarchy the search begins."
 
 ;;; ---------------------------------------------------------------------------
 
+#+(or)
 (defun test-method-name-p (test-name)
-  (string-equal +test-method-prefix+ test-name
-                :end2 (min (length +test-method-prefix+) (length test-name))))
+  (eq test-name 'lift-test))
+
+(defun test-method-name-p (test-name)
+  (let ((name (symbol-name test-name)))
+    (string-equal +test-method-prefix+ name
+		  :end2 (min (length +test-method-prefix+) (length name)))))
 
 ;;; ---------------------------------------------------------------------------
 
