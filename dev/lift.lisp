@@ -27,63 +27,112 @@ DEALINGS IN THE SOFTWARE.
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (unless (find-package '#:lift)
     (defpackage #:lift
-      (:use #:common-lisp #:mopu))))
+      (:use #:common-lisp)
+      (:import-from		     
+       #+allegro #:mop
+       #+clisp #:clos
+       #+lispworks #:clos
+       #+mcl #:ccl
+       #+cmu #:clos-mop
+       #+sbcl #:sb-mop
+       class-direct-subclasses))))
 
 (in-package #:lift)
 
-(export '(test-mixin
-          test-suite-p
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (export '(test-mixin
+	    test-suite-p
           
-          deftest
-          deftestsuite
-          addtest
-          remove-test
-          run-test
-          run-tests
+	    deftest
+	    deftestsuite
+	    addtest
+	    remove-test
+	    run-test
+	    run-tests
           
-          ;; Variables
-          *test-ignore-warnings?*
-          *test-break-on-errors?*
-          *test-print-length*
-          *test-print-level*
-          *test-print-when-defined?*
-          *test-evaluate-when-defined?*
-          *test-describe-if-not-successful?*
+	    ;; Variables
+	    *test-ignore-warnings?*
+	    *test-break-on-errors?*
+	    *test-print-length*
+	    *test-print-level*
+	    *test-print-when-defined?*
+	    *test-evaluate-when-defined?*
+	    *test-describe-if-not-successful?*
           
-          ;;?? not implemented
-          ;; *test-select-listener-on-problem?*    
+	    ;;?? not implemented
+	    ;; *test-select-listener-on-problem?*    
           
-          *test-scratchpad*
-          *lift-equality-test*
-          *test-print-length*
-          *test-print-level*
-          *test-output*
+	    *test-scratchpad*
+	    *lift-equality-test*
+	    *test-print-length*
+	    *test-print-level*
+	    *test-output*
           
-          ;; Other
-          ensure
-          ensure-same
-          ensure-condition
-          ensure-warning
-          ensure-error
+	    ;; Other
+	    ensure
+	    ensure-same
+	    ensure-condition
+	    ensure-warning
+	    ensure-error
           
-          ;;?? Not yet
-          ;; with-test
+	    ;;?? Not yet
+	    ;; with-test
           
-          list-tests
-          testsuites
-          testsuite-tests
-          ))
+	    list-tests
+	    testsuites
+	    testsuite-tests
+	    )))
 
 ;;; ---------------------------------------------------------------------------
 ;;; shared stuff
-;;; ---------------------------------------------------------------------------
+;;; ---------------------------------------------------------------------------	
+
+(defgeneric get-class (thing &key error?)
+  (:documentation "Returns the class of thing or nil if the class cannot be found. Thing can be a class, an object representing a class or a symbol naming a class. Get-class is like find-class only not as particular.")
+  (:method ((thing symbol) &key error?)
+           (find-class thing error?))
+  (:method ((thing standard-object) &key error?)
+           (declare (ignore error?))
+           (class-of thing))
+  (:method ((thing t) &key error?) 
+           (declare (ignore error?))
+           (class-of thing))
+  (:method ((thing class) &key error?)
+           (declare (ignore error?))
+           thing))
+
+(defun direct-subclasses (thing)
+  "Returns the immediate subclasses of thing. Thing can be a class, object or symbol naming a class."
+  (class-direct-subclasses (get-class thing)))
+
+(defun map-subclasses (class fn &key proper?)
+  "Applies fn to each subclass of class. If proper? is true, then
+the class itself is not included in the mapping. Proper? defaults to nil."
+  (let ((mapped (make-hash-table :test #'eq)))
+    (labels ((mapped-p (class)
+               (gethash class mapped))
+             (do-it (class root)
+               (unless (mapped-p class)
+                 (setf (gethash class mapped) t)
+                 (unless (and proper? root)
+                   (funcall fn class))
+                 (mapc (lambda (class)
+                         (do-it class nil))
+                       (direct-subclasses class)))))
+      (do-it (get-class class) t))))
+
+(defun subclasses (class &key (proper? t))
+  "Returns all of the subclasses of the class including the class itself."
+  (let ((result nil))
+    (map-subclasses class (lambda (class)
+                            (push class result))
+                    :proper? proper?)
+    (nreverse result)))
 
 (declaim (inline length-1-list-p)) 
 (defun length-1-list-p (x) 
   "Is x a list of length 1?"
   (and (consp x) (null (cdr x))))
-
-;;; ---------------------------------------------------------------------------
 
 (defmacro defclass-property (property &optional (default nil default-supplied?))
   "Create getter and setter methods for 'property' on symbol's property lists." 
@@ -251,7 +300,7 @@ All other CLOS slot options are processed normally."
 ;;; global environment thingies
 ;;; ---------------------------------------------------------------------------
 
-(defparameter +test-method-prefix+ "%TEST-")
+(defparameter +test-method-prefix+ "")
 (defvar *current-suite-class-name* nil)
 (defvar *current-case-method-name* nil)
 
@@ -287,7 +336,8 @@ the test is running. Note that this may interact oddly with ensure-warning.")
   "The print-length in effect when LIFT prints test results. It works exactly like `*print-length*` except that it can also take on the value :follow-print. In this case, it will be set to the value of  `*print-length*`.")
 (defvar *test-print-level* :follow-print
   "The print-level in effect when LIFT prints test results. It works exactly like `*print-level*` except that it can also take on the value :follow-print. In this case, it will be set to whatever `*print-level*` is.")
-          
+(defvar *test-result* nil
+  "Set to the most recent test result by calls to run-test or run-tests.")
 (defvar *test-environment* nil)
 
 
@@ -584,7 +634,8 @@ Ensure same compares value-or-values-1 value-or-values-2 or each value of value-
   (:documentation "Returns a list of the test methods defined for test. I.e.,
 the methods that should be run to do the tests for this test."))
 
-;;; ---------------------------------------------------------------------------
+(defgeneric lift-test (suite name)
+  (:documentation ""))
 
 (defgeneric do-testing (test-suite result fn)
   (:documentation ""))
@@ -598,7 +649,7 @@ the methods that should be run to do the tests for this test."))
 (defgeneric make-test-result (test-class test-mode)
   (:documentation ""))
 
-(defgeneric run-test-internal (case method result)
+(defgeneric run-test-internal (case name result)
   (:documentation ""))
 
 (defgeneric run-tests-internal (case &key result)
@@ -635,9 +686,6 @@ the methods that should be run to do the tests for this test."))
   (:documentation ""))
 
 (defgeneric test-suite-p (class)
-  (:documentation ""))
-
-(defgeneric testsuite-method->name (gf)
   (:documentation ""))
 
 (defgeneric testsuite-name->gf (case name)
@@ -844,8 +892,12 @@ The `deftest` form is obsolete, see `deftestsuite`."
 (add-code-block
  :dynamic-variables 0 :class-def
  nil 
- '((setf (def :dynamic-variables) value))
+ '((setf (def :direct-dynamic-variables) value))
  nil)
+
+(defmacro no-handler-case (form &rest cases)
+  (declare (ignore cases))
+  `,form)
 
 (defmacro deftestsuite (testsuite-name superclasses slots &rest
                                   clauses-and-options) 
@@ -916,21 +968,17 @@ multiple times.
 "
   #+NO-LIFT-TESTS
   `(values)
-  
   #-NO-LIFT-TESTS
   (let ((test-list nil)
         (options nil)
         (return (gensym)))
-    
     ;; convert any clause like :setup foo into (:setup foo)
     (setf clauses-and-options 
           (convert-clauses-into-lists clauses-and-options *deftest-clauses*))
-    
     (initialize-current-definition)
     (setf (def :testsuite-name) testsuite-name)
     (setf (def :superclasses) superclasses)
     (setf (def :deftestsuite) t)
-    
     ;; parse clauses into defs
     (loop for clause in clauses-and-options do
           (typecase clause
@@ -943,7 +991,6 @@ multiple times.
                              (push test test-list)))
                       (t (block-handler kind spec)))))
             (t (error "When parsing ~S" clause))))
-    
     (let ((slot-names nil) (slot-specs nil))
       (loop for slot in (if (listp slots) slots (list slots)) do 
             (push (if (consp slot) (first slot) slot) slot-names)
@@ -951,10 +998,9 @@ multiple times.
       (setf (def :slot-specs) (nreverse slot-specs)
             (def :direct-slot-names) (nreverse slot-names)
             (def :slots-parsed) t))
-    
-    (setf (def :slot-names) (compute-all-slots))
-    
-    (empty-test-tables testsuite-name)                 
+    ;;?? needed
+    (empty-test-tables testsuite-name)
+    (compute-superclass-inheritence)
     (prog2
      (setf *testsuite-test-count* 0)
      `(eval-when (:compile-toplevel :load-toplevel :execute)
@@ -967,28 +1013,28 @@ multiple times.
         (let (#+MCL (ccl:*warn-if-redefine* nil))
           (unwind-protect
             (let ((*test-is-being-defined?* t))
-              (handler-case 
+              (no-handler-case 
                 (progn
-                  ;; remove previous methods (do this _before_ we define the class)
+                  ;; remove previous methods (do this 
+		  ;; _before_ we define the class)
                   (remove-previous-definitions ',(def :testsuite-name))
                   (setf *current-case-method-name* nil)
-                  
                   ;; and then redefine the class
                   ,(build-test-class)
-                  (setf *current-suite-class-name* ',(def :testsuite-name))
-                  
+                  (setf *current-suite-class-name* ',(def :testsuite-name)
+			(test-slots ',(def :testsuite-name)) 
+			',(def :test-slots)
+			(testsuite-dynamic-variables ',(def :testsuite-name))
+			',(def :dynamic-variables))
                   ,@(when (def :export-p)
                       `((export '(,(def :testsuite-name)))))
                   ,@(when (def :export-slots?)
                       `((export ',(def :direct-slot-names))))
-                  
                   ;; make a place to save test-case information
                   (empty-test-tables ',(def :testsuite-name))
-                  
                   ;;; create methods
                   ;; setup :before
                   ,@(build-initialize-test-method) 
-                  
                   ,@(loop for (nil . block) in *code-blocks* 
                           when (and block 
                                     (code block)
@@ -996,7 +1042,6 @@ multiple times.
                                     (or (not (filter block))
                                         (funcall (filter block)))) collect
                           (funcall (code block)))
-                  
                   ;; tests
                   ,@(when test-list
                       `((let ((*test-evaluate-when-defined?* nil))
@@ -1004,40 +1049,43 @@ multiple times.
                                   `(addtest (,(def :testsuite-name)) 
                                      ,@test))
                           (setf *testsuite-test-count* nil))))
-                  
                   ,(if *test-evaluate-when-defined?* 
                      `(unless (or *test-is-being-compiled?*
                                   *test-is-being-loaded?*)
-                        (let ((*test-break-on-errors?* *test-break-on-errors?* 
-                                                       #+Ignore
-                                                       ;;?? Gary King 2006-01-23: what was I thinking?
-                                                       *test-is-being-defined?*))
+                        (let ((*test-break-on-errors?* *test-break-on-errors?*))
                           (run-tests :suite ',testsuite-name)))
                      `(find-class ',testsuite-name)))
-                
                 (condition (c) 
-                           (setf *testsuite-test-count* nil)
-                           (lift-report-condition c))))
-            
+		  (break)
+		  (setf *testsuite-test-count* nil)
+		  (lift-report-condition c))))
             ;; cleanup
-            (setf *test-is-being-compiled?* (remove ',return *test-is-being-compiled?*))
-            (setf *test-is-being-loaded?* (remove ',return *test-is-being-loaded?*))
-            (setf *test-is-being-executed?* (remove ',return *test-is-being-executed?*))))))))
+            (setf *test-is-being-compiled?* 
+		  (remove ',return *test-is-being-compiled?*))
+            (setf *test-is-being-loaded?* 
+		  (remove ',return *test-is-being-loaded?*))
+            (setf *test-is-being-executed?* 
+		  (remove ',return *test-is-being-executed?*))))))))
 
 ;;; ---------------------------------------------------------------------------
   
-(defun compute-all-slots ()
+(defun compute-superclass-inheritence ()
   (let ((done nil)
-        (slots nil))
+        (slots nil)
+	(dynamic-variables nil))
     (dolist (super (def :superclasses))
-      (if (find-class super nil)
-        (dolist (class (superclasses super))
-          (when (and (test-suite-p class) 
-                     (not (member class done)))
-            (push class done)
-            (setf slots (append slots (test-slot-names (make-instance class))))))
-        (error 'test-class-not-defined :test-class-name super)))
-    (remove-duplicates (append (def :direct-slot-names) slots)))) 
+      (cond ((find-class super nil)
+	     (setf slots (append slots (test-slots super))
+		   dynamic-variables 
+		   (append dynamic-variables 
+			   (testsuite-dynamic-variables super))))
+	    (t
+	     (error 'test-class-not-defined :test-class-name super))))
+    (setf (def :slot-names) 
+	  (remove-duplicates (append (def :direct-slot-names) slots))
+	  (def :dynamic-variables)
+	  (remove-duplicates 
+	   (append (def :direct-dynamic-variables) dynamic-variables)))))
 
 ;;; ---------------------------------------------------------------------------
 
@@ -1100,17 +1148,8 @@ multiple times.
                          (suite *current-suite-class-name*))
   (assert suite nil "Test suite could not be determined.")
   (assert name nil "Test name could not be determined.")
-  
-  (handler-case 
-    (let ((test-suite (make-instance suite))) 
-      (multiple-value-bind (m gf)
-                           (testsuite-name->method test-suite name)
-        (unless (and gf m)
-          (warn +lift-could-not-find-test+ suite name))
-        (format *test-output* "~&Removing test: ~(~A.~A~)." suite name)
-        (remove-method gf m)))
-    (condition (c) 
-               (lift-report-condition c))))
+  (setf (testsuite-tests suite)
+	(remove name (testsuite-tests suite))))
 
 ;;; ---------------------------------------------------------------------------
 
@@ -1124,15 +1163,14 @@ multiple times.
   
   (let* ((*test-break-on-errors?* break-on-errors?)
          (*test-do-children?* do-children?)
-         (test-suite (make-instance suite))
-         (gf (nth-value 1 (testsuite-name->method test-suite name))))
+         (test-suite (make-instance suite)))
     (unless result
       (setf result (make-test-result suite :single)))
     (setf *current-case-method-name* name
           *current-suite-class-name* suite)
     (do-testing test-suite result
                 (lambda () 
-                  (run-test-internal test-suite gf result)))))
+                  (run-test-internal test-suite name result)))))
 
 ;;; ---------------------------------------------------------------------------
 
@@ -1167,9 +1205,11 @@ multiple times.
      (result (make-test-result (class-of case) :multiple))
      (do-children? *test-do-children?*))
   (let ((*test-do-children?* do-children?))
-    (do-testing case result 
-		(lambda ()
-		  (testsuite-run case result)))))
+    (prog1
+	(do-testing case result 
+		    (lambda ()
+		      (testsuite-run case result)))
+      (setf *test-result* result))))
 
 ;;; ---------------------------------------------------------------------------
 
@@ -1195,23 +1235,6 @@ control over where in the test hierarchy the search begins."
     (loop for subclass in subclasses
           when (subtypep subclass 'test-mixin) 
           collect (class-name subclass))))
-
-;;; ---------------------------------------------------------------------------
-
-(defgeneric testsuite-tests (suite)
-  (:documentation "Returns a list of test names instances for a suite.")
-  (:method ((suite symbol))
-           (testsuite-tests (make-instance suite)))
-  (:method ((suite standard-class))
-           (testsuite-tests (make-instance (class-name suite))))
-  (:method ((suite test-mixin))
-           (nreverse
-            (mapcar (lambda (method)
-                      (intern (format nil "~@:(~A~)" 
-				      (testsuite-method->name method))))
-                    (testsuite-methods suite))))) 
-
-;;; ---------------------------------------------------------------------------
 
 (defun list-tests (&key (include-cases? t) (start-at 'test-mixin) (stream t))
   "Lists all of the defined test classes from :start-at on down."
@@ -1278,42 +1301,43 @@ control over where in the test hierarchy the search begins."
 
 ;;; ---------------------------------------------------------------------------
 
-(defmethod run-test-internal ((case test-mixin) (method standard-generic-function) 
-                              result)
-  (let ((name (testsuite-method->name method))
-        (problem nil))
+(defmethod run-test-internal ((case test-mixin) (name symbol) result) 
+  (let ((problem nil))
     (tagbody 
       :test-start
       (restart-case
-        (handler-bind ((warning #'muffle-warning)       ; Decline to handle warnings... 
+        (handler-bind ((warning #'muffle-warning)       
+					; Decline to handle warnings... 
                        (error 
                         (lambda (cond)
                           (setf problem 
-                                (report-test-problem 'test-error result case method cond))
+                                (report-test-problem
+				 'test-error result case name cond))
                           (if *test-break-on-errors?*
                             (break)
                             (go :test-end))))
                        (t (lambda (cond)
                             (setf problem 
-                                  (report-test-problem 'test-error result case method cond)))))
+                                  (report-test-problem
+				   'test-error result case name cond)))))
           (setf problem nil)
           (start-test result case name)
           (setup-test case)
           (unwind-protect
             (progn
               (setf (current-step case) :testing
-                    (current-method case) method)
-              (funcall method case))
+                    (current-method case) name)
+              (lift-test case name))
             (teardown-test case)
             (end-test result case name)))
         (ensure-failed (cond) 
                        (setf problem 
-                             (report-test-problem 'test-failure result case method cond)))
+                             (report-test-problem
+			      'test-failure result case name cond)))
         (retry-test () :report "Retry the test." 
                     (go :test-start)))
       :test-end))
-
-  result)
+  (setf *test-result* result))
 
 ;;; ---------------------------------------------------------------------------
 
@@ -1346,13 +1370,13 @@ control over where in the test hierarchy the search begins."
 
 ;;; ---------------------------------------------------------------------------
 
-(defmethod start-test ((result test-result) (case test-mixin) method-name) 
-  (push (list method-name (current-values case)) (tests-run result)))
+(defmethod start-test ((result test-result) (case test-mixin) name) 
+  (push (list name (current-values case)) (tests-run result)))
 
 ;;; ---------------------------------------------------------------------------
 
-(defmethod end-test ((result test-result) (case test-mixin) method-name)
-  (declare (ignore method-name)))
+(defmethod end-test ((result test-result) (case test-mixin) name)
+  (declare (ignore name)))
 
 ;;; ---------------------------------------------------------------------------
 
@@ -1385,7 +1409,6 @@ control over where in the test hierarchy the search begins."
       (print-unreadable-object (tr stream)
         (cond ((null (tests-run tr))
                (format stream "~A: no tests defined" (test-class-name tr)))
-              
               ((eq (test-mode tr) :single)
                (cond ((test-interactive? tr)
                       ;; interactive
@@ -1395,7 +1418,6 @@ control over where in the test hierarchy the search begins."
                              (format stream "Error during testing"))
                             (t
                              (format stream "Test failed"))))
-                     
                      (t
                       ;; from run-test
                       (format stream "~A.~A ~A" 
@@ -1407,7 +1429,6 @@ control over where in the test hierarchy the search begins."
                                      "Error")
                                     (t
                                      "failed"))))))
-              
               (t
                ;; multiple tests run
                (format stream "Results for ~A " (test-class-name tr))
@@ -1418,9 +1439,8 @@ control over where in the test hierarchy the search begins."
                          (length (tests-run tr))
                          (length (failures tr))
                          (length (errors tr))))))
-        
-        ;; not that suites with no tests think that they are completely successful
-        ;; optimisitc little buggers, huh?
+        ;; note that suites with no tests think that they are completely 
+        ;; successful. Optimistic little buggers, huh?
         (when (and (not complete-success?) *test-describe-if-not-successful?*)
           (format stream "~%") 
           (print-test-result-details stream tr))))))
@@ -1437,9 +1457,9 @@ control over where in the test hierarchy the search begins."
     (let* ((*print-level* (get-test-print-level))
            (*print-length* (get-test-print-length)))
       (cond ((or (failures result) (errors result))
-             (format stream "~[~:;, ~:*~A Failure~:P~]~[~:;, ~:*~A Error~:P~]." 
-                     number-of-failures
-                     number-of-errors)
+             (format stream "~[~:;, ~:*~A Failure~P~]~[~:;, ~:*~A Error~P~]." 
+                     number-of-failures number-of-failures
+                     number-of-errors number-of-errors)
              (format stream "~%~%")
              
              (print-test-result-details stream result))
@@ -1465,14 +1485,13 @@ control over where in the test hierarchy the search begins."
          (method (test-method report))
          (condition (test-condition report))
          (code (test-report-code suite method))
-         (testsuite-name (testsuite-method->name method)))
-    
+         (testsuite-name method))
     (format stream "~&~A~(~A : ~A~)" prefix (type-of suite) testsuite-name)
-    (let ((doc-string (gethash (intern testsuite-name) 
-                               (test-case-documentation (class-name (class-of suite))))))
+    (let ((doc-string (gethash testsuite-name
+                               (test-case-documentation 
+				(class-name (class-of suite))))))
       (when doc-string 
         (format stream "~&~A" doc-string)))
-    
     (format stream "~&~<  ~@;~
                     ~@[Condition: ~<~@;~A~:>~]~
                     ~@[~&Code     : ~S~]~
@@ -1497,9 +1516,7 @@ control over where in the test hierarchy the search begins."
     (format stream "TEST-~@:(~A~): ~A in ~A" 
             (test-problem-kind problem) 
             (name (test-suite problem))
-            (etypecase (test-method problem)
-              (function (testsuite-method->name (test-method problem)))
-              (symbol (test-method problem))))))
+	    (test-method problem))))
 
 ;;; ---------------------------------------------------------------------------
 
@@ -1513,21 +1530,20 @@ control over where in the test hierarchy the search begins."
 
 ;;; ---------------------------------------------------------------------------
 
-(defmethod test-report-code ((test-suite test-mixin) (method standard-generic-function))
+(defmethod test-report-code ((test-suite test-mixin) (method symbol))
   (let* ((class-name (class-name (class-of test-suite))))
     (gethash (intern (concatenate 'string +test-method-prefix+ 
-                                  (testsuite-method->name method))) 
+				  (symbol-name method)))
              (test-name->code-table class-name))))
-
-;;; ---------------------------------------------------------------------------
-
-(defmethod test-report-code ((test-suite test-mixin) (method symbol))
-  "Test code unavailable")
-
 
 ;;; ---------------------------------------------------------------------------
 ;;; utilities
 ;;; ---------------------------------------------------------------------------
+
+(defun remove-test-methods (test-name)
+  (prog1
+      (length (testsuite-tests test-name))
+    (setf (testsuite-tests test-name) nil)))
 
 (defun remove-previous-definitions (classname)
   "Remove the methods of this class and all its subclasses."
@@ -1538,7 +1554,7 @@ control over where in the test hierarchy the search begins."
       (loop for subclass in (subclasses class :proper? nil) do
             (push subclass classes-removed)
             (incf removed-count
-                  (remove-methods (class-name subclass) :verbose? nil))
+                  (remove-test-methods (class-name subclass)))
             #+Ignore
             ;;?? causing more trouble than it solves...??
             (setf (find-class (class-name subclass)) nil))
@@ -1658,41 +1674,27 @@ control over where in the test hierarchy the search begins."
     (declare (ignorable name-supplied?))
     (unless (consp (first body))
       (setf body (list body)))
-    
     `(progn
        (setf (gethash ',test-name (test-name->code-table ',test-class)) ',body
              (gethash ',body (test-code->name-table ',test-class)) ',test-name)
-       
        ,(when documentation
           `(setf (gethash ',test-name (test-case-documentation ',test-class))
                  ,documentation))
-       
        #+MCL
        ,@(when name-supplied?
            `((ccl:record-source-file ',test-name 'test-case)))
-       
-       #+(or)
+       (pushnew ',test-name (testsuite-tests ',test-class))
        (defmethod lift-test ((suite ,test-class) (case (eql ',test-name)))
 	 (let (,@(build-dynamics))
 	   (with-test-slots ,@body)))
-
-       (defmethod ,test-name ((test ,test-class))
-	 (let (,@(build-dynamics))
-	   (with-test-slots ,@body)))
-
-       #+(or)
-       (defgeneric ,test-name (test-case)
-         (:method ((test ,test-class))
-                  (let (,@(build-dynamics))
-                    (with-test-slots ,@body))))
-       
        (setf *current-case-method-name* 
              (intern (method-name->test-name (symbol-name ',test-name))))
        
        (when (and *test-print-when-defined?*
                   (not (or *test-is-being-compiled?*
                            )))
-         (format *test-output* "~&;Test Created: ~(~S.~S~)." ',test-class ',test-name))
+         (format *test-output* "~&;Test Created: ~(~S.~S~)." 
+		 ',test-class ',test-name))
        *current-case-method-name*)))
 
 ;;; ---------------------------------------------------------------------------
@@ -1714,7 +1716,6 @@ control over where in the test hierarchy the search begins."
         (documentation nil)
         (test-number (1+ (testsuite-test-count *current-suite-class-name*)))
         (name-supplied? nil))
-    
     ;; parse out any documentation
     (loop for form in test-body do
           (if (and (consp form)
@@ -1724,26 +1725,27 @@ control over where in the test hierarchy the search begins."
             (push form parsed-body)))
     (setf test-body (nreverse parsed-body))
     (setf test-name (first test-body))
-    
     (cond ((symbolp test-name)
-           (setf test-name (intern (format nil "~A~A" +test-method-prefix+ test-name))
+           (setf test-name 
+		 (intern (format nil "~A~A" +test-method-prefix+ test-name))
                  body (rest test-body)
                  name-supplied? t))
           ((and (test-code->name-table *current-suite-class-name*)
                 (setf test-name 
-                 (gethash test-body (test-code->name-table *current-suite-class-name*))))
+                 (gethash test-body
+			  (test-code->name-table *current-suite-class-name*))))
            (setf body test-body))
           (t
-           (setf test-name (intern (format nil "~ATEST-~A" +test-method-prefix+ test-number))
+           (setf test-name 
+		 (intern (format nil "~ATEST-~A" 
+				 +test-method-prefix+ test-number))
                  body test-body)))
-    
     (values test-name body documentation name-supplied?)))
 
 ;;; ---------------------------------------------------------------------------
 
 (defun build-test-class ()
   (let ((single-setup? (def :single-setup)))
-    
     ;; for now, we don't generate code from :class-def code-blocks
     ;; they are executed only for effect.
     (loop for (nil . block) in *code-blocks* 
@@ -1753,12 +1755,10 @@ control over where in the test hierarchy the search begins."
                     (or (not (filter block))
                         (funcall (filter block)))) collect
           (funcall (code block)))
-    
     (unless (some (lambda (superclass)
                     (test-suite-p superclass))
                   (def :superclasses))
       (pushnew 'test-mixin (def :superclasses)))
-    
     ;; build basic class and standard class
     `(progn
        #+MCL
@@ -1806,13 +1806,7 @@ control over where in the test hierarchy the search begins."
 ;;; ---------------------------------------------------------------------------
 
 (defmethod testsuite-methods ((classname symbol))
-  (remove-if-not
-   (lambda (gf)
-     (let ((name (generic-function-name gf)))
-       (etypecase name
-         (symbol (test-method-name-p name))
-         (cons nil))))
-   (generic-functions classname)))
+  (testsuite-tests classname))
 
 ;;; ---------------------------------------------------------------------------
 
@@ -1826,66 +1820,8 @@ control over where in the test hierarchy the search begins."
 
 ;;; ---------------------------------------------------------------------------
 
-(defmethod testsuite-method->name ((method t))
-  (testsuite-method->name (method-generic-function method)))
-
-;;; ---------------------------------------------------------------------------
-
-(defmethod testsuite-method->name ((gf standard-generic-function))
-  (method-name->test-name (symbol-name (generic-function-name gf))))
-
-;;; ---------------------------------------------------------------------------
-
 (defun method-name->test-name (test-name)
   (subseq test-name (length +test-method-prefix+)))
-
-;;; ---------------------------------------------------------------------------
-
-#+(or)
-(defun test-method-name-p (test-name)
-  (eq test-name 'lift-test))
-
-(defun test-method-name-p (test-name)
-  (let ((name (symbol-name test-name)))
-    (string-equal +test-method-prefix+ name
-		  :end2 (min (length +test-method-prefix+) (length name)))))
-
-;;; ---------------------------------------------------------------------------
-
-(defmethod testsuite-method->name ((gf standard-method))
-  (let ((method (method-generic-function gf)))
-    (when method
-      (testsuite-method->name method))))
-
-;;; ---------------------------------------------------------------------------
-
-(defmethod testsuite-name->gf ((case test-mixin) name)
-  ;; returns the gf implementing the name for the test-case
-  (find (symbol-name name)
-        (testsuite-methods case)
-        :key (lambda (method)
-               (testsuite-method->name method))
-        :test #'string-equal))
-
-;;; ---------------------------------------------------------------------------
-
-(defmethod testsuite-name->method ((case test-mixin) name)
-  (let ((gf (testsuite-name->gf case name))
-        (class (class-of case)))
-    (when gf
-      (loop for m in (generic-function-methods gf) do
-            (when (member class (method-specializers m))
-              (return-from testsuite-name->method (values m gf)))))))
-
-;;; ---------------------------------------------------------------------------
-
-(defmethod testsuite-name->method ((object standard-class) name)
-  (testsuite-name->method (allocate-instance object) name))
-
-;;; ---------------------------------------------------------------------------
-
-(defmethod testsuite-name->method ((class symbol) (name symbol))
-  (testsuite-name->method (allocate-instance (find-class class)) name))
 
 ;;; ---------------------------------------------------------------------------
 
@@ -1895,6 +1831,8 @@ control over where in the test hierarchy the search begins."
 (defclass-property test-name->code-table)
 (defclass-property test-case-documentation)
 (defclass-property testsuite-prototype)
+(defclass-property testsuite-tests)
+(defclass-property testsuite-dynamic-variables)
 
 ;;; ---------------------------------------------------------------------------
 
@@ -1906,8 +1844,3 @@ control over where in the test hierarchy the search begins."
           (make-hash-table :test #'equal)
           (test-case-documentation test-name)
           (make-hash-table :test #'equal))))
-
-
-
-
-
