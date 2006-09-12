@@ -46,7 +46,8 @@ See file COPYING for license
     (ensure-same (errors tr) nil)
     (ensure-same (test-mode tr) :single)
 ;    (ensure-same (test-interactive? tr) nil)
-    (ensure-same (mapcar #'first (tests-run tr)) '("SIMPLE-ENSURE-TEST-1"))))
+    (ensure-same (mapcar #'first (tests-run tr)) 
+		 '(simple-ensure-test-1))))
 
 ;;; ---------------------------------------------------------------------------
 
@@ -60,7 +61,7 @@ See file COPYING for license
     (ensure-same (length (tests-run tr)) 1 :report "Number of tests-run")
     (ensure-same (length (failures tr)) 1 :report "Number of failures")
     (ensure-same (errors tr) nil :report "Number of errors")
-    (ensure-same (mapcar #'first (tests-run tr)) '("SIMPLE-ENSURE-TEST-2"))))
+    (ensure-same (mapcar #'first (tests-run tr)) '(simple-ensure-test-2))))
 
 ;;; ---------------------------------------------------------------------------
 
@@ -74,7 +75,7 @@ See file COPYING for license
     (ensure-same (length (tests-run tr)) 1)
     (ensure-same (length (failures tr)) 0)
     (ensure-same (length (errors tr)) 1)
-    (ensure-same (mapcar #'first (tests-run tr)) '("SIMPLE-ENSURE-TEST-3"))))
+    (ensure-same (mapcar #'first (tests-run tr)) '(simple-ensure-test-3))))
 
 
 ;;; ---------------------------------------------------------------------------
