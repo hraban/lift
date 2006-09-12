@@ -28,7 +28,7 @@
 		     (funcall (intern (symbol-name '#:run-tests) :lift) 
 			      :suite (intern (symbol-name '#:lift-test)
 					     :lift-test))))
-  :depends-on (moptilities)) 
+  :depends-on (#+tam moptilities)) 
 
 (defmethod operation-done-p 
            ((o test-op) (c (eql (find-system 'lift))))

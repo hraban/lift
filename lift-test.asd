@@ -23,7 +23,7 @@
 
 (defmethod operation-done-p 
            ((o test-op)
-            (c (eql (find-system 'lift-tests))))
+            (c (eql (find-system 'lift-test))))
   (values nil))
 
 
