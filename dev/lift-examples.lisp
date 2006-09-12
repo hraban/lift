@@ -125,7 +125,7 @@ Test Report for TEST-DOTTED-PAIR-P: 5 tests run, all passed!
 ;;; ---------------------------------------------------------------------------
 
 (progn
-  (deftestsuite test-nearly-zero-p
+  (deftestsuite test-nearly-zero-p ()
     ((the-number-zero 0.0)
      (not-nearly-zero 10000.0)
      (close-to-zero 0.000000001)
@@ -284,3 +284,4 @@ failure because no error will be generated.")
    ((ensure-same 0 (+ -1 1)))
    ((ensure-error (+ 'foo 4)))
    ((ensure-same 0 (+ 1 1) :report "This should fail."))))
+
