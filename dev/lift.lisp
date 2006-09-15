@@ -43,7 +43,8 @@ DEALINGS IN THE SOFTWARE.
   (export '(test-mixin
 	    test-suite-p
           
-	    deftest
+	    ;; deftest
+
 	    deftestsuite
 	    addtest
 	    remove-test
@@ -1070,8 +1071,8 @@ multiple times.
 ;;; ---------------------------------------------------------------------------
   
 (defun compute-superclass-inheritence ()
-  (let ((done nil)
-        (slots nil)
+  (let (
+(slots nil)
 	(dynamic-variables nil))
     (dolist (super (def :superclasses))
       (cond ((find-class super nil)
@@ -1303,6 +1304,8 @@ control over where in the test hierarchy the search begins."
 
 (defmethod run-test-internal ((case test-mixin) (name symbol) result) 
   (let ((problem nil))
+    ;;??
+    (declare (ignorable problem))
     (tagbody 
       :test-start
       (restart-case
