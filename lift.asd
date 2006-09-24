@@ -26,8 +26,7 @@
   :perform (test-op :after (op c)
                     (describe 
 		     (funcall (intern (symbol-name '#:run-tests) :lift) 
-			      :suite (intern (symbol-name '#:lift-test)
-					     :lift-test))))
+			      :suite '#:lift-test)))
   :depends-on (#+tam moptilities)) 
 
 (defmethod operation-done-p 
