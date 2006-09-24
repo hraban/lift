@@ -263,61 +263,6 @@ DEALINGS IN THE SOFTWARE.
 |#
 
 
-(defvar *test-maximum-time* 2
-  "Maximum number of seconds a process test is allowed to run before we give up.")
-
-;;; ---------------------------------------------------------------------------
-
-(pushnew :timeout *deftest-clauses*)
-
-;;; ---------------------------------------------------------------------------
-
-(add-code-block
- :timeout 1 :class-def
- (lambda () (def :timeout)) 
- '((setf (def :timeout) (cleanup-parsed-parameter value)))
- (lambda ()
-   (pushnew 'process-test-mixin (def :superclasses))
-   (push (def :timeout) (def :default-initargs))
-   (push :maximum-time (def :default-initargs))
-   nil))
-
-;;; ---------------------------------------------------------------------------
-
-(defclass process-test-mixin ()
-  ((maximum-time :initform *test-maximum-time* 
-                 :accessor maximum-time
-                 :initarg :maximum-time)))
-
-;;; ---------------------------------------------------------------------------
-
-(defclass test-timeout-failure (test-failure)
-  ((test-problem-kind :initform "Timeout" :allocation :class)))
-
-;;; ---------------------------------------------------------------------------
-
-(define-condition test-timeout-condition (test-condition) 
-                  ((maximum-time :initform *test-maximum-time* 
-                                 :accessor maximum-time
-                                 :initarg :maximum-time))
-  (:report (lambda (c s)
-             (format s "Test ran out of time (longer than ~S-second~:P)" 
-                     (maximum-time c))
-             (call-next-method))))
-
-;;; ---------------------------------------------------------------------------
-
-(defmethod do-testing :around ((test-suite process-test-mixin) result fn)
-  (declare (ignore fn))
-  (metatilities:with-timeout ((maximum-time test-suite)
-                              (report-test-problem
-                               'test-timeout-failure result test-suite (current-method test-suite)
-                               (make-instance 'test-timeout-condition
-                                 :maximum-time (maximum-time test-suite)))
-                              result)
-    (call-next-method)))
-
-;;; ---------------------------------------------------------------------------
 
 (defmethod more-prototypes-p :before ((test-suite test-mixin))
   (setf (current-step test-suite) 'more-prototypes-p))
