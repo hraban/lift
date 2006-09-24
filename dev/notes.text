@@ -1,5 +1,8 @@
 (in-package lift)
 
+We're not checking for class existence in addtest... leads to weird seeming errors
+
+
 LIFT: handle macros better
 LIFT: code walker -- even a simple one that just tree searched for macros
 
