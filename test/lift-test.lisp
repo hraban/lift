@@ -86,13 +86,12 @@ See file COPYING for license
 (deftestsuite lift-test-setup-teardown (lift-test) ())
 
 (deftestsuite lift-test-setup-teardown-1 (lift-test-setup-teardown) ()
-  (:setup (push 1 *test-scratchpad*))
+  (:setup (print "A") (push 1 *test-scratchpad*))
   (:teardown (push :a *test-scratchpad*))
   (:tests (setup-teardown-1 (push 'test-1 *test-scratchpad*))))
 
 (addtest (lift-test-setup-teardown)
   setup-teardown-1
-  (setf *test-scratchpad* nil)
   (run-test
    :name 'setup-teardown-1
    :suite 'lift-test-setup-teardown-1
@@ -102,7 +101,6 @@ See file COPYING for license
 
 (addtest (lift-test-setup-teardown) 
   setup-teardown-1-all
-  (setf *test-scratchpad* nil)
   (run-tests 
    :suite 'lift-test-setup-teardown-1
    :result (make-test-result 'lift-test-setup-teardown-1 :multiple))
@@ -164,67 +162,66 @@ See file COPYING for license
 ;; helpers
 (deftestsuite test-single-setup-helper () ())
 (deftestsuite test-single-setup-child-a (test-single-setup-helper) () 
-  (:setup (push :a *test-scratchpad*))
+  (:setup (push :a *test-notepad*))
   (:test (test-1 (ensure t))))
 (deftestsuite test-single-setup-child-a-1 (test-single-setup-child-a) () 
-  (:setup (push :a-1 *test-scratchpad*))
+  (:setup (push :a-1 *test-notepad*))
   (:test (test-1 (ensure t)))
   (:test (test-2 (ensure t))))
 
 (deftestsuite test-single-setup-child-b (test-single-setup-helper) ()
-  (:setup (push :b *test-scratchpad*))
+  (:setup (push :b *test-notepad*))
   (:test (test-1 (ensure t))))
 (deftestsuite test-single-setup-child-b-1-ss (test-single-setup-child-b) ()
-  (:single-setup)
-  (:setup (push :b-1 *test-scratchpad*))
+  (:run-setup :once-per-suite)
+  (:setup (push :b-1 *test-notepad*))
   (:test (test-1 (ensure t)))
   (:test (test-2 (ensure t))))
 (deftestsuite test-single-setup-child-b-1-a (test-single-setup-child-b-1-ss) ()
-  (:setup (push :b-1-a *test-scratchpad*))
+  (:setup (push :b-1-a *test-notepad*))
   (:test (test-1 (ensure t)))
   (:test (test-2 (ensure t))))
 (deftestsuite test-single-setup-child-b-1-b (test-single-setup-child-b-1-ss) ()
-  (:setup (push :b-1-b *test-scratchpad*))
+  (:setup (push :b-1-b *test-notepad*))
   (:test (test-1 (ensure t)))
   (:test (test-2 (ensure t))))
 
 (deftestsuite test-single-setup-child-c (test-single-setup-helper) ()
-  (:setup (push :c *test-scratchpad*))
+  (:setup (push :c *test-notepad*))
   (:test (test-1 (ensure t))))
 (deftestsuite test-single-setup-child-c-1 (test-single-setup-child-c) ()
-  (:setup (push :c-1 *test-scratchpad*))
+  (:setup (push :c-1 *test-notepad*))
   (:test (test-1 (ensure t))))
 
 ;;; ---------------------------------------------------------------------------
 
 (addtest (test-single-setup)
   test-a-multiple-setup
-  (setf *test-scratchpad* nil)
+  (setf *test-notepad* nil)
   (run-test :suite 'test-single-setup-child-a-1 :name 'test-1)
   (run-test :suite 'test-single-setup-child-a-1 :name 'test-2)
-  (ensure-same *test-scratchpad* '(:a-1 :a :a-1 :a)))
+  (ensure-same *test-notepad* '(:a-1 :a :a-1 :a)))
 
 (addtest (test-single-setup)
   test-b-single-setup-1
-  (setf *test-scratchpad* nil)
+  (setf *test-notepad* nil)
   (run-test :suite 'test-single-setup-child-b-1-ss :name 'test-1)
   (run-test :suite 'test-single-setup-child-b-1-ss :name 'test-2)
   
   ;; single tests do all the setup so this should be exactly the same
-  (ensure-same *test-scratchpad* '(:b-1 :b :b-1 :b)))
+  (ensure-same *test-notepad* '(:b-1 :b :b-1 :b)))
 
 (addtest (test-single-setup)
   test-b-single-setup-2
-  (setf *test-scratchpad* nil)
+  (setf *test-notepad* nil)
   (run-tests :suite 'test-single-setup-child-b-1-ss :do-children? nil)
-  (ensure-same *test-scratchpad* '(:b-1 :b)))
+  (ensure-same *test-notepad* '(:b-1 :b)))
 
 ;;; ---------------------------------------------------------------------------
 ;;; warning behavior
 ;;; ---------------------------------------------------------------------------
 
-(deftestsuite test-ignore-warnings (lift-test) ()
-  (:setup (setf *test-scratchpad* nil)))
+(deftestsuite test-ignore-warnings (lift-test) ())
 
 (deftestsuite test-ignore-warnings-helper () ())
 
