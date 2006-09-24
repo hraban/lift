@@ -2,7 +2,7 @@
 (in-package #:asdf-lift)
 
 (defsystem lift
-  :version "1.0"
+  :version "1.1"
   :author "Gary Warren King <gwking@metabang.com>"
   :maintainer "Gary Warren King <gwking@metabang.com>"
   :licence "MIT Style License; see file COPYING for details"
