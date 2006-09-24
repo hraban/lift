@@ -2,11 +2,7 @@
 
 #| simple-header
 
-$Id: lift-examples.lisp,v 1.4 2005/02/02 02:31:10 gwking Exp $
-$Author: gwking $
-$Date: 2005/02/02 02:31:10 $
-
-Copyright (c) 2001-2003 Gary Warren King (gwking@cs.umass.edu) 
+Copyright (c) 2001-2006 Gary Warren King (gwking@cs.umass.edu) 
 
 Permission is hereby granted, free of charge, to any person obtaining a 
 copy of this software and associated documentation files (the "Software"),
@@ -124,6 +120,9 @@ Test Report for TEST-DOTTED-PAIR-P: 5 tests run, all passed!
 ;;; a test suite using slots
 ;;; ---------------------------------------------------------------------------
 
+(defun nearly-zero-p (number &optional (tolerance 0.0001))
+  (< (abs number) tolerance))
+
 (progn
   (deftestsuite test-nearly-zero-p ()
     ((the-number-zero 0.0)
@@ -145,6 +144,9 @@ Test Report for TEST-DOTTED-PAIR-P: 5 tests run, all passed!
   
   (addtest (test-nearly-zero-p)
     (ensure (nearly-zero-p close-but-no-cigar 0.1))))
+
+
+(deftestsuite lift-examples () ())
 
 (addtest (lift-examples)
   (:documentation "This is the best test of all")
