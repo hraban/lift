@@ -1,18 +1,5 @@
 ;;;-*- Mode: Lisp; Package: LIFT-INTERFACE -*-
 
-#| simple-header
-
-$Id: lift-interface.lisp,v 1.1 2005/02/02 02:40:39 gwking Exp $
-
-Copyright 1992 - 2005 Experimental Knowledge Systems Lab, 
-University of Massachusetts Amherst MA, 01003-4610
-Professor Paul Cohen, Director
-
-Author: Gary King
-
-DISCUSSION
-
-|#
 (defpackage "LIFT-INTERFACE"
   (:use 
    "LIFT"
