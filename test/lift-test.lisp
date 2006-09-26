@@ -40,14 +40,15 @@ See file COPYING for license
 
 (addtest (lift-test-ensure)
   simple-ensure-test-1
-  (let ((tr (run-test :suite 'lift-test-ensure-helper :name 'simple-ensure-test-1)))
+  (let ((tr (run-test :suite 'lift-test-ensure-helper
+		      :name 'simple-ensure-test-1)))
     (ensure-same (length (tests-run tr)) 1)
     (ensure-same (failures tr) nil)
     (ensure-same (errors tr) nil)
     (ensure-same (test-mode tr) :single)
 ;    (ensure-same (test-interactive? tr) nil)
     (ensure-same (mapcar #'first (tests-run tr)) 
-		 '(simple-ensure-test-1))))
+		 '(lift::simple-ensure-test-1))))
 
 ;;; ---------------------------------------------------------------------------
 
@@ -57,11 +58,13 @@ See file COPYING for license
 
 (addtest (lift-test-ensure)
   simple-ensure-test-2
-  (let ((tr (run-test :suite 'lift-test-ensure-helper :name 'simple-ensure-test-2)))
+  (let ((tr (run-test :suite 'lift-test-ensure-helper
+		      :name 'simple-ensure-test-2)))
     (ensure-same (length (tests-run tr)) 1 :report "Number of tests-run")
     (ensure-same (length (failures tr)) 1 :report "Number of failures")
     (ensure-same (errors tr) nil :report "Number of errors")
-    (ensure-same (mapcar #'first (tests-run tr)) '(simple-ensure-test-2))))
+    (ensure-same (mapcar #'first (tests-run tr))
+		 '(lift::simple-ensure-test-2))))
 
 ;;; ---------------------------------------------------------------------------
 
@@ -71,11 +74,13 @@ See file COPYING for license
 
 (addtest (lift-test-ensure)
   simple-ensure-test-3
-  (let ((tr (run-test :suite 'lift-test-ensure-helper :name 'simple-ensure-test-3)))
+  (let ((tr (run-test :suite 'lift-test-ensure-helper
+		      :name 'simple-ensure-test-3)))
     (ensure-same (length (tests-run tr)) 1)
     (ensure-same (length (failures tr)) 0)
     (ensure-same (length (errors tr)) 1)
-    (ensure-same (mapcar #'first (tests-run tr)) '(simple-ensure-test-3))))
+    (ensure-same (mapcar #'first (tests-run tr)) 
+		 '(lift::simple-ensure-test-3))))
 
 
 ;;; ---------------------------------------------------------------------------
@@ -86,56 +91,56 @@ See file COPYING for license
 (deftestsuite lift-test-setup-teardown (lift-test) ())
 
 (deftestsuite lift-test-setup-teardown-1 (lift-test-setup-teardown) ()
-  (:setup (print "A") (push 1 *test-scratchpad*))
-  (:teardown (push :a *test-scratchpad*))
-  (:tests (setup-teardown-1 (push 'test-1 *test-scratchpad*))))
+  (:setup (push 1 *test-notepad*))
+  (:teardown (push :a *test-notepad*))
+  (:tests (setup-teardown-1 (push 'test-1 *test-notepad*))))
 
 (addtest (lift-test-setup-teardown)
   setup-teardown-1
+  (setf *test-notepad* nil)
   (run-test
    :name 'setup-teardown-1
    :suite 'lift-test-setup-teardown-1
    :result (make-test-result 'lift-test-setup-teardown-1 :single))
-  (ensure-same (reverse *test-scratchpad*)
+  (ensure-same (reverse *test-notepad*)
                '(1 test-1 :a)))
 
 (addtest (lift-test-setup-teardown) 
   setup-teardown-1-all
+  (setf *test-notepad* nil)
   (run-tests 
    :suite 'lift-test-setup-teardown-1
    :result (make-test-result 'lift-test-setup-teardown-1 :multiple))
-  (ensure-same (reverse *test-scratchpad*)
+  (ensure-same (reverse *test-notepad*)
                '(1 test-1 :a 1 2 test-2 :b :a 1 2 3 test-3 :c :b :a)))
 
-;;; ---------------------------------------------------------------------------
-
 (deftestsuite lift-test-setup-teardown-2 (lift-test-setup-teardown-1) ()
-  (:setup (push 2 *test-scratchpad*))
-  (:teardown (push :b *test-scratchpad*))
-  (:tests (setup-teardown-2 (push 'test-2 *test-scratchpad*))))
+  (:setup (push 2 *test-notepad*))
+  (:teardown (push :b *test-notepad*))
+  (:tests (setup-teardown-2 (push 'test-2 *test-notepad*))))
 
 (deftestsuite lift-test-setup-teardown-3 (lift-test-setup-teardown-2) ()
-  (:setup (push 3 *test-scratchpad*))
-  (:teardown (push :c *test-scratchpad*))
-  (:tests (setup-teardown-3 (push 'test-3 *test-scratchpad*))))
+  (:setup (push 3 *test-notepad*))
+  (:teardown (push :c *test-notepad*))
+  (:tests (setup-teardown-3 (push 'test-3 *test-notepad*))))
 
 (addtest (lift-test-setup-teardown) 
   setup-teardown-3
-  (setf *test-scratchpad* nil)
+  (setf *test-notepad* nil)
   (run-test
    :name 'setup-teardown-3
    :suite 'lift-test-setup-teardown-3
    :result (make-test-result 'lift-test-setup-teardown-3 :single))
-  (ensure-same (reverse *test-scratchpad*)
+  (ensure-same (reverse *test-notepad*)
                '(1 2 3 test-3 :c :b :a)))
 
 (addtest (lift-test-setup-teardown)
   setup-teardown-3-all
-  (setf *test-scratchpad* nil)
+  (setf *test-notepad* nil)
   (run-tests 
    :suite 'lift-test-setup-teardown-3
    :result (make-test-result 'lift-test-setup-teardown-3 :multiple))
-  (ensure-same (reverse *test-scratchpad*)
+  (ensure-same (reverse *test-notepad*)
                '(1 2 3 test-3 :c :b :a)))
 
 ;;; ---------------------------------------------------------------------------
@@ -144,8 +149,6 @@ See file COPYING for license
 
 (deftestsuite lift-test-ensure-same (lift-test)
   ())
-
-;;; ---------------------------------------------------------------------------
 
 ;;?? Gary King 2004-06-21: not really a test yet, more of a syntax works check
 (addtest (lift-test-ensure-same)
@@ -161,9 +164,11 @@ See file COPYING for license
 
 ;; helpers
 (deftestsuite test-single-setup-helper () ())
+
 (deftestsuite test-single-setup-child-a (test-single-setup-helper) () 
   (:setup (push :a *test-notepad*))
   (:test (test-1 (ensure t))))
+
 (deftestsuite test-single-setup-child-a-1 (test-single-setup-child-a) () 
   (:setup (push :a-1 *test-notepad*))
   (:test (test-1 (ensure t)))
@@ -172,15 +177,18 @@ See file COPYING for license
 (deftestsuite test-single-setup-child-b (test-single-setup-helper) ()
   (:setup (push :b *test-notepad*))
   (:test (test-1 (ensure t))))
+
 (deftestsuite test-single-setup-child-b-1-ss (test-single-setup-child-b) ()
   (:run-setup :once-per-suite)
   (:setup (push :b-1 *test-notepad*))
   (:test (test-1 (ensure t)))
   (:test (test-2 (ensure t))))
+
 (deftestsuite test-single-setup-child-b-1-a (test-single-setup-child-b-1-ss) ()
   (:setup (push :b-1-a *test-notepad*))
   (:test (test-1 (ensure t)))
   (:test (test-2 (ensure t))))
+
 (deftestsuite test-single-setup-child-b-1-b (test-single-setup-child-b-1-ss) ()
   (:setup (push :b-1-b *test-notepad*))
   (:test (test-1 (ensure t)))
@@ -189,6 +197,7 @@ See file COPYING for license
 (deftestsuite test-single-setup-child-c (test-single-setup-helper) ()
   (:setup (push :c *test-notepad*))
   (:test (test-1 (ensure t))))
+
 (deftestsuite test-single-setup-child-c-1 (test-single-setup-child-c) ()
   (:setup (push :c-1 *test-notepad*))
   (:test (test-1 (ensure t))))
@@ -207,9 +216,22 @@ See file COPYING for license
   (setf *test-notepad* nil)
   (run-test :suite 'test-single-setup-child-b-1-ss :name 'test-1)
   (run-test :suite 'test-single-setup-child-b-1-ss :name 'test-2)
-  
   ;; single tests do all the setup so this should be exactly the same
   (ensure-same *test-notepad* '(:b-1 :b :b-1 :b)))
+
+(addtest (test-single-setup)
+  test-a-single-setup-2
+  (setf *test-notepad* nil)
+  (run-tests :suite 'test-single-setup-child-a-1 :do-children? nil)
+  (ensure-same *test-notepad* '(:a-1 :a :a-1 :a)))
+
+(addtest (test-single-setup)
+  test-a-single-setup-2
+  (setf *test-notepad* nil)
+  (run-tests :suite 'test-single-setup-child-a-1 
+	     :run-setup :once-per-suite
+	     :do-children? nil)
+  (ensure-same *test-notepad* '(:a-1 :a :a-1 :a)))
 
 (addtest (test-single-setup)
   test-b-single-setup-2
