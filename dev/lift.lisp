@@ -1269,6 +1269,7 @@ control over where in the test hierarchy the search begins."
   (values))
 
 (defun testsuite-test-count (testsuite)
+  (setf testsuite (intern (string testsuite) :lift))
   (or (and *testsuite-test-count* 
            (prog1 *testsuite-test-count* (incf *testsuite-test-count*))) 
       (length (testsuite-methods testsuite))))
