@@ -1,29 +1,5 @@
 ;;;-*- Mode: Lisp; Package: LIFT -*-
 
-#| simple-header
-
-Copyright (c) 2001-2003 Gary Warren King (gwking@cs.umass.edu) 
-
-Permission is hereby granted, free of charge, to any person obtaining a 
-copy of this software and associated documentation files (the "Software"),
-to deal in the Software without restriction, including without limitation
-the rights to use, copy, modify, merge, publish, distribute, sublicense, 
-and/or sell copies of the Software, and to permit persons to whom the 
-Software is furnished to do so, subject to the following conditions: 
-
-The above copyright notice and this permission notice shall be included in 
-all copies or substantial portions of the Software. 
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL 
-THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING 
-FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
-DEALINGS IN THE SOFTWARE. 
-
-|#
-
 (in-package #:lift)
 
 (pushnew :cases *deftest-clauses*)
@@ -34,8 +10,6 @@ DEALINGS IN THE SOFTWARE.
  '((setf (def :cases) (cleanup-parsed-parameter value)))
  'build-cases-method)
 
-;;; ---------------------------------------------------------------------------
-
 (defun build-cases-method ()
   (when (atom (car (def :cases)))
     (setf (def :cases) (list (def :cases))))
@@ -43,10 +17,9 @@ DEALINGS IN THE SOFTWARE.
   (let ((cases (standardize-cases-form (def :cases))))
     `(defmethod initialize-prototypes :after ((test ,(def :testsuite-name)))
        (setf (prototypes test) 
-             (rest (process-cases-form ,(first cases) 
-                                       ,@(mapcar (lambda (a) `',a) (rest cases))))))))
-
-;;; ---------------------------------------------------------------------------
+             (rest (process-cases-form 
+		    ,(first cases) 
+		    ,@(mapcar (lambda (a) `',a) (rest cases))))))))
 
 ;; goal is spec := (<tag> <spec>+)
 ;;         spec := (<var value>+)
@@ -305,20 +278,3 @@ DEALINGS IN THE SOFTWARE.
 (defmethod teardown-test :before ((test-suite test-mixin))
   (setf (current-step test-suite) 'teardown-test))
 
-
-#|
-
-(deftestsuite test-timeout ()
-  ()
-  (:timeout 1))
-
-(addtest (test-timeout)
-  test-should-pass
-  (sleep 0.5)
-  (ensure t))
-
-(addtest (test-timeout)
-  test-should-fail
-  (sleep 1.5)
-  (ensure t))
-|#

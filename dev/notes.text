@@ -1,5 +1,9 @@
 (in-package lift)
 
+need tests that metadata is correctly set too
+
+need to test that all variables in a hierarchy are initialized as appropriate
+
 We're not checking for class existence in addtest... leads to weird seeming errors
 
 
@@ -363,3 +367,5 @@ something wrong with loading or compiling addtest, the numbers don't get
 no - use dynamic scope for *test-is-being-compiled?* rather than unwind-protect
 ok - LIFT: better control of printing (:follow-print)
 ok - LIFT: variable to control behavior on warning / failure: print full report, etc.
+ok - add :function to define local functions, use rewriting and macrolet 
+

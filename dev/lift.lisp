@@ -42,9 +42,11 @@ DEALINGS IN THE SOFTWARE.
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (export '(test-mixin
 	    test-suite-p
-          
-	    ;; deftest
-
+	    *test-result*
+	    failures
+	    errors
+	    with-cases
+	    with-random-cases
 	    deftestsuite
 	    addtest
 	    remove-test
@@ -347,6 +349,8 @@ the test is running. Note that this may interact oddly with ensure-warning.")
 (defvar *test-environment* nil)
 (defvar *test-metadata* (list)
   "A place for LIFT to put stuff.")
+(defvar *current-test* nil
+  "The current test-suite.")
 
 ;;; ---------------------------------------------------------------------------
 ;;; Error messages and warnings
@@ -441,7 +445,8 @@ the test is running. Note that this may interact oddly with ensure-warning.")
                               :accessor assertion
                               :initarg :assertion))
   (:report (lambda (c s)
-             (format s "Ensure failed: ~S" (assertion c)))))
+             (format s "Ensure failed: ~S ~@[(~a)~]" 
+		     (assertion c) (message c)))))
 
 ;;; ---------------------------------------------------------------------------
 
@@ -552,8 +557,6 @@ Ensure same compares value-or-values-1 value-or-values-2 or each value of value-
               ,(if test-specified-p (list 'quote test) '*lift-equality-test*) ,report ,args)))
      (values t)))
 
-;;; ---------------------------------------------------------------------------
-
 (defun maybe-raise-not-same-condition (value-1 value-2 test report args)
   (let ((condition (make-condition 'ensure-not-same 
                                    :first-value value-1
@@ -564,6 +567,35 @@ Ensure same compares value-or-values-1 value-or-values-2 or each value of value-
     (if (find-restart 'ensure-failed)
       (invoke-restart 'ensure-failed condition) 
       (warn condition))))
+
+(define-condition with-cases-failure (test-condition)
+  ((total :initarg :total :initform 0)
+   (problems :initarg :problems :initform nil))
+  (:report (lambda (condition stream)
+	     (format stream "With-cases: ~d out of ~d cases failed. Failing cases are: ~{~s~^, ~}" 
+		     (length (slot-value condition 'problems))
+		     (slot-value condition 'total)
+		     (slot-value condition 'problems)))))
+
+(defmacro with-cases ((&rest vars) (&rest cases) &body body)
+  (let ((case (gensym))
+	(problems (gensym)))
+    `(let ((,problems nil))
+       (loop for ,case in ,cases do
+	    (destructuring-bind ,vars ,case
+	      (restart-case
+		  (progn ,@body)
+		(ensure-failed (cond) 
+		  (push ,case ,problems)))))
+       (when ,problems
+	 (let ((condition (make-condition 
+			   'with-cases-failure
+			   :total ,(length cases)
+			   :problems ,problems)))
+	   (if (find-restart 'ensure-failed)
+	       (invoke-restart 'ensure-failed condition) 
+	       (warn condition)))))))
+
 
 ;;; ---------------------------------------------------------------------------
 ;;; test-mixin
@@ -609,9 +641,7 @@ Ensure same compares value-or-values-1 value-or-values-2 or each value of value-
   (:method ((test-suite test-mixin))
            (values))
   (:method :before ((test-suite test-mixin))
-           (setf (current-step test-suite) 'testsuite-setup))
-  (:method :after ((test-suite test-mixin))
-           #+(or) (initialize-prototypes test-suite)))
+           (setf (current-step test-suite) 'testsuite-setup)))
 
 (defgeneric testsuite-run (test-suite result)
   (:documentation "Run the cases in this suite and it's children."))
@@ -629,6 +659,8 @@ Ensure same compares value-or-values-1 value-or-values-2 or each value of value-
 
 (defgeneric next-prototype (test-suite)
   (:documentation "Ensures that the test environment has the values of the next prototype set."))
+
+(defgeneric make-single-prototype (test-suite))
 
 (defgeneric setup-test (test-suite)
   (:documentation "Setup for a test-case. By default it does nothing."))
@@ -824,15 +856,18 @@ the thing being defined.")
      ,(mapcar #'(lambda (local)
                   `(,local (test-environment-value ',local)))
               (def :slot-names))
-     ,@body))
-
-;;; ---------------------------------------------------------------------------
+     (macrolet 
+	 ,(mapcar (lambda (spec)
+		     (destructuring-bind (name arglist body) (first spec)
+		       `(,name ,arglist 
+			       `(flet-test-function 
+				*current-test* ',',name ,,@arglist))))
+		   (def :functions))
+       ,@body)))
 
 (defvar *deftest-clauses*
   '(:setup :teardown :test :documentation :tests :export-p :export-slots
-    :run-setup :dynamic-variables :equality-test))
-
-;;; ---------------------------------------------------------------------------
+    :run-setup :dynamic-variables :equality-test :categories :function))
 
 (defmacro deftest (testsuite-name superclasses slots &rest
                                   clauses-and-options) 
@@ -850,7 +885,7 @@ The `deftest` form is obsolete, see `deftestsuite`."
 
 (add-code-block
  :setup 1 :methods
- (lambda () (def :setup)) 
+ (lambda () (or (def :setup) (def :direct-slot-names))) 
  '((setf (def :setup) (cleanup-parsed-parameter value)))
  'build-setup-test-method)
 
@@ -859,6 +894,12 @@ The `deftest` form is obsolete, see `deftestsuite`."
  (lambda () (or (def :teardown) (def :direct-slot-names))) 
  '((setf (def :teardown) (cleanup-parsed-parameter value)))
  'build-test-teardown-method)
+
+(add-code-block
+ :function 0 :methods
+ (lambda () (def :functions))
+ '((push value (def :functions)))
+ 'build-test-local-functions)
 
 (add-code-block
  :documentation 0 :class-def 
@@ -906,6 +947,12 @@ The `deftest` form is obsolete, see `deftestsuite`."
  '((setf (def :direct-dynamic-variables) value))
  nil)
 
+(add-code-block
+ :categories 0 :class-def
+ nil 
+ '((push value (def :categories)))
+ nil)
+
 (defmacro no-handler-case (form &rest cases)
   (declare (ignore cases))
   `,form)
@@ -940,11 +987,13 @@ used as the `:initform` for the slot. I.e., if you have
     (deftestsuite my-test ()
       ((my-slot 23)))
 
-    then `my-slot` will be initialized to 23 during test setup.
+then `my-slot` will be initialized to 23 during test setup.
 
 Test options are one of :setup, :teardown, :test, :tests,
 :documentation, :export-p, :dynamic-variables, :export-slots 
-or :equality-test. 
+:function, :categories, :run-setup, or :equality-test. 
+
+* :categories - a list of symbols. Categories allow you to groups tests into clusters outside of the basic hierarchy. This provides finer grained control on selecting which tests to run. May be specified multiple times.
 
 * :documentation - a string specifying any documentation for the test.
 Should only be specified once.
@@ -963,6 +1012,17 @@ package. Should only be specified once.
 
 * :export-slots - if true, any slots specified in the test suite will be 
 exported from the current package. Should only be specified once.
+
+* :function - creates a locally accessible function for this test suite. May be specified multiple times. 
+
+* :run-setup - specify when to run the setup code for this test suite. Allowed values are 
+
+    * :once-per-test-case or t (the default)
+    * :once-per-session
+    * :once-per-suite
+    * :never or nil
+
+    :run-setup is handy when a testsuite has a time consuming setup phase that you do not want to repeat for every test.
 
 * :setup - a list of forms to be evaluated before each test case is run. 
 Should only be specified once.
@@ -1037,7 +1097,7 @@ multiple times.
                   ,(build-test-class)
                   (setf *current-suite-class-name* ',(def :testsuite-name)
 			(test-slots ',(def :testsuite-name)) 
-			',(def :test-slots)
+			',(def :slot-names)
 			(testsuite-dynamic-variables ',(def :testsuite-name))
 			',(def :dynamic-variables))
                   ,@(when (def :export-p)
@@ -1073,11 +1133,11 @@ multiple times.
                                   `(addtest (,(def :testsuite-name)) 
                                      ,@test))
                           (setf *testsuite-test-count* nil))))
-                  ,(if *test-evaluate-when-defined?* 
+		  ,(if *test-evaluate-when-defined?* 
                      `(unless (or *test-is-being-compiled?*
                                   *test-is-being-loaded?*)
                         (let ((*test-break-on-errors?* *test-break-on-errors?*))
-                          (run-tests :suite ',testsuite-name)))
+			  (run-tests :suite ',testsuite-name)))
                      `(find-class ',testsuite-name)))
                 (condition (c) 
 		  (break)
@@ -1183,15 +1243,15 @@ multiple times.
   (setf suite (intern (string suite) :lift))
   (let* ((*test-break-on-errors?* break-on-errors?)
          (*test-do-children?* do-children?)
-         (test-suite (make-test-suite suite args)))
+         (*current-test* (make-test-suite suite args)))
     (unless result
       (setf result (make-test-result suite :single)))
     (setf name (intern (string name) :lift)
 	  *current-case-method-name* name 
           *current-suite-class-name* suite)
-    (do-testing test-suite result 
+    (do-testing *current-test* result 
                 (lambda () 
-                  (run-test-internal test-suite name result)))))
+                  (run-test-internal *current-test* name result)))))
 
 (defun make-test-suite (suite args)
   (let ((make-instance-args nil))
@@ -1217,9 +1277,10 @@ multiple times.
 
 (defmethod run-tests-internal ((suite symbol) &rest args &key &allow-other-keys)
   (setf suite (intern (symbol-name suite) (find-package :lift)))
-  (apply #'run-tests-internal 
-	 (make-test-suite suite args)
-	 args))
+  (let ((*current-test* (make-test-suite suite args))) 
+    (apply #'run-tests-internal 
+	   *current-test*
+	   args)))
 
 (defmethod run-tests-internal ((test-class standard-class) &rest 
 			       args &key &allow-other-keys)
@@ -1299,14 +1360,23 @@ control over where in the test hierarchy the search begins."
     (when *test-do-children?*
       (loop for subclass in (direct-subclasses (class-of case))
             when (test-suite-p subclass) do
-            (run-tests-internal (make-instance (class-name subclass)) 
+            (run-tests-internal (class-name subclass)
                                 :result result)))))
 
 (defmethod more-prototypes-p ((test-suite test-mixin))
   (not (null (prototypes test-suite))))
 
 (defmethod initialize-prototypes ((test-suite test-mixin))
-  (values))
+  (setf (prototypes test-suite)
+	(list (make-single-prototype test-suite))))
+	
+(defmethod make-single-prototype ((test-suite test-mixin))
+  nil)
+
+(defmethod initialize-prototypes :around ((suite test-mixin))
+  (unless (prototypes-initialized? suite)
+    (setf (slot-value suite 'prototypes-initialized?) t)
+    (call-next-method)))
 
 (defmethod next-prototype ((test-suite test-mixin))
   (setf (current-values test-suite) (first (prototypes test-suite)) 
@@ -1586,28 +1656,25 @@ control over where in the test hierarchy the search begins."
         (slot-names nil)
         (slot-specs (def :slot-specs)))
     (loop for slot in slot-specs do
-          (when (and (member :initform (rest slot))
-                     (not (eq :unbound (getf (rest slot) :initform))))
-            (push (getf (rest slot) :initform) initforms)
-            (push (first slot) slot-names)))
+	 (when (and (member :initform (rest slot))
+		    (not (eq :unbound (getf (rest slot) :initform))))
+	   (push (getf (rest slot) :initform) initforms)
+	   (push (first slot) slot-names)))
     (setf slot-names (nreverse slot-names)
           initforms (nreverse initforms))
     
     (when initforms
-      `((defmethod initialize-prototypes :after ((test ,(def :testsuite-name)))
-	  (unless (prototypes-initialized? test)
-	    (setf (slot-value test 'prototypes-initialized?) t)
-	    (with-test-slots
-	      (setf (prototypes test)
-		    (let* (,@(mapcar (lambda (slot-name initform)
-				       `(,slot-name ,initform))
-				     slot-names initforms))
-		      (list
-		       (list ,@(mapcar (lambda (slot-name)
-					 `(cons ',slot-name ,slot-name))
-				       slot-names))))))))))))
-
-;;; ---------------------------------------------------------------------------
+      `((defmethod make-single-prototype ((test-suite ,(def :testsuite-name)))
+	  (with-test-slots
+	    (append 
+	     (when (next-method-p)
+	       (call-next-method))
+	     (let* (,@(mapcar (lambda (slot-name initform)
+				`(,slot-name ,initform))
+			      slot-names initforms))
+	       (list ,@(mapcar (lambda (slot-name)
+				 `(cons ',slot-name ,slot-name))
+			       slot-names))))))))))
 
 (defun (setf test-environment-value) (value name)
   (pushnew (cons name value) *test-environment* :test #'equal)
@@ -1624,7 +1691,18 @@ control over where in the test hierarchy the search begins."
   (setf *test-environment* 
         (remove name *test-environment* :key #'car)))
 
-;;; ---------------------------------------------------------------------------
+(defun build-test-local-functions ()
+  `(progn
+     ,@(mapcar 
+	(lambda (function-spec)
+	  (destructuring-bind (name arglist body) (first function-spec)
+	    `(defmethod flet-test-function ((test-suite ,(def :testsuite-name))
+					    (function-name (eql ',name))
+					    &rest args)
+	       (destructuring-bind ,arglist args
+		 (with-test-slots 
+		   ,body)))))
+	(def :functions))))
 
 (defun build-test-teardown-method ()
   (let ((test-name (def :testsuite-name))
@@ -1645,12 +1723,12 @@ control over where in the test hierarchy the search begins."
                                   slot-names))))
       `(progn
          ,@(when teardown-code
-             `((defmethod teardown-test progn ((test ,test-name))
-		 (when (run-teardown-p test :test-case)
+             `((defmethod teardown-test progn ((test-suite ,test-name))
+		 (when (run-teardown-p test-suite :test-case)
 		   ,@test-code))))
          ,@(when teardown-code
-             `((defmethod testsuite-teardown ((test ,test-name))
-                 (when (run-teardown-p test :testsuite)
+             `((defmethod testsuite-teardown ((test-suite ,test-name))
+                 (when (run-teardown-p test-suite :testsuite)
 		   ,@test-code))))))))
 
 (defun build-setup-test-method ()
@@ -1665,7 +1743,7 @@ control over where in the test hierarchy the search begins."
         (setf setup (list setup)))
       (let ((code `((with-test-slots ,@setup))))
 	`(progn
-	   (defmethod setup-test :after ((test ,test-name))
+	   (defmethod setup-test :after ((test-suite ,test-name))
 	     ,@code))))))
 
 (defmethod setup-test :around ((test test-mixin))
@@ -1712,7 +1790,7 @@ control over where in the test hierarchy the search begins."
        ,@(when name-supplied?
            `((ccl:record-source-file ',test-name 'test-case)))
        (pushnew ',test-name (testsuite-tests ',test-class))
-       (defmethod lift-test ((suite ,test-class) (case (eql ',test-name)))
+       (defmethod lift-test ((test-suite ,test-class) (case (eql ',test-name)))
 	 (with-test-slots ,@body))
        (setf *current-case-method-name* 
              (intern (method-name->test-name (symbol-name ',test-name))))
