@@ -13,14 +13,20 @@
                         :components ((:static-file "notes.text")
                                      
                                      (:file "lift")
+				     (:file "random-testing" 
+					    :depends-on ("lift"))
+				     (:file "port" 
+					    :depends-on ("lift"))
                                       
-                        #+Ignore
+				     #+Ignore
                                      (:file "prototypes"
                                             :depends-on ("lift"))))
                
-               (:module "website"
-                        :components ((:module "source"
-                                              :components ((:static-file "index.lml"))))))
+               (:module 
+		"website"
+		:components ((:module "source"
+				      :components 
+				      ((:static-file "index.lml"))))))
   
   :in-order-to ((test-op (load-op lift-test)))
   :perform (test-op :after (op c)
