@@ -2,13 +2,12 @@
 (in-package #:asdf-lift)
 
 (defsystem lift
-  :version "1.1"
+  :version "1.2"
   :author "Gary Warren King <gwking@metabang.com>"
   :maintainer "Gary Warren King <gwking@metabang.com>"
   :licence "MIT Style License; see file COPYING for details"
   :description "LIsp Framework for Testing"
-  :long-description "LIFT is yet another SUnit variant."
-  
+  :long-description "LIFT is an SUnit variant and much much more."  
   :components ((:module "dev" 
                         :components ((:static-file "notes.text")
                                      
