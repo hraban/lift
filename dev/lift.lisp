@@ -43,10 +43,11 @@ DEALINGS IN THE SOFTWARE.
   (export '(test-mixin
 	    test-suite-p
 	    *test-result*
+	    *current-test*
 	    failures
 	    errors
-	    with-cases
-	    with-random-cases
+	    ensure-cases
+	    ensure-random-cases
 	    deftestsuite
 	    addtest
 	    remove-test
@@ -568,29 +569,32 @@ Ensure same compares value-or-values-1 value-or-values-2 or each value of value-
       (invoke-restart 'ensure-failed condition) 
       (warn condition))))
 
-(define-condition with-cases-failure (test-condition)
+(define-condition ensure-cases-failure (test-condition)
   ((total :initarg :total :initform 0)
    (problems :initarg :problems :initform nil))
   (:report (lambda (condition stream)
-	     (format stream "With-cases: ~d out of ~d cases failed. Failing cases are: ~{~s~^, ~}" 
+	     (format stream "Ensure-cases: ~d out of ~d cases failed. Failing cases are: ~{~s~^, ~}" 
 		     (length (slot-value condition 'problems))
 		     (slot-value condition 'total)
 		     (slot-value condition 'problems)))))
 
-(defmacro with-cases ((&rest vars) (&rest cases) &body body)
+(defmacro ensure-cases ((&rest vars) (&rest cases) &body body)
   (let ((case (gensym))
+	(total (gensym))
 	(problems (gensym)))
-    `(let ((,problems nil))
+    `(let ((,problems nil) (,total 0))
        (loop for ,case in ,cases do
+	    (incf ,total)
 	    (destructuring-bind ,vars ,case
 	      (restart-case
 		  (progn ,@body)
-		(ensure-failed (cond) 
+		(ensure-failed (cond)
+		  (declare (ignore cond))
 		  (push ,case ,problems)))))
        (when ,problems
 	 (let ((condition (make-condition 
-			   'with-cases-failure
-			   :total ,(length cases)
+			   'ensure-cases-failure
+			   :total ,total
 			   :problems ,problems)))
 	   (if (find-restart 'ensure-failed)
 	       (invoke-restart 'ensure-failed condition) 
@@ -858,7 +862,8 @@ the thing being defined.")
               (def :slot-names))
      (macrolet 
 	 ,(mapcar (lambda (spec)
-		     (destructuring-bind (name arglist body) (first spec)
+		    (destructuring-bind (name arglist body) (first spec)
+		      (declare (ignore body))
 		       `(,name ,arglist 
 			       `(flet-test-function 
 				*current-test* ',',name ,,@arglist))))
@@ -1338,7 +1343,7 @@ control over where in the test hierarchy the search begins."
 (defun run-tests (&rest args &key 
 		  (suite *current-suite-class-name*)
 		  (break-on-errors? *test-break-on-errors?*)
-		  run-setup
+		  ;run-setup
 		  &allow-other-keys)
   "Run all of the tests in a suite. Arguments are :suite, :result, :do-children? and :break-on-errors?" 
   (remf args :suite)
@@ -1397,14 +1402,16 @@ control over where in the test hierarchy the search begins."
                         (lambda (cond)
                           (setf problem 
                                 (report-test-problem
-				 'test-error result case name cond))
+				 'test-error result case name cond
+				 :backtrace (get-backtrace cond)))
                           (if *test-break-on-errors?*
                             (invoke-debugger cond)
                             (go :test-end))))
                        (t (lambda (cond)
                             (setf problem 
                                   (report-test-problem
-				   'test-error result case name cond)))))
+				   'test-error result case name cond
+				   :backtrace (get-backtrace cond))))))
           (setf problem nil)
           (start-test result case name)
           (setup-test case)
@@ -1424,12 +1431,13 @@ control over where in the test hierarchy the search begins."
       :test-end))
   (setf *test-result* result))
 
-(defun report-test-problem (problem-type result suite method condition)
-  (let ((problem (make-instance problem-type
+(defun report-test-problem (problem-type result suite method condition
+			    &rest args)
+  (let ((problem (apply #'make-instance problem-type
                    :test-suite suite
                    :test-method method 
                    :test-condition condition
-                   :test-step (current-step suite))))
+                   :test-step (current-step suite) args)))
     (setf (first (tests-run result))
           (append (first (tests-run result)) (list problem))) 
     (etypecase problem
@@ -1597,17 +1605,12 @@ control over where in the test hierarchy the search begins."
             (name (test-suite problem))
 	    (test-method problem))))
 
-;;; ---------------------------------------------------------------------------
-
 (defclass test-failure (test-problem-mixin)
   ((test-problem-kind :initform "Failure" :allocation :class)))
 
-;;; ---------------------------------------------------------------------------
-
 (defclass test-error (test-problem-mixin)
-  ((test-problem-kind :initform "ERROR" :allocation :class)))
-
-;;; ---------------------------------------------------------------------------
+  ((test-problem-kind :initform "ERROR" :allocation :class)
+   (backtrace :initform nil :initarg :backtrace :reader backtrace)))
 
 (defmethod test-report-code ((test-suite test-mixin) (method symbol))
   (let* ((class-name (class-name (class-of test-suite))))
@@ -1695,13 +1698,13 @@ control over where in the test hierarchy the search begins."
   `(progn
      ,@(mapcar 
 	(lambda (function-spec)
-	  (destructuring-bind (name arglist body) (first function-spec)
+	  (destructuring-bind (name arglist &body body) (first function-spec)
 	    `(defmethod flet-test-function ((test-suite ,(def :testsuite-name))
 					    (function-name (eql ',name))
 					    &rest args)
-	       (destructuring-bind ,arglist args
-		 (with-test-slots 
-		   ,body)))))
+	       (with-test-slots 
+		 (destructuring-bind ,arglist args
+		   ,@body)))))
 	(def :functions))))
 
 (defun build-test-teardown-method ()
