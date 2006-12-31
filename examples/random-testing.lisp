@@ -29,3 +29,4 @@
 (deftestsuite small-positive-integer-math (integer-math)
   ()
   (:random-instance an-integer (1+ (random 10))))
+
