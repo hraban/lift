@@ -1,29 +1,5 @@
 ;;;-*- Mode: Lisp; Package: LIFT -*-
 
-#| simple-header
-
-Copyright (c) 2001-2006 Gary Warren King (gwking@metabang.com) 
-
-Permission is hereby granted, free of charge, to any person obtaining a 
-copy of this software and associated documentation files (the "Software"),
-to deal in the Software without restriction, including without limitation
-the rights to use, copy, modify, merge, publish, distribute, sublicense, 
-and/or sell copies of the Software, and to permit persons to whom the 
-Software is furnished to do so, subject to the following conditions: 
-
-The above copyright notice and this permission notice shall be included in 
-all copies or substantial portions of the Software. 
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL 
-THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER 
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING 
-FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER 
-DEALINGS IN THE SOFTWARE. 
-
-|#
-
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (unless (find-package '#:lift)
     (defpackage #:lift
@@ -84,7 +60,20 @@ DEALINGS IN THE SOFTWARE.
 	    list-tests
 	    testsuites
 	    testsuite-tests
-	    )))
+	    
+	    suite
+	    ensure-random-cases-failure
+	    random-instance-for-suite
+	    defrandom-instance
+	    ensure-random-cases
+	    ensure-random-cases+
+	    random-element
+	    random-number
+	    an-integer
+	    a-double-float
+	    a-single-float
+	    a-symbol)))
+
 
 ;;; ---------------------------------------------------------------------------
 ;;; shared stuff
@@ -141,6 +130,8 @@ the class itself is not included in the mapping. Proper? defaults to nil."
   "Create getter and setter methods for 'property' on symbol's property lists." 
   (let ((real-name (intern (format nil "~:@(~A~)" property) :keyword)))
     `(progn
+       (defgeneric ,property (symbol))
+       (defgeneric (setf ,property) (value symbol))
        (defmethod ,property ((class-name symbol))
           (get class-name ,real-name ,@(when default-supplied? (list default))))
        (defmethod (setf ,property) (value (class-name symbol))
@@ -195,7 +186,8 @@ All other CLOS slot options are processed normally."
          (initargs-added? nil))
     (flet ((make-conc-name ()
              (if conc-name
-               (intern (format nil "~@:(~A~A~A)" conc-name conc-separator name))
+               (intern (format nil "~@:(~A~A~A~)"
+			       conc-name conc-separator name))
                name))
            
            (add-option (option argument)
@@ -743,22 +735,14 @@ the methods that should be run to do the tests for this test."))
 (defgeneric (setf testsuite-prototype) (value class-name)
   (:documentation ""))
 
-;;; ---------------------------------------------------------------------------
-
 (defmethod setup-test :before ((test test-mixin))
   (setf *test-scratchpad* nil))
-
-;;; ---------------------------------------------------------------------------
 
 (defmethod setup-test ((test test-mixin))
   (values))
 
-;;; ---------------------------------------------------------------------------
-
 (defmethod teardown-test progn ((test test-mixin))
   (values))
-
-;;; ---------------------------------------------------------------------------
 
 (defmethod initialize-test ((test test-mixin))
   (values))
@@ -860,15 +844,14 @@ the thing being defined.")
      ,(mapcar #'(lambda (local)
                   `(,local (test-environment-value ',local)))
               (def :slot-names))
-     (macrolet 
+     (macrolet
 	 ,(mapcar (lambda (spec)
-		    (destructuring-bind (name arglist body) (first spec)
-		      (declare (ignore body))
-		       `(,name ,arglist 
-			       `(flet-test-function 
+		    (destructuring-bind (name arglist) spec
+		      `(,name ,arglist 
+			      `(flet-test-function 
 				*current-test* ',',name ,,@arglist))))
-		   (def :functions))
-       ,@body)))
+		  (def :function-specs))
+       (progn ,@body))))
 
 (defvar *deftest-clauses*
   '(:setup :teardown :test :documentation :tests :export-p :export-slots
@@ -965,58 +948,33 @@ The `deftest` form is obsolete, see `deftestsuite`."
 (defmacro deftestsuite (testsuite-name superclasses slots &rest
                                   clauses-and-options) 
   "
-### deftestsuite
- 
-    (deftestsuite testsuite-name ({superclass-name}*) 
-        ({slot-name | (slot-name [slot-option*])}*) 
-        [(test-option)*])
+Creates a test-suite named `testsuite-name` and, optionally, the code required for test setup, test tear-down and the actual test-cases. A test-suite is a collection of test-cases and other test-suites.
 
-Creates a test-suite named `testsuite-name` and, optionally,
-the code required for test setup, test tear-down and the
-actual test-cases. A test-suite is a collection of
-test-cases and other test-suites.
-
-Test suites can have multiple superclasses (just like the classes 
-that they are). Usually, these will be other test classes and the class
-hierarchy becomes the test case hierarchy. If necessary, however,
-non-test-suite classes can also be used as superclasses.
+Test suites can have multiple superclasses (just like the classes that they are). Usually, these will be other test classes and the class hierarchy becomes the test case hierarchy. If necessary, however, non-test-suite classes can also be used as superclasses.
 
 Slots are specified as in defclass with the following additions:
 
-* Initargs and accessors are automatically defined. If a slot is named
-`my-slot`, then the initarg will be `:my-slot` and the accessors will be
-`my-slot` and `(setf my-slot)`. 
-* If the second argument is not a CLOS slot option keyword, then it will be
-used as the `:initform` for the slot. I.e., if you have
+* Initargs and accessors are automatically defined. If a slot is named`my-slot`, then the initarg will be `:my-slot` and the accessors will be `my-slot` and `(setf my-slot)`. 
+* If the second argument is not a CLOS slot option keyword, then it will be used as the `:initform` for the slot. I.e., if you have
 
     (deftestsuite my-test ()
       ((my-slot 23)))
 
 then `my-slot` will be initialized to 23 during test setup.
 
-Test options are one of :setup, :teardown, :test, :tests,
-:documentation, :export-p, :dynamic-variables, :export-slots 
-:function, :categories, :run-setup, or :equality-test. 
+Test options are one of :setup, :teardown, :test, :tests, :documentation, :export-p, :dynamic-variables, :export-slots, :function, :categories, :run-setup, or :equality-test. 
 
 * :categories - a list of symbols. Categories allow you to groups tests into clusters outside of the basic hierarchy. This provides finer grained control on selecting which tests to run. May be specified multiple times.
 
-* :documentation - a string specifying any documentation for the test.
-Should only be specified once.
+* :documentation - a string specifying any documentation for the test. Should only be specified once.
 
-* :dynamic-variables - a list of atoms or pairs of the form (name value). These 
-specify any special variables that should be bound in a let around the body of 
-the test. The name should be symbol designating a special variable. The value (if 
-supplied) will be bound to the variable. If the value is not supplied, the 
-variable will be bound to nil. Should only be specified once.
+* :dynamic-variables - a list of atoms or pairs of the form (name value). These specify any special variables that should be bound in a let around the body of the test. The name should be symbol designating a special variable. The value (if supplied) will be bound to the variable. If the value is not supplied, the variable will be bound to nil. Should only be specified once.
 
-* :equality-test - the name of the function to be used by default in calls
-to ensure-same. Should only be supplied once. 
+* :equality-test - the name of the function to be used by default in calls to ensure-same. Should only be supplied once. 
 
-* :export-p - If true, the testsuite name will be exported from the current 
-package. Should only be specified once.
+* :export-p - If true, the testsuite name will be exported from the current package. Should only be specified once.
 
-* :export-slots - if true, any slots specified in the test suite will be 
-exported from the current package. Should only be specified once.
+* :export-slots - if true, any slots specified in the test suite will be exported from the current package. Should only be specified once.
 
 * :function - creates a locally accessible function for this test suite. May be specified multiple times. 
 
@@ -1029,17 +987,13 @@ exported from the current package. Should only be specified once.
 
     :run-setup is handy when a testsuite has a time consuming setup phase that you do not want to repeat for every test.
 
-* :setup - a list of forms to be evaluated before each test case is run. 
-Should only be specified once.
+* :setup - a list of forms to be evaluated before each test case is run.  Should only be specified once.
 
-* :teardown - a list of forms to be evaluated after each test case is run.
-Should only be specified once.
+* :teardown - a list of forms to be evaluated after each test case is run. Should only be specified once.
 
-* :test - Define a single test case. Can be specified 
-multiple times.
+* :test - Define a single test case. Can be specified multiple times.
 
-* :tests - Define multiple test cases for this test suite. Can be specified 
-multiple times.
+* :tests - Define multiple test cases for this test suite. Can be specified multiple times.
 
 "
   #+NO-LIFT-TESTS
@@ -1077,6 +1031,12 @@ multiple times.
       (setf (def :slot-specs) (nreverse slot-specs)
             (def :direct-slot-names) (nreverse slot-names)
             (def :slots-parsed) t))
+    ;;?? issue 27: breaks 'encapsulation' of code-block mechanism
+    (setf (def :function-specs)
+	  (loop for spec in (def :functions) collect
+	       (destructuring-bind (name arglist &body body) (first spec)
+		 (declare (ignore body))
+		 `(,name ,arglist))))
     ;;?? needed
     (empty-test-tables testsuite-name)
     (compute-superclass-inheritence)
@@ -1104,7 +1064,10 @@ multiple times.
 			(test-slots ',(def :testsuite-name)) 
 			',(def :slot-names)
 			(testsuite-dynamic-variables ',(def :testsuite-name))
-			',(def :dynamic-variables))
+			',(def :dynamic-variables)
+			;;?? issue 27: breaks 'encapsulation' of code-block mechanism
+			(testsuite-function-specs ',(def :testsuite-name))
+			',(def :function-specs))
                   ,@(when (def :export-p)
                       `((export '(,(def :testsuite-name)))))
                   ,@(when (def :export-slots?)
@@ -1159,22 +1122,32 @@ multiple times.
 ;;; ---------------------------------------------------------------------------
   
 (defun compute-superclass-inheritence ()
+  ;;?? issue 27: break encapsulation of code blocks
+  ;;?? we assume that we won't have too deep a hierarchy or too many 
+  ;; dv's or functions so that having lots of duplicate names is OK
   (let ((slots nil)
-	(dynamic-variables nil))
+	(dynamic-variables nil)
+	(function-specs nil))
     (dolist (super (def :superclasses))
       (setf super (intern (string super) :lift))
       (cond ((find-class super nil)
 	     (setf slots (append slots (test-slots super))
 		   dynamic-variables 
 		   (append dynamic-variables 
-			   (testsuite-dynamic-variables super))))
+			   (testsuite-dynamic-variables super))
+		   function-specs
+		   (append function-specs 
+			   (testsuite-function-specs super))))
 	    (t
 	     (error 'test-class-not-defined :test-class-name super))))
     (setf (def :slot-names) 
 	  (remove-duplicates (append (def :direct-slot-names) slots))
 	  (def :dynamic-variables)
 	  (remove-duplicates 
-	   (append (def :direct-dynamic-variables) dynamic-variables)))))
+	   (append (def :direct-dynamic-variables) dynamic-variables))
+	  (def :function-specs)
+	  (remove-duplicates 
+	   (append (def :function-specs) function-specs)))))
 
 ;;; ---------------------------------------------------------------------------
 
@@ -1198,7 +1171,8 @@ multiple times.
           (setf (def :testsuite-name) *current-suite-class-name*)))
       (unless (def :testsuite-name)
         (signal-lift-error 'add-test +lift-no-current-test-class+))
-      (setf (def :testsuite-name) (intern (string (def :testsuite-name)) :lift))
+      (setf (def :testsuite-name)
+	    (intern (string (def :testsuite-name)) :lift))
       (unless (or (def :deftestsuite) 
                   (find-class (def :testsuite-name) nil))
         (signal-lift-error 'add-test +lift-test-class-not-found+
@@ -1703,8 +1677,10 @@ control over where in the test hierarchy the search begins."
 					    (function-name (eql ',name))
 					    &rest args)
 	       (with-test-slots 
-		 (destructuring-bind ,arglist args
-		   ,@body)))))
+		 ,(if arglist
+		      `(destructuring-bind ,arglist args
+			 ,@body)
+		      `(progn ,@body))))))
 	(def :functions))))
 
 (defun build-test-teardown-method ()
@@ -1940,6 +1916,9 @@ control over where in the test hierarchy the search begins."
 (defclass-property testsuite-prototype)
 (defclass-property testsuite-tests)
 (defclass-property testsuite-dynamic-variables)
+
+;;?? issue 27: break encapsulation of code blocks
+(defclass-property testsuite-function-specs)
 
 ;;; ---------------------------------------------------------------------------
 
