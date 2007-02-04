@@ -1,18 +1,5 @@
 (in-package #:lift)
 
-(export '(suite
-	  ensure-random-cases-failure
-	  random-instance-for-suite
-	  defrandom-instance
-	  ensure-random-cases
-	  ensure-random-cases+
-	  random-element
-	  random-number
-	  an-integer
-	  a-double-float
-	  a-single-float
-	  a-symbol))
-
 ;; we redefine the class and possibly method each time, ick.
 
 (define-condition ensure-random-cases-failure (test-condition)
@@ -52,7 +39,8 @@
 		       vars-and-types))
 		(restart-case
 		    (progn ,@body)
-		  (ensure-failed (cond) 
+		  (ensure-failed (cond)
+		    (declare (ignorable cond))
 		    (push (list ,@(mapcar 
 				   (lambda (var-and-type)
 				     `(list ',(first var-and-type) 
@@ -67,7 +55,8 @@
 		 (invoke-restart 'ensure-failed condition) 
 		 (warn condition))))))))
 
-(defmacro ensure-random-cases+ (count (&rest vars) (&rest case-form) &body body)
+(defmacro ensure-random-cases+ (count (&rest vars) (&rest case-form)
+				&body body)
   (let ((case (gensym))
 	(total (gensym))
 	(problems (gensym)))
@@ -110,6 +99,7 @@
 (defgeneric random-element (suite sequence))
 
 (defmethod random-number (suite min max)
+  (declare (ignore suite))
   (+ min (random (- max min))))
 
 (defmethod random-element (suite sequence)
