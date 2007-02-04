@@ -5,6 +5,10 @@
 show or log backtraces.  It accepts a condition object ERROR and
 returns a string with the corresponding backtrace.")
 
+#+allegro
+(defun total-bytes-allocated ()
+  (sys::gsgc-totalloc-bytes t))
+
 #+mcl
 (defun get-backtrace (error)
   (with-output-to-string (s)
