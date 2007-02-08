@@ -252,7 +252,8 @@ All other CLOS slot options are processed normally."
       (when (and automatic-initargs? (not initargs-added?))
         (add-option :initarg (intern (string name) (find-package :keyword))))
       
-      (when (and automatic-accessors? (and (not accessor-added?) (not reader-added?)))
+      (when (and automatic-accessors? 
+		 (and (not accessor-added?) (not reader-added?)))
         (add-option :accessor (make-conc-name)))
       
       ;; finish-new-slot cleans up duplicates
@@ -720,8 +721,8 @@ the methods that should be run to do the tests for this test."))
 (defgeneric (setf test-slots) (value class-name)
   (:documentation ""))
 
-(defgeneric test-suite-p (class)
-  (:documentation ""))
+(defgeneric test-suite-p (thing)
+  (:documentation "Determine whether or not `thing` is a test-suite. Thing can be a symbol naming a suite, a subclass of `test-mixin` or an instance of a test suite. Returns nil if `thing` is not a test-suite and the symbol naming the suite if it is."))
 
 (defgeneric testsuite-name->gf (case name)
   (:documentation ""))
@@ -1006,11 +1007,8 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
     (setf clauses-and-options 
           (convert-clauses-into-lists clauses-and-options *deftest-clauses*))
     (initialize-current-definition)
-    (setf testsuite-name (intern (string testsuite-name) (find-package :lift)) 
-	  (def :testsuite-name) testsuite-name)
-    (setf (def :superclasses) (mapcar (lambda (x)
-					(intern (string x) :lift))
-				      superclasses))
+    (setf (def :testsuite-name) testsuite-name)
+    (setf (def :superclasses) (mapcar #'find-test-suite superclasses))
     (setf (def :deftestsuite) t)
     ;; parse clauses into defs
     (loop for clause in clauses-and-options do
@@ -1129,8 +1127,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 	(dynamic-variables nil)
 	(function-specs nil))
     (dolist (super (def :superclasses))
-      (setf super (intern (string super) :lift))
-      (cond ((find-class super nil)
+      (cond ((find-test-suite super)
 	     (setf slots (append slots (test-slots super))
 		   dynamic-variables 
 		   (append dynamic-variables 
@@ -1171,10 +1168,8 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
           (setf (def :testsuite-name) *current-suite-class-name*)))
       (unless (def :testsuite-name)
         (signal-lift-error 'add-test +lift-no-current-test-class+))
-      (setf (def :testsuite-name)
-	    (intern (string (def :testsuite-name)) :lift))
       (unless (or (def :deftestsuite) 
-                  (find-class (def :testsuite-name) nil))
+                  (find-test-suite (def :testsuite-name)))
         (signal-lift-error 'add-test +lift-test-class-not-found+
                            (def :testsuite-name)))
       `(eval-when (:compile-toplevel :load-toplevel :execute)
@@ -1219,14 +1214,12 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 		 (result nil))
   (assert suite nil "Test suite could not be determined.")
   (assert name nil "Test name could not be determined.")
-  (setf suite (intern (string suite) :lift))
   (let* ((*test-break-on-errors?* break-on-errors?)
          (*test-do-children?* do-children?)
          (*current-test* (make-test-suite suite args)))
     (unless result
       (setf result (make-test-result suite :single)))
-    (setf name (intern (string name) :lift)
-	  *current-case-method-name* name 
+    (setf *current-case-method-name* name 
           *current-suite-class-name* suite)
     (do-testing *current-test* result 
                 (lambda () 
@@ -1234,12 +1227,11 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 
 (defun make-test-suite (suite args)
   (let ((make-instance-args nil))
-    (setf suite (intern (string suite) :lift))
     (loop for keyword in *make-test-suite-arguments* do
        (when (member keyword args)
 	 (push keyword make-instance-args)
 	 (push (getf args keyword) make-instance-args)))
-    (apply #'make-instance suite make-instance-args)))
+    (apply #'make-instance (find-test-suite suite) make-instance-args)))
 
 (defmethod do-testing ((test-suite test-mixin) result fn)
   (unwind-protect
@@ -1255,7 +1247,6 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
   (values result))
 
 (defmethod run-tests-internal ((suite symbol) &rest args &key &allow-other-keys)
-  (setf suite (intern (symbol-name suite) (find-package :lift)))
   (let ((*current-test* (make-test-suite suite args))) 
     (apply #'run-tests-internal 
 	   *current-test*
@@ -1299,7 +1290,7 @@ control over where in the test hierarchy the search begins."
 (defun list-tests (&key (include-cases? t) (start-at 'test-mixin) (stream t))
   "Lists all of the defined test classes from :start-at on down."
   (mapc (lambda (subclass-name)
-          (format stream "~&~A (~D)" 
+          (format stream "~&~S (~D)" 
                   subclass-name
                   (length (testsuite-methods subclass-name)))
           (when include-cases?
@@ -1309,7 +1300,6 @@ control over where in the test hierarchy the search begins."
   (values))
 
 (defun testsuite-test-count (testsuite)
-  (setf testsuite (intern (string testsuite) :lift))
   (or (and *testsuite-test-count* 
            (prog1 *testsuite-test-count* (incf *testsuite-test-count*))) 
       (length (testsuite-methods testsuite))))
@@ -1768,7 +1758,9 @@ control over where in the test hierarchy the search begins."
        #+MCL
        ,@(when name-supplied?
            `((ccl:record-source-file ',test-name 'test-case)))
-       (pushnew ',test-name (testsuite-tests ',test-class))
+       (unless (find ',test-name (testsuite-tests ',test-class))
+	 (setf (testsuite-tests ',test-class)
+	       (append (testsuite-tests ',test-class) (list ',test-name))))
        (defmethod lift-test ((test-suite ,test-class) (case (eql ',test-name)))
 	 (with-test-slots ,@body))
        (setf *current-case-method-name* 
@@ -1810,8 +1802,7 @@ control over where in the test hierarchy the search begins."
     (setf test-name (first test-body))
     (cond ((symbolp test-name)
            (setf test-name 
-		 (intern (format nil "~A~A" +test-method-prefix+ test-name) 
-			 :lift)
+		 (intern (format nil "~A~A" +test-method-prefix+ test-name))
                  body (rest test-body)
                  name-supplied? t))
           ((and (test-code->name-table *current-suite-class-name*)
@@ -1824,7 +1815,6 @@ control over where in the test hierarchy the search begins."
 		 (intern (format nil "~ATEST-~A" 
 				 +test-method-prefix+ test-number))
                  body test-body)))
-    (setf test-name (intern (string test-name) :lift))
     (values test-name body documentation name-supplied?)))
 
 ;;; ---------------------------------------------------------------------------
@@ -1873,7 +1863,8 @@ control over where in the test hierarchy the search begins."
   (let ((class (find-class classname nil)))
     (handler-case
       (and class
-           (typep (allocate-instance class) 'test-mixin))
+           (typep (allocate-instance class) 'test-mixin)
+	   classname)
       (error (c) (declare (ignore c)) (values nil)))))
 
 ;;; ---------------------------------------------------------------------------
@@ -2015,3 +2006,23 @@ control over where in the test hierarchy the search begins."
        (make-instance 'test-timeout-condition
 		      :maximum-time (maximum-time test-suite))))))
 
+(defmethod find-test-suite ((suite symbol))
+  (or (test-suite-p suite)
+      (find-test-suite (symbol-name suite))))
+
+(defmethod find-test-suite ((suite-name string))
+  (let* ((temp nil)
+	 (possibilities (remove-duplicates 
+			 (loop for p in (list-all-packages) 
+			    when (and (setf temp (find-symbol suite-name p))
+				      (find-class temp nil)
+				      (subtypep temp 'test-mixin)) collect
+			    temp))))
+    (cond ((null possibilities) 
+	   (error 'test-class-not-defined :test-class-name suite-name))
+	  ((= (length possibilities) 1)
+	   (first possibilities))
+	  (t 
+	   (error "There are several test suites named ~s: they are ~{~s~^, ~}"
+		  suite-name possibilities)))))
+			     
