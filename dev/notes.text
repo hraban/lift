@@ -1,14 +1,23 @@
 (in-package lift)
 
+:run-setup :once-per-session 
+	   (give not implemented error at test def time, not run time
+	   or implement it)
+
+
+so how do we integrate measuring with the report -- change the test result
+  add test result properties
+
 need tests that metadata is correctly set too
 
 need to test that all variables in a hierarchy are initialized as appropriate
 
-We're not checking for class existence in addtest... leads to weird seeming errors
-
+We're not checking for class existence in addtest... 
+  leads to weird seeming errors
 
 LIFT: handle macros better
 LIFT: code walker -- even a simple one that just tree searched for macros
+  some FP are OK
 
 (list lift::*test-is-being-compiled?*
       lift::*test-is-being-defined?*
@@ -22,16 +31,14 @@ LIFT: code walker -- even a simple one that just tree searched for macros
 
 Simple MCL GUI
 
-may need to change teardownn-test to standard method combination and use :after. See
+may need to change teardownn-test to standard method combination and 
+ use :after. See
 (defmethod teardown-test :before ((test-suite test-mixin))
   (setf (current-step test-suite) 'teardown-test))
 
 randomly change order of tests
 
 sort results so that report is always in same order
-
-
-
 
 (deftestsuite test-addition ()
   (a b)
@@ -64,7 +71,8 @@ make-test-result seems a bit silly too
        (not (or *test-is-being-compiled?*
                 *test-is-being-loaded?*))))
 
-test-suite-p, etc could be defined more cleanly if the class one was 'definitive'
+test-suite-p, etc could be defined more cleanly if the class
+  one was 'definitive'
 
 Instead of class properties, use the MOP
 
@@ -368,4 +376,3 @@ no - use dynamic scope for *test-is-being-compiled?* rather than unwind-protect
 ok - LIFT: better control of printing (:follow-print)
 ok - LIFT: variable to control behavior on warning / failure: print full report, etc.
 ok - add :function to define local functions, use rewriting and macrolet 
-

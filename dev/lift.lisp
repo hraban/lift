@@ -1,4 +1,4 @@
-;;;-*- Mode: Lisp; Package: LIFT -*-
+;;;-*- Mode: Lisp; Package: lift -*-
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (unless (find-package '#:lift)

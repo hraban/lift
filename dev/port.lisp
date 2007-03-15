@@ -9,6 +9,15 @@ returns a string with the corresponding backtrace.")
 (defun total-bytes-allocated ()
   (sys::gsgc-totalloc-bytes t))
 
+#+(or digitool openmcl)
+(defun total-bytes-allocated ()
+  (ccl::total-bytes-allocated))
+
+#+sbcl
+(defun total-bytes-allocated ()
+  (cl-user::get-bytes-consed))
+
+
 #+mcl
 (defun get-backtrace (error)
   (with-output-to-string (s)

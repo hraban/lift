@@ -2,7 +2,7 @@
 (in-package #:asdf-lift)
 
 (defsystem lift
-  :version "1.2.2"
+  :version "1.2.1"
   :author "Gary Warren King <gwking@metabang.com>"
   :maintainer "Gary Warren King <gwking@metabang.com>"
   :licence "MIT Style License; see file COPYING for details"
@@ -16,7 +16,8 @@
 					    :depends-on ("lift"))
 				     (:file "port" 
 					    :depends-on ("lift"))
-                                      
+				     (:file "measuring" 
+					    :depends-on ("port"))
 				     #+Ignore
                                      (:file "prototypes"
                                             :depends-on ("lift"))))
