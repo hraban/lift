@@ -18,6 +18,8 @@
 					    :depends-on ("lift"))
 				     (:file "measuring" 
 					    :depends-on ("port"))
+				     (:file "config" 
+					    :depends-on ("port"))
 				     #+Ignore
                                      (:file "prototypes"
                                             :depends-on ("lift"))))
@@ -33,7 +35,7 @@
                     (describe 
 		     (funcall (intern (symbol-name '#:run-tests) :lift) 
 			      :suite '#:lift-test)))
-  :depends-on (#+tam moptilities)) 
+  :depends-on ()) 
 
 (defmethod operation-done-p 
            ((o test-op) (c (eql (find-system 'lift))))
