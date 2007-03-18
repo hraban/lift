@@ -76,7 +76,7 @@
 	    a-single-float
 	    a-symbol
 
-	    configure-from-file)))
+	    run-tests-from-file)))
 
 ;;; ---------------------------------------------------------------------------
 ;;; shared stuff
