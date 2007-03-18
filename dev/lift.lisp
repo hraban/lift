@@ -633,7 +633,9 @@ Ensure same compares value-or-values-1 value-or-values-2 or each value of value-
 ;;; ---------------------------------------------------------------------------
 
 (defclass test-result ()
-  ((test-class-name :initform nil :initarg :test-class-name :accessor test-class-name)
+  ((results-for :initform nil 
+		:initarg :results-for 
+		:accessor results-for)
    (tests-run :initform nil :accessor tests-run)
    (failures :initform nil :accessor failures)
    (errors :initform nil :accessor errors)
@@ -1419,7 +1421,7 @@ control over where in the test hierarchy the search begins."
 
 (defmethod make-test-result ((test-class-name symbol) test-mode)
   (make-instance 'test-result
-    :test-class-name test-class-name
+    :results-for for
     :test-mode test-mode))
 
 (defun testing-interactively-p ()
@@ -1432,7 +1434,7 @@ control over where in the test hierarchy the search begins."
            (*print-length* (get-test-print-length)))
       (print-unreadable-object (tr stream)
         (cond ((null (tests-run tr))
-               (format stream "~A: no tests defined" (test-class-name tr)))
+               (format stream "~A: no tests defined" (results-for tr)))
               ((eq (test-mode tr) :single)
                (cond ((test-interactive? tr)
                       ;; interactive
@@ -1445,7 +1447,7 @@ control over where in the test hierarchy the search begins."
                      (t
                       ;; from run-test
                       (format stream "~A.~A ~A" 
-                              (test-class-name tr) 
+                              (results-for tr) 
                               (first (first (tests-run tr)))
                               (cond (complete-success?
                                      "passed")
@@ -1455,7 +1457,7 @@ control over where in the test hierarchy the search begins."
                                      "failed"))))))
               (t
                ;; multiple tests run
-               (format stream "Results for ~A " (test-class-name tr))
+               (format stream "Results for ~A " (results-for tr))
                (if complete-success?
                  (format stream "[~A Successful test~:P]"
                          (length (tests-run tr)))
@@ -1477,7 +1479,7 @@ control over where in the test hierarchy the search begins."
     
     (unless *test-is-being-defined?*
       (format stream "~&Test Report for ~A: ~D test~:P run" 
-              (test-class-name result) (length (tests-run result))))
+              (results-for result) (length (tests-run result))))
     (let* ((*print-level* (get-test-print-level))
            (*print-length* (get-test-print-length)))
       (cond ((or (failures result) (errors result))
