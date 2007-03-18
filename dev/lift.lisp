@@ -696,9 +696,6 @@ the methods that should be run to do the tests for this test."))
 (defgeneric initialize-test (test)
   (:documentation ""))
 
-(defgeneric make-test-result (test-class test-mode)
-  (:documentation ""))
-
 (defgeneric run-test-internal (case name result)
   (:documentation ""))
 
@@ -1419,7 +1416,7 @@ control over where in the test hierarchy the search begins."
 
 ;;; ---------------------------------------------------------------------------
 
-(defmethod make-test-result ((test-class-name symbol) test-mode)
+(defun make-test-result (for test-mode)
   (make-instance 'test-result
     :results-for for
     :test-mode test-mode))
