@@ -41,6 +41,5 @@
   (when (slot-exists-p object 'shuffle-methods?)
     (setf (slot-value object 'shuffle-methods?) nil)))
 
-run-test-internal
 
     
