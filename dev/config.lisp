@@ -9,7 +9,7 @@
 			:direction :input
 			:if-does-not-exist :error)
       (let ((*lift-dribble-pathname* nil)
-	    (*lift-debug-io* *debug-io*)
+	    (*lift-debug-output* *debug-io*)
 	    (*lift-standard-output* *standard-output*)
 	    (*test-break-on-errors?* nil)
 	    (*test-do-children?* t)
@@ -42,44 +42,34 @@
 	     (t arg))))
 
 (defmethod handle-config-preference ((name t) args)
-  (declare (ignore args))
   (error "Unknown preference ~s (with arguments ~s)" 
 	 name args))
 
 (defmethod handle-config-preference ((name (eql :dribble)) args)
-  (declare (ignore args))
   (setf *lift-dribble-pathname* (first args)))
 
-(defmethod handle-config-preference ((name (eql :debug-io)) args)
-  (declare (ignore args))
-  (setf *lift-debug-io* (first args)))
+(defmethod handle-config-preference ((name (eql :debug-output)) args)
+  (setf *lift-debug-output* (first args)))
 
 (defmethod handle-config-preference ((name (eql :standard-output)) args)
-  (declare (ignore args))
   (setf *lift-standard-output* (first args)))
 
 (defmethod handle-config-preference ((name (eql :break-on-errors?)) args)
-  (declare (ignore args))
   (setf *test-break-on-errors?* (first args)))
 
 (defmethod handle-config-preference ((name (eql :do-children?)) args)
-  (declare (ignore args))
   (setf *test-do-children?* (first args)))
 
 (defmethod handle-config-preference ((name (eql :equality-test)) args)
-  (declare (ignore args))
   (setf *lift-equality-test* (first args)))
 
 (defmethod handle-config-preference ((name (eql :print-length)) args)
-  (declare (ignore args))
   (setf *test-print-length* (first args)))
 
 (defmethod handle-config-preference ((name (eql :print-level)) args)
-  (declare (ignore args))
   (setf *test-print-level* (first args)))
 
 (defmethod handle-config-preference ((name (eql :if-dribble-exists))
 				     args)
-  (declare (ignore args))
   (setf *lift-if-dribble-exists* (first args)))
 
