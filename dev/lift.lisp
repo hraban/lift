@@ -297,6 +297,8 @@ All other CLOS slot options are processed normally."
 
 (defparameter +test-method-prefix+ "")
 
+#+(or)
+;; FIXME - not used
 (defparameter *run-tests-arguments*
   '(:suite :break-on-errors :run-setup :do-children? :result 
     :name :config))
@@ -594,8 +596,7 @@ Ensure same compares value-or-values-1 value-or-values-2 or each value of value-
 	      (restart-case
 		  (progn ,@body)
 		(ensure-failed (cond)
-		  (declare (ignore cond))
-		  (push ,case ,problems)))))
+		  (push (list ,case cond) ,problems)))))
        (when ,problems
 	 (let ((condition (make-condition 
 			   'ensure-cases-failure
@@ -1233,6 +1234,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 	   *current-test*
 	   args)))
 
+#+(or)
 (defmethod run-tests-internal ((test-class standard-class) &rest 
 			       args &key &allow-other-keys)
   (apply #'run-tests-internal (class-name test-class) args))
