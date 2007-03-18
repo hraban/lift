@@ -6,7 +6,7 @@
   ((total :initarg :total :initform 0)
    (problems :initarg :problems :initform nil))
   (:report (lambda (condition stream)
-	     (format stream "Ensure-random-cases: ~d out of ~d failed. Failing values are: ~{~s~^, ~}" 
+	     (format stream "Ensure-random-cases: ~d out of ~d failed. Failing values are: ~{~%  ~s~^, ~}" 
 		     (length (slot-value condition 'problems))
 		     (slot-value condition 'total)
 		     (slot-value condition 'problems)))))
@@ -29,7 +29,6 @@
 	     (intern (format nil "+~a+" type) :lift)))
       `(let ((,problems nil))
 	 (loop repeat ,count do
-	      (princ #\.)
 	      (let (,@(mapcar 
 		       (lambda (var-and-type)
 			 `(,(first var-and-type) 
@@ -38,9 +37,11 @@
 			     *current-test*)))
 		       vars-and-types))
 		(restart-case
-		    (progn ,@body)
+		    (progn ,@body
+			   (princ #\. *debug-io*))
 		  (ensure-failed (cond)
 		    (declare (ignorable cond))
+		    (princ #\* *debug-io*)
 		    (push (list ,@(mapcar 
 				   (lambda (var-and-type)
 				     `(list ',(first var-and-type) 
