@@ -642,9 +642,11 @@ Ensure same compares value-or-values-1 value-or-values-2 or each value of value-
    (errors :initform nil :accessor errors)
    (test-mode :initform :single :initarg :test-mode :accessor test-mode)
    (test-interactive? :initform nil 
-                      :initarg :test-interactive? :accessor test-interactive?))
+                      :initarg :test-interactive? :accessor test-interactive?)
+   (start-time :initarg :start-time :reader start-time))
   (:default-initargs
-    :test-interactive? *test-is-being-defined?*))
+    :test-interactive? *test-is-being-defined?*
+    :start-time (get-universal-time)))
 
 ;;; ---------------------------------------------------------------------------
 
