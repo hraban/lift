@@ -237,7 +237,8 @@ All other CLOS slot options are processed normally."
               (add-option :reader (make-conc-name)))
             (when (find #\I (string item))
               (setf initargs-added? t)
-              (add-option :initarg (intern (string name) (find-package :keyword))))))
+              (add-option :initarg (intern (string name) 
+					   (find-package :keyword))))))
         
         (when process-item?
           (unless (or done-documentation? (not (stringp item)))
@@ -279,21 +280,16 @@ All other CLOS slot options are processed normally."
         (push clause parsed-clauses)))
     (nreverse parsed-clauses)))
 
-;;; ---------------------------------------------------------------------------
-
 (defun remove-leading-quote (list)
   "Removes the first quote from a list if one is there."
   (if (and (consp list) (eql (first list) 'quote))
     (first (rest list))
     list))
 
-;;; ---------------------------------------------------------------------------
-
 (defun cleanup-parsed-parameter (parameter)
   (if (length-1-list-p parameter)
     (first parameter)
     parameter))
-
 
 ;;; ---------------------------------------------------------------------------
 ;;; global environment thingies
@@ -302,7 +298,8 @@ All other CLOS slot options are processed normally."
 (defparameter +test-method-prefix+ "")
 
 (defparameter *run-tests-arguments*
-  '(:suite :break-on-errors :run-setup :do-children? :result :name))
+  '(:suite :break-on-errors :run-setup :do-children? :result 
+    :name :config))
 
 (defparameter *make-test-suite-arguments*
   '(:run-setup :test-slot-names :equality-test :log-file :timeout))
@@ -1297,7 +1294,8 @@ control over where in the test hierarchy the search begins."
 		  (result (make-test-result (or suite config) :multiple))
 					;run-setup
 		  &allow-other-keys)
-  "Run all of the tests in a suite. Arguments are :suite, :result, :do-children? and :break-on-errors?" 
+  "Run all of the tests in a suite. Arguments are :suite, :result, ~
+:do-children? and :break-on-errors?" 
   (remf args :suite)
   (remf args :break-on-errors?)
   (remf args :run-setup)
@@ -1424,21 +1422,8 @@ control over where in the test hierarchy the search begins."
     :test-class-name test-class-name
     :test-mode test-mode))
 
-;;; ---------------------------------------------------------------------------
-
-(defmethod make-test-result ((test-class standard-class) test-mode)
-  (make-test-result (class-name test-class) test-mode))
-
-;;; ---------------------------------------------------------------------------
-
 (defun testing-interactively-p ()
-  (values nil)
-  #+Ignore
-  (and *test-is-being-defined?*
-       (not (or *test-is-being-compiled?*
-                ))))
-
-;;; ---------------------------------------------------------------------------
+  (values nil))
 
 (defmethod print-object ((tr test-result) stream)
   (let ((complete-success? (and (null (errors tr))
