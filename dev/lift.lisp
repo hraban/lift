@@ -46,7 +46,7 @@
 	    *lift-equality-test*
 	    *test-print-length*
 	    *test-print-level*
-	    *test-output*
+	    *lift-debug-output*
           
 	    ;; Other
 	    ensure
@@ -315,8 +315,10 @@ All other CLOS slot options are processed normally."
 
 (defvar *testsuite-test-count* nil
   "Temporary variable used to 'communicate' between deftestsuite and addtest.")
-(defvar *test-output* *debug-io*
-  "The destination for output from LIFT. Defaults to *debug-io*.")
+(defvar *lift-debug-output* *debug-io*
+  "Messages from LIFT will be sent to this stream. It can set to nil or ~
+to an output stream. It defaults to *debug-io**.")
+
 (defvar *test-break-on-errors?* nil)
 (defvar *test-do-children?* t)
 (defparameter *test-ignore-warnings?* nil
@@ -347,6 +349,16 @@ the test is running. Note that this may interact oddly with ensure-warning.")
 (defvar *current-test* nil
   "The current test-suite.")
 
+(defvar *lift-dribble-pathname* nil
+  "If bound, then test output from run-tests will be sent to this file in ~ 
+in addition to *lift-standard-output*. It can be set to nil or to a pathname.")
+(defvar *lift-standard-output* *standard-output*
+  "Output from tests will be sent to this stream. If can set to nil or ~
+to an output stream. It defaults to *standard-output*.")
+(defvar *lift-if-dribble-exists* :append
+  "Specifies what to do to any existing file at *lift-dribble-pathname*. It ~
+can be :supersede, :append, or :error.")
+  
 ;;; ---------------------------------------------------------------------------
 ;;; Error messages and warnings
 ;;; ---------------------------------------------------------------------------
@@ -414,14 +426,14 @@ the test is running. Note that this may interact oddly with ensure-warning.")
 ;;; ---------------------------------------------------------------------------
 
 (defun report-lift-error (context message &rest args)
-  (format *test-output* "~&~A."
+  (format *debug-io* "~&~A."
           (apply #'build-lift-error-message context message args))
   (values))
 
 ;;; ---------------------------------------------------------------------------
 
 (defun lift-report-condition (c)
-  (format *test-output* "~&~A." c))
+  (format *debug-io* "~&~A." c))
 
 ;;; ---------------------------------------------------------------------------
 
@@ -1278,7 +1290,10 @@ control over where in the test hierarchy the search begins."
 (defun run-tests (&rest args &key 
 		  (suite *current-suite-class-name*)
 		  (break-on-errors? *test-break-on-errors?*)
-		  ;run-setup
+		  (config nil)
+		  (dribble *lift-dribble-pathname*)
+		  (result (make-test-result (or suite config) :multiple))
+					;run-setup
 		  &allow-other-keys)
   "Run all of the tests in a suite. Arguments are :suite, :result, :do-children? and :break-on-errors?" 
   (remf args :suite)
@@ -1577,13 +1592,13 @@ control over where in the test hierarchy the search begins."
             (setf (find-class (class-name subclass)) nil))
       
       (unless (length-1-list-p classes-removed)
-        (format *test-output* 
+        (format *debug-io* 
                 "~&;;; Removed Test suite ~(~A~) and its subclasses (~{~<~s~>~^, ~})."
                 classname (sort 
                            (delete classname (mapcar #'class-name classes-removed))
                            #'string-lessp)))
       (unless (zerop removed-count)
-        (format *test-output* 
+        (format *debug-io* 
                 "~&;;; Removed ~D methods from test suite ~(~A~)~@[ and its subclasses~]."
                 removed-count classname (not (length-1-list-p classes-removed)))))))
 
@@ -1739,7 +1754,7 @@ control over where in the test hierarchy the search begins."
        (when (and *test-print-when-defined?*
                   (not (or *test-is-being-compiled?*
                            )))
-         (format *test-output* "~&;Test Created: ~(~S.~S~)." 
+         (format *debug-io* "~&;Test Created: ~(~S.~S~)." 
 		 ',test-class ',test-name))
        *current-case-method-name*)))
 
