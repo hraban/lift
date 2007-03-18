@@ -1286,7 +1286,7 @@ control over where in the test hierarchy the search begins."
       (length (testsuite-methods testsuite))))
 
 (defun run-tests (&rest args &key 
-		  (suite *current-suite-class-name*)
+		  (suite nil)
 		  (break-on-errors? *test-break-on-errors?*)
 		  (config nil)
 		  (dribble *lift-dribble-pathname*)
@@ -1298,14 +1298,37 @@ control over where in the test hierarchy the search begins."
   (remf args :suite)
   (remf args :break-on-errors?)
   (remf args :run-setup)
-  (let ((*test-break-on-errors?* break-on-errors?))
-    (cond ((null suite)
-	   (progn
-	     (report-lift-error 'run-tests +run-tests-null-test-case+)
-	     (values)))
-	  (t
-	   (setf *current-suite-class-name* suite)
-	   (apply #'run-tests-internal suite args)))))
+  (remf args :dribble)
+  (cond ((and suite config)
+	 (error "Specify either configuration file or test suite ~
+but not both."))
+	(config
+	 (configure-from-file config))
+	((or suite (setf suite *current-suite-class-name*))
+	 (let* ((*test-break-on-errors?* break-on-errors?)
+		(dribble-stream
+		 (when dribble
+		   (open dribble
+			 :direction :output
+			 :if-does-not-exist :create
+			 :if-exists *lift-if-dribble-exists*)))
+		(*standard-output* (apply 'make-broadcast-stream
+					  *lift-standard-output*
+					  *error-output*
+					  (when dribble-stream
+					    (list dribble-stream))))
+		(*debug-io* *debug-io*))
+	   (unwind-protect
+		(dolist (name (if (consp suite) suite (list suite)))
+		  (setf *current-suite-class-name* name)
+		  (apply #'run-tests-internal name :result result args))
+	     ;; cleanup
+	     (when dribble-stream 
+	       (close dribble-stream)))
+	   (values result)))
+	(t
+	 (error "There is not current test suite and neither suite ~
+nor configuration file options were specified."))))
 
 (defmethod testsuite-run ((case test-mixin) (result test-result))
   (let ((methods (testsuite-methods case)))
