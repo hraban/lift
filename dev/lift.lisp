@@ -63,6 +63,7 @@
 	    testsuite-tests
 	    
 	    suite
+	    find-test-suite
 	    ensure-random-cases-failure
 	    random-instance-for-suite
 	    defrandom-instance
