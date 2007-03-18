@@ -694,31 +694,7 @@ the methods that should be run to do the tests for this test."))
 (defgeneric start-test (result case method-name)
   (:documentation ""))
 
-(defgeneric test-case-documentation (class-name)
-  (:documentation ""))
-
-(defgeneric (setf test-case-documentation) (value class-name)
-  (:documentation ""))
-
-(defgeneric test-code->name-table (class-name)
-  (:documentation ""))
-
-(defgeneric test-name->code-table (class-name)
-  (:documentation ""))
-
-(defgeneric (setf test-code->name-table) (value class-name)
-  (:documentation ""))
-
-(defgeneric (setf test-name->code-table) (value class-name)
-  (:documentation ""))
-
 (defgeneric test-report-code (test-suite method)
-  (:documentation ""))
-
-(defgeneric test-slots (class-name)
-  (:documentation ""))
-
-(defgeneric (setf test-slots) (value class-name)
   (:documentation ""))
 
 (defgeneric test-suite-p (thing)
@@ -728,12 +704,6 @@ the methods that should be run to do the tests for this test."))
   (:documentation ""))
 
 (defgeneric testsuite-name->method (class name)
-  (:documentation ""))
-
-(defgeneric testsuite-prototype (class-name)
-  (:documentation ""))
-
-(defgeneric (setf testsuite-prototype) (value class-name)
   (:documentation ""))
 
 (defmethod setup-test :before ((test test-mixin))
