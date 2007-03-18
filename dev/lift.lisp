@@ -20,6 +20,7 @@
 	    test-suite-p
 	    *test-result*
 	    *current-test*
+	    last-test-status
 	    failures
 	    errors
 	    ensure-cases
@@ -1996,3 +1997,19 @@ control over where in the test hierarchy the search begins."
 	   (error "There are several test suites named ~s: they are ~{~s~^, ~}"
 		  suite-name possibilities)))))
 			     
+(defun last-test-status ()
+  (cond ((typep *test-result* 'test-result)
+	 (cond ((and (null (errors *test-result*))
+		     (null (failures *test-result*)))
+		:success)
+	       ((and (errors *test-result*)
+		     (failures *test-result*))
+		:errors-and-failures)
+	       ((errors *test-result*)
+		:errors)
+	       ((failures *test-result*)
+		:failures)))
+	(t
+	 nil)))
+	  
+   
