@@ -578,7 +578,7 @@ Ensure same compares value-or-values-1 value-or-values-2 or each value of value-
   ((total :initarg :total :initform 0)
    (problems :initarg :problems :initform nil))
   (:report (lambda (condition stream)
-	     (format stream "Ensure-cases: ~d out of ~d cases failed. Failing cases are: ~{~s~^, ~}" 
+	     (format stream "Ensure-cases: ~d out of ~d cases failed. Failing cases are: ~{~%  ~{~s (~a)~}~^, ~}" 
 		     (length (slot-value condition 'problems))
 		     (slot-value condition 'total)
 		     (slot-value condition 'problems)))))
