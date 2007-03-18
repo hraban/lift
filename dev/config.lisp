@@ -1,6 +1,6 @@
 (in-package #:lift)
 
-(defun configure-from-file (path)
+(defun run-tests-from-file (path)
   (let ((*package* *package*)
 	(*read-eval* nil)
 	(form nil)

@@ -1305,7 +1305,7 @@ control over where in the test hierarchy the search begins."
 	 (error "Specify either configuration file or test suite ~
 but not both."))
 	(config
-	 (configure-from-file config))
+	 (run-tests-from-file config))
 	((or suite (setf suite *current-suite-class-name*))
 	 (let* ((*test-break-on-errors?* break-on-errors?)
 		(dribble-stream
