@@ -66,7 +66,18 @@ sample
 
 |#
 
-#+(or)
+(defparameter *benchmark-file*
+  (asdf:system-relative-pathname 'lift
+			    "benchmark-data/benchmarks.log"))
+
+(defparameter *profiling* nil)
+
+(defvar *scratch-directory*
+  (asdf:system-relative-pathname 'lift "scratch-directory/"))
+
+(defvar *additional-markers* nil)
+
+#+allegro
 (defun benchmark (name fn &rest args)
   (declare (dynamic-extent args))
   (let ((seconds 0.0) (conses 0) result)
@@ -75,9 +86,9 @@ sample
 		   (apply 'measure fn args))))
       (cond ((or (eq :time *profiling*)
 		 (eq :space *profiling*))
-	     (with-profiling (:type *profiling*) (do-it)))
+	     (prof:with-profiling (:type *profiling*) (do-it)))
 	    ((eq :count *profiling*)
-	     (with-profiling (:count t) (do-it)))
+	     (prof:with-profiling (:count t) (do-it)))
 	    (t
 	     (do-it)))
       (let ((date-stamp (get-universal-time)))
