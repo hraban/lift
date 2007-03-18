@@ -73,8 +73,9 @@
 	    an-integer
 	    a-double-float
 	    a-single-float
-	    a-symbol)))
+	    a-symbol
 
+	    configure-from-file)))
 
 ;;; ---------------------------------------------------------------------------
 ;;; shared stuff
