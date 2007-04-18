@@ -8,21 +8,29 @@
   :licence "MIT Style License; see file COPYING for details"
   :description "LIsp Framework for Testing"
   :long-description "LIFT is an SUnit variant and much much more."  
-  :components ((:module "dev" 
-                        :components ((:static-file "notes.text")
-                                     
-                                     (:file "lift")
-				     (:file "random-testing" 
-					    :depends-on ("lift"))
-				     (:file "port" 
-					    :depends-on ("lift"))
-				     (:file "measuring" 
-					    :depends-on ("port"))
-				     (:file "config" 
-					    :depends-on ("port"))
-				     #+Ignore
-                                     (:file "prototypes"
-                                            :depends-on ("lift"))))
+  :components ((:module
+		"dev" 
+		:components 
+		((:static-file "notes.text")
+             
+		 (:file "packages")
+		 (:file "lift"
+			:depends-on ("packages" "measuring"))
+		 (:file "copy-file"
+			:depends-on ("packages"))
+		 (:file "random-testing" 
+			:depends-on ("packages" "lift"))
+		 (:file "port" 
+			:depends-on ("packages"))
+		 (:file "measuring" 
+			:depends-on ("packages"))
+		 (:file "config" 
+			:depends-on ("port"))
+		 (:file "reports" 
+			:depends-on ("port"))
+		 #+Ignore
+		 (:file "prototypes"
+			:depends-on ("lift"))))
                
                (:module 
 		"website"

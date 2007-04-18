@@ -1,18 +1,5 @@
 ;;;-*- Mode: Lisp; Package: lift -*-
 
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (unless (find-package '#:lift)
-    (defpackage #:lift
-      (:use #:common-lisp)
-      (:import-from		     
-       #+allegro #:mop
-       #+clisp #:clos
-       #+lispworks #:clos
-       #+mcl #:ccl
-       #+cmu #:clos-mop
-       #+sbcl #:sb-mop
-       class-direct-subclasses))))
-
 (in-package #:lift)
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
