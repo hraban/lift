@@ -1776,8 +1776,7 @@ nor configuration file options were specified."))))
 
 (defmethod test-report-code ((test-suite test-mixin) (method symbol))
   (let* ((class-name (class-name (class-of test-suite))))
-    (gethash (intern (concatenate 'string +test-method-prefix+ 
-				  (symbol-name method)))
+    (gethash method
              (test-name->code-table class-name))))
 
 ;;; ---------------------------------------------------------------------------
@@ -1958,8 +1957,7 @@ nor configuration file options were specified."))))
 	 ,@(when options
 		 `((setf (getf (test-data test-suite) :options) ',options))) 
 	 (with-test-slots ,@body))
-       (setf *current-case-method-name* 
-             (intern (method-name->test-name (symbol-name ',test-name))))
+       (setf *current-case-method-name* ',test-name)
        (when (and *test-print-when-defined?*
                   (not (or *test-is-being-compiled?*
                            )))
@@ -1993,7 +1991,7 @@ nor configuration file options were specified."))))
     (setf test-name (first test-body))
     (cond ((symbolp test-name)
            (setf test-name 
-		 (intern (format nil "~A~A" +test-method-prefix+ test-name))
+		 (intern (format nil "~A" test-name))
                  body (rest test-body)
                  name-supplied? t))
           ((and (test-code->name-table *current-suite-class-name*)
@@ -2003,8 +2001,8 @@ nor configuration file options were specified."))))
            (setf body test-body))
           (t
            (setf test-name 
-		 (intern (format nil "~ATEST-~A" 
-				 +test-method-prefix+ test-number))
+		 (intern (format nil "TEST-~A" 
+				 test-number))
                  body test-body)))
     (values test-name body documentation name-supplied?)))
 
