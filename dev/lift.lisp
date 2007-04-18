@@ -79,7 +79,8 @@
 	    a-single-float
 	    a-symbol
 
-	    run-tests-from-file)))
+	    lift-result
+	    configure-from-file)))
 
 ;;; ---------------------------------------------------------------------------
 ;;; shared stuff
@@ -879,18 +880,19 @@ the thing being defined.")
 				     (priority (cdr name.cb))))))
 
 (defmacro with-test-slots (&body body)
-  `(symbol-macrolet
-     ,(mapcar #'(lambda (local)
-                  `(,local (test-environment-value ',local)))
-              (def :slot-names))
-     (macrolet
-	 ,(mapcar (lambda (spec)
-		    (destructuring-bind (name arglist) spec
-		      `(,name ,arglist 
-			      `(flet-test-function 
-				*current-test* ',',name ,,@arglist))))
-		  (def :function-specs))
-       (progn ,@body))))
+  `(symbol-macrolet ((lift-result (getf (test-data *current-test*) :result)))   
+     (symbol-macrolet
+	 ,(mapcar #'(lambda (local)
+		      `(,local (test-environment-value ',local)))
+		  (def :slot-names))
+       (macrolet
+	   ,(mapcar (lambda (spec)
+		      (destructuring-bind (name arglist) spec
+			`(,name ,arglist 
+				`(flet-test-function 
+				  *current-test* ',',name ,,@arglist))))
+		    (def :function-specs))
+	 (progn ,@body)))))
 
 (defvar *deftest-clauses*
   '(:setup :teardown :test :documentation :tests :export-p :export-slots
