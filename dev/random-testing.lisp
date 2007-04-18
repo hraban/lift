@@ -58,8 +58,7 @@
 
 (defmacro ensure-random-cases+ (count (&rest vars) (&rest case-form)
 				&body body)
-  (let ((case (gensym))
-	(total (gensym))
+  (let ((total (gensym))
 	(problems (gensym)))
     `(let ((,problems nil) (,total 0))
        (loop repeat ,count do
@@ -69,10 +68,10 @@
 		  (progn ,@body)
 		(ensure-failed (cond)
 		  (declare (ignore cond))
-		  (push ,case ,problems)))))
+		  (push (list ,@vars) ,problems)))))
        (when ,problems
 	 (let ((condition (make-condition 
-			   'ensure-cases-failure
+			   'ensure-random-cases-failure
 			   :total ,total
 			   :problems ,problems)))
 	   (if (find-restart 'ensure-failed)
