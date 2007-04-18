@@ -1081,6 +1081,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
                 (progn
                   ;; remove previous methods (do this 
 		  ;; _before_ we define the class)
+		  ;#+(or)
                   (remove-previous-definitions ',(def :testsuite-name))
                   (setf *current-case-method-name* nil)
                   ;; and then redefine the class
@@ -1299,13 +1300,13 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 
 (defmethod do-testing ((test-suite test-mixin) result fn)
   (unwind-protect
-    (progn
-      (testsuite-setup test-suite)
-      (let ((*lift-equality-test* (equality-test test-suite)))
-	(do ()
-          ((not (more-prototypes-p test-suite)) result)
-        (initialize-test test-suite) 
-        (funcall fn))))
+       (progn
+	 (testsuite-setup test-suite result)
+	 (let ((*lift-equality-test* (equality-test test-suite)))
+	   (do ()
+	       ((not (more-prototypes-p test-suite)) result)
+	     (initialize-test test-suite) 
+	     (funcall fn))))
     ;; cleanup
     (testsuite-teardown test-suite result))
   (values result))
@@ -1505,7 +1506,8 @@ nor configuration file options were specified."))))
                                   (report-test-problem
 				   'test-error result case name cond
 				   :backtrace (get-backtrace cond))))))
-          (setf problem nil)
+          (setf problem nil
+		(current-method case) name)
           (start-test result case name)
           (setup-test case)
           (unwind-protect
@@ -1519,12 +1521,13 @@ nor configuration file options were specified."))))
             (teardown-test case)
             (end-test result case name)))
         (ensure-failed (cond) 
-                       (setf problem 
-                             (report-test-problem
-			      'test-failure result case name cond)))
+	  (setf problem 
+		(report-test-problem
+		 'test-failure result case name cond)))
         (retry-test () :report "Retry the test." 
                     (go :test-start)))
       :test-end))
+  (setf (third (first (tests-run result))) (test-data case))
   (setf *test-result* result))
 
 (defun report-test-problem (problem-type result suite method condition
@@ -1718,7 +1721,9 @@ nor configuration file options were specified."))))
 (defclass test-problem-mixin ()
   ((test-suite :initform nil :initarg :test-suite :reader test-suite)
    (test-method :initform nil :initarg :test-method :reader test-method)
-   (test-condition :initform nil :initarg :test-condition :reader test-condition)
+   (test-condition :initform nil
+		   :initarg :test-condition 
+		   :reader test-condition)
    (test-problem-kind :reader test-problem-kind :allocation :class)
    (test-step :initform nil :initarg :test-step :reader test-step)))
 
@@ -1810,8 +1815,7 @@ nor configuration file options were specified."))))
 	   (push (getf (rest slot) :initform) initforms)
 	   (push (first slot) slot-names)))
     (setf slot-names (nreverse slot-names)
-          initforms (nreverse initforms))
-    
+          initforms (nreverse initforms))    
     (when initforms
       `((defmethod make-single-prototype ((test-suite ,(def :testsuite-name)))
 	  (with-test-slots
