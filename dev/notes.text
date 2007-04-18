@@ -1,12 +1,51 @@
 (in-package lift)
 
+options for addtest
+  expect-failure := string | t
+  evaluate-when-defined := t | nil
+  timeout 
+  documentation
+
+use command line arguments to specify suite, etc..
+
+be nice to share message or special formmatting for ensures at 
+  the testsuite level
+
+dynamic-variable code gets added at every level of the hierarchy
+  only need to add at for direct dynamic variables, not all
+  - need direct-d-v i... actually, no. The dv are set where?
+  I think everyone needs the code, look later
+
+Where do options for a test case go? We could just add code to the
+  test case method but this would make it hard to introspect.
+  Could define a method on suite and case... or a regular ht.
+
+Do a simple walk on the code to know which "line" of code failed so 
+that you can report that. What about (let ...), we'd want to walk into
+that. Special case? (let, let*, bind, mvb, db, progX, loop, dotimes, do, 
+hm, quite a few (and I'm sure many more). 
+
+Introspect the functions / forms a test tests
+
+ensure-random-cases (etc) don't really play well with ensure-condition
+  you get to know that the test failed but not how...
+
+Lift needs an extra group of parentheses in :tests: e.g.:
+  (deftestsuite twinql.section-data-sort-4 (twinql.section-data-sort)
+    ()
+    (:test
+     ((query-sort-4)
+      (ensure (null (filter-results))))))
+Gross!
+       
+compile: lift doesn't catch errors during compile (e.g., symbol x is not 
+exported). should it?
+
+report: add consing and times to ouptu (optional)
+
 :run-setup :once-per-session 
 	   (give not implemented error at test def time, not run time
 	   or implement it)
-
-
-so how do we integrate measuring with the report -- change the test result
-  add test result properties
 
 need tests that metadata is correctly set too
 
@@ -29,16 +68,12 @@ LIFT: code walker -- even a simple one that just tree searched for macros
       lift::*test-is-being-executed?* nil
       lift::*test-is-being-loaded?* nil)
 
-Simple MCL GUI
-
 may need to change teardownn-test to standard method combination and 
  use :after. See
 (defmethod teardown-test :before ((test-suite test-mixin))
   (setf (current-step test-suite) 'teardown-test))
 
 randomly change order of tests
-
-sort results so that report is always in same order
 
 (deftestsuite test-addition ()
   (a b)
@@ -58,9 +93,6 @@ ok 2. Handle run-time evaluation / creation of prototypes
 ok 3. Look at quickcheck and think a bit
 4. Determine what a paper on this might look like.
 
-Can't use 'NAME SINGLE-SETUP? DONE-SETUP? PROTOTYPES' as test slots
-  should be able to now
-
 make-test-result seems a bit silly too
 
 ;;?? Clearly a WIP
@@ -75,8 +107,6 @@ test-suite-p, etc could be defined more cleanly if the class
   one was 'definitive'
 
 Instead of class properties, use the MOP
-
-tinaa lift
 
 new manual
 
@@ -133,24 +163,15 @@ with-test should take optional test-class
 
 clean up all the tables and stuff
 
-add indentation to list-tests (optional) to indicate class inclusion
-
 with-test needs error handling
 
 add documentation (at the least to the public interface)
 
-could format list-tests more nicely
-
 Capture errors and have various fun restarts
-
-should allow error to specify which error it should get
 
 error check addtest if class dne or not test-mixin
 
 Improve error messages
-
-mark tests as known-failures?
-  persistence...
 
 
 (deftestsuite test-a ()
@@ -376,3 +397,5 @@ no - use dynamic scope for *test-is-being-compiled?* rather than unwind-protect
 ok - LIFT: better control of printing (:follow-print)
 ok - LIFT: variable to control behavior on warning / failure: print full report, etc.
 ok - add :function to define local functions, use rewriting and macrolet 
+yes - so how do we integrate measuring with the report -- change the test result
+  add test result properties
