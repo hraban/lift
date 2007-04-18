@@ -5,6 +5,17 @@
 show or log backtraces.  It accepts a condition object ERROR and
 returns a string with the corresponding backtrace.")
 
+(defun ensure-directory (pathname)
+  (merge-pathnames (make-pathname :name :unspecific
+				  :type :unspecific)
+		   pathname))
+
+(defun writable-directory-p (directory)
+  (let ((directory (ensure-directory directory)))
+    (and (probe-file directory)
+	 #+allegro
+	 (excl.osi:access directory excl.osi:*w-ok*))))
+
 #+allegro
 (defun total-bytes-allocated ()
   (sys::gsgc-totalloc-bytes t))
@@ -16,7 +27,6 @@ returns a string with the corresponding backtrace.")
 #+sbcl
 (defun total-bytes-allocated ()
   (cl-user::get-bytes-consed))
-
 
 #+mcl
 (defun get-backtrace (error)
@@ -39,7 +49,7 @@ returns a string with the corresponding backtrace.")
             (tpl:*zoom-print-length* nil))
         (cl:ignore-errors
           (format *terminal-io* "~
-~@<An unhandled error condition has been signalled:~3I ~a~I~:@>~%~%"
+~&~@<An unhandled error condition has been signalled:~3I ~a~I~:@>~%~%"
                   error))
         (cl:ignore-errors
           (let ((*terminal-io* s)
