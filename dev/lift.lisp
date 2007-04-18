@@ -296,8 +296,6 @@ All other CLOS slot options are processed normally."
 ;;; global environment thingies
 ;;; ---------------------------------------------------------------------------
 
-(defparameter +test-method-prefix+ "")
-
 #+(or)
 ;; FIXME - not used
 (defparameter *run-tests-arguments*
@@ -659,8 +657,6 @@ Ensure same compares value-or-values-1 value-or-values-2 or each value of value-
   (:default-initargs
     :run-setup :once-per-test-case))
 
-;;; ---------------------------------------------------------------------------
-
 (defclass test-result ()
   ((results-for :initform nil 
 		:initarg :results-for 
@@ -849,10 +845,9 @@ the thing being defined.")
         (declare (ignorable value))
         ,@handler)))
     
-    (setf *code-blocks* (sort *code-blocks* #'< :key (lambda (name.cb)
-                                                       (priority (cdr name.cb))))))
-
-;;; ---------------------------------------------------------------------------
+    (setf *code-blocks* (sort *code-blocks* #'< 
+			      :key (lambda (name.cb)
+				     (priority (cdr name.cb))))))
 
 (defmacro with-test-slots (&body body)
   `(symbol-macrolet
@@ -985,7 +980,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 
 * :dynamic-variables - a list of atoms or pairs of the form (name value). These specify any special variables that should be bound in a let around the body of the test. The name should be symbol designating a special variable. The value (if supplied) will be bound to the variable. If the value is not supplied, the variable will be bound to nil. Should only be specified once.
 
-* :equality-test - the name of the function to be used by default in calls to ensure-same. Should only be supplied once. 
+* :equality-test - the name of the function to be used by default in calls to ensure-same and ensure-different. Should only be supplied once. 
 
 * :export-p - If true, the testsuite name will be exported from the current package. Should only be specified once.
 
@@ -1011,9 +1006,9 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 * :tests - Define multiple test cases for this test suite. Can be specified multiple times.
 
 "
-  #+NO-LIFT-TESTS
+  #+no-lift-tests
   `(values)
-  #-NO-LIFT-TESTS
+  #-no-lift-tests
   (let ((test-list nil)
         (options nil)
         (return (gensym)))
@@ -1160,14 +1155,11 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 	  (remove-duplicates 
 	   (append (def :function-specs) function-specs)))))
 
-;;; ---------------------------------------------------------------------------
-
 (defmacro addtest (name &body test)
   "Adds a single new test-case to the most recently defined test-suite."
-  #+NO-LIFT-TESTS
-  `(values)
-  
-  #-NO-LIFT-TESTS
+  #+no-lift-tests
+  `nil
+  #-no-lift-tests
   (no-handler-case 
     (let ((body nil)
           (return (gensym)))
@@ -1593,8 +1585,6 @@ nor configuration file options were specified."))))
           (format stream "~%") 
           (print-test-result-details stream tr))))))
 
-;;; ---------------------------------------------------------------------------
-
 (defmethod describe-object ((result test-result) stream)
   (let ((number-of-failures (length (failures result)))
 	(number-of-expected-failures (length (expected-failures result)))
@@ -1624,8 +1614,6 @@ nor configuration file options were specified."))))
              (unless *test-is-being-defined?*
                (format stream ", all passed!")))))    
     (values)))
-
-;;; ---------------------------------------------------------------------------
 
 (defun print-test-result-details (stream result)
   (loop for report in (failures result) do
@@ -1665,8 +1653,6 @@ nor configuration file options were specified."))))
    (test-condition :initform nil :initarg :test-condition :reader test-condition)
    (test-problem-kind :reader test-problem-kind :allocation :class)
    (test-step :initform nil :initarg :test-step :reader test-step)))
-
-;;; ---------------------------------------------------------------------------
 
 (defmethod print-object ((problem test-problem-mixin) stream)
   (print-unreadable-object (problem stream)
@@ -1747,8 +1733,6 @@ nor configuration file options were specified."))))
                 "~&;;; Removed ~D methods from test suite ~(~A~)~@[ and its subclasses~]."
                 removed-count classname (not (length-1-list-p classes-removed)))))))
 
-;;; ---------------------------------------------------------------------------
-
 (defun build-initialize-test-method ()
   (let ((initforms nil)
         (slot-names nil)
@@ -1778,12 +1762,8 @@ nor configuration file options were specified."))))
   (pushnew (cons name value) *test-environment* :test #'equal)
   (values value))
 
-;;; ---------------------------------------------------------------------------
-
 (defun test-environment-value (name)
   (cdr (assoc name *test-environment*)))
-
-;;; ---------------------------------------------------------------------------
 
 (defun remove-from-test-environment (name)
   (setf *test-environment* 
@@ -1905,8 +1885,6 @@ nor configuration file options were specified."))))
 		 ',test-class ',test-name))
        *current-case-method-name*)))
 
-;;; ---------------------------------------------------------------------------
-
 (defun build-dynamics ()
   (let ((result nil))
     (dolist (putative-pair (def :dynamic-variables))
@@ -1914,8 +1892,6 @@ nor configuration file options were specified."))))
         (push (list putative-pair nil) result)
         (push putative-pair result)))
     (nreverse result)))
-
-;;; ---------------------------------------------------------------------------
 
 (defun parse-test-body (test-body)
   (let ((test-name nil)
@@ -1950,8 +1926,6 @@ nor configuration file options were specified."))))
                  body test-body)))
     (values test-name body documentation name-supplied?)))
 
-;;; ---------------------------------------------------------------------------
-
 (defun build-test-class ()
   ;; for now, we don't generate code from :class-def code-blocks
   ;; they are executed only for effect.
@@ -1979,8 +1953,6 @@ nor configuration file options were specified."))))
              :test-slot-names ',(def :slot-names)
              ,@(def :default-initargs))))))
 
-;;; ---------------------------------------------------------------------------
-
 (defun parse-test-slots (slot-specs)
   (loop for spec in slot-specs collect
         (let ((parsed-spec spec))
@@ -1990,8 +1962,6 @@ nor configuration file options were specified."))))
                       (subseq parsed-spec (+ pos 2))))
             parsed-spec))))
 
-;;; ---------------------------------------------------------------------------
-
 (defmethod test-suite-p ((classname symbol))
   (let ((class (find-class classname nil)))
     (handler-case
@@ -2000,37 +1970,21 @@ nor configuration file options were specified."))))
 	   classname)
       (error (c) (declare (ignore c)) (values nil)))))
 
-;;; ---------------------------------------------------------------------------
-
 (defmethod test-suite-p ((object standard-object))
   (test-suite-p (class-name (class-of object))))
-
-;;; ---------------------------------------------------------------------------
 
 (defmethod test-suite-p ((class standard-class))
   (test-suite-p (class-name class)))
 
-;;; ---------------------------------------------------------------------------
-
 (defmethod testsuite-methods ((classname symbol))
   (testsuite-tests classname))
-
-;;; ---------------------------------------------------------------------------
 
 (defmethod testsuite-methods ((test test-mixin))
   (testsuite-methods (class-name (class-of test))))
 
-;;; ---------------------------------------------------------------------------
-
 (defmethod testsuite-methods ((test standard-class))
   (testsuite-methods (class-name test)))
 
-;;; ---------------------------------------------------------------------------
-
-(defun method-name->test-name (test-name)
-  (subseq test-name (length +test-method-prefix+)))
-
-;;; ---------------------------------------------------------------------------
 
 ;; some handy properties
 (defclass-property test-slots)
@@ -2043,8 +1997,6 @@ nor configuration file options were specified."))))
 
 ;;?? issue 27: break encapsulation of code blocks
 (defclass-property testsuite-function-specs)
-
-;;; ---------------------------------------------------------------------------
 
 (defun empty-test-tables (test-name)
   (when (find-class test-name nil)
@@ -2139,6 +2091,8 @@ nor configuration file options were specified."))))
        (make-instance 'test-timeout-condition
 		      :maximum-time (maximum-time test-suite))))))
 
+;;;;;
+
 (defmethod find-test-suite ((suite symbol))
   (or (test-suite-p suite)
       (find-test-suite (symbol-name suite))))
@@ -2173,5 +2127,6 @@ nor configuration file options were specified."))))
 		:failures)))
 	(t
 	 nil)))
+
 	  
    
