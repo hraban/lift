@@ -1,40 +1,43 @@
 (in-package #:lift)
 
 (defun run-tests-from-file (path)
-  (let ((*package* *package*)
-	(*read-eval* nil)
-	(form nil)
-	(result (make-test-result path :multiple)))
-    (with-open-file (in path
-			:direction :input
-			:if-does-not-exist :error)
-      (let ((*lift-dribble-pathname* nil)
-	    (*lift-debug-output* *debug-io*)
-	    (*lift-standard-output* *standard-output*)
-	    (*test-break-on-errors?* nil)
-	    (*test-do-children?* t)
-	    (*lift-equality-test* 'equal)
-	    (*test-print-length* :follow-print)
-	    (*test-print-level* :follow-print)
-	    (*lift-if-dribble-exists* :append))
-	(loop while (not (eq (setf form (read in nil :eof nil)) :eof)) collect
-	     (destructuring-bind (name &rest args &key &allow-other-keys)
-		 form
-	       (assert (typep name 'symbol))
-	       (cond 
-		 ;; check for preferences first (i.e., keywords)
-		 ((eq (symbol-package name) 
-		      (symbol-package :keyword))
-		  ;; must be a preference
-		  (handle-config-preference name args))
-		 ((subtypep (find-test-suite name)
-			    'lift:test-mixin)
-		  (apply #'run-tests :suite name 
-			 :result result (massage-arguments args)))
-		 (t
-		  (error "Don't understand '~s' while reading from ~s" 
-			 form path)))))))
-    (values result)))
+  (setf *test-result*
+	(let ((*package* *package*)
+	      (*read-eval* nil)
+	      (form nil)
+	      (result (make-test-result path :multiple)))
+	  (with-open-file (in path
+			      :direction :input
+			      :if-does-not-exist :error)
+	    (let ((*lift-dribble-pathname* nil)
+		  (*lift-debug-output* *debug-io*)
+		  (*lift-standard-output* *standard-output*)
+		  (*test-break-on-errors?* nil)
+		  (*test-do-children?* t)
+		  (*lift-equality-test* 'equal)
+		  (*test-print-length* :follow-print)
+		  (*test-print-level* :follow-print)
+		  (*lift-if-dribble-exists* :append)
+		  (*test-result* result))
+	      (loop while (not (eq (setf form (read in nil :eof nil)) :eof)) collect
+		   (destructuring-bind (name &rest args &key &allow-other-keys)
+		       form
+		     (assert (typep name 'symbol))
+		     (setf args (massage-arguments args))
+		     (cond 
+		       ;; check for preferences first (i.e., keywords)
+		       ((eq (symbol-package name) 
+			    (symbol-package :keyword))
+			;; must be a preference
+			(handle-config-preference name args))
+		       ((subtypep (find-test-suite name)
+				  'lift:test-mixin)
+			(apply #'run-tests :suite name 
+			       :result result args))
+		       (t
+			(error "Don't understand '~s' while reading from ~s" 
+			       form path)))))))
+	  (values result))))
 
 (defun massage-arguments (args)
   (loop for arg in args collect
@@ -72,4 +75,39 @@
 (defmethod handle-config-preference ((name (eql :if-dribble-exists))
 				     args)
   (setf *lift-if-dribble-exists* (first args)))
+
+(defmethod handle-config-preference ((name (eql :report-property))
+				     args)
+  (setf (test-result-property *test-result* (first args)) (second args)))
+
+(defmethod handle-config-preference ((name (eql :build-report))
+				     args)
+  (declare (ignore args))
+  (let* ((dest (or (test-result-property *test-result* :full-pathname)
+		   (asdf:system-relative-pathname 
+		    (or (test-result-property *test-result* :relative-to)
+			'lift)
+		    (or (test-result-property *test-result* :name)
+			"report.html"))))
+	 (format (or (test-result-property *test-result* :format)
+		     :html)))
+    (with-standard-io-syntax 
+      (let ((*print-readably* nil))
+	(handler-case 
+	    (cond
+	      ((or (streamp dest) (writable-directory-p dest))
+	       (format *debug-io* "~&Sending report (format ~s) to ~a" 
+		       format dest)
+	       (test-result-report
+		*test-result*
+		dest
+		format))
+	      (t
+	       (format *debug-io* "~&Unable to write report (format ~s) to ~a" 
+		       format dest)))
+	  (error (c)
+	    (format *debug-io*
+		    "Error ~a while generating report (format ~s) to ~a"
+		    c format dest)))))))
+
 
