@@ -1436,12 +1436,12 @@ but not both."))
 			 :direction :output
 			 :if-does-not-exist :create
 			 :if-exists *lift-if-dribble-exists*)))
-		(*standard-output* (apply 'make-broadcast-stream
-					  *lift-standard-output*
-					  *error-output*
-					  (when dribble-stream
-					    (list dribble-stream))))
-		(*debug-io* *debug-io*))
+		(*standard-output* (maybe-add-dribble 
+				    *lift-standard-output* dribble-stream))
+		(*error-output* (maybe-add-dribble 
+				 *error-output* dribble-stream))
+		(*debug-io* (maybe-add-dribble 
+			     *debug-io* dribble-stream)))
 	   (unwind-protect
 		(dolist (name (if (consp suite) suite (list suite)))
 		  (setf *current-suite-class-name* name)
@@ -1453,6 +1453,11 @@ but not both."))
 	(t
 	 (error "There is not current test suite and neither suite ~
 nor configuration file options were specified."))))
+
+(defun maybe-add-dribble (stream dribble-stream)
+  (if dribble-stream
+      (values (make-broadcast-stream stream dribble-stream) t)
+      (values stream nil)))
 
 (defmethod testsuite-run ((case test-mixin) (result test-result))
   (unless (start-time result)
