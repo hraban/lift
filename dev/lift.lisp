@@ -60,6 +60,8 @@
 	    ;; with-test
           
 	    list-tests
+	    print-tests
+	    map-testsuites
 	    testsuites
 	    testsuite-tests
 	    
@@ -1320,24 +1322,51 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
           (with-test-slots ,@forms))
         (teardown-test ,test-case)))))
 
+(defun map-testsuites (fn start-at)
+  (let ((visited (make-hash-table)))
+    (labels ((do-it (suite level)
+	       (unless (gethash suite visited)
+		 (setf (gethash suite visited) t)
+		 (funcall fn suite level)
+		 (loop for subclass in (subclasses suite :proper? t) do
+		      (do-it subclass (1+ level))))))
+    (do-it (find-class start-at nil) 0))))
+
 (defun testsuites (&optional (start-at 'test-mixin))
   "Returns a list of testsuite classes. The optional parameter provides
 control over where in the test hierarchy the search begins."
-  (let* ((class (find-class start-at nil))
-         (subclasses (and class (subclasses class :proper? t))))
-    (loop for subclass in subclasses
-          when (subtypep subclass 'test-mixin) 
-          collect (class-name subclass))))
+  (let ((result nil))
+    (map-testsuites (lambda (suite level)
+		      (declare (ignore level))
+		      (push suite result))
+		    start-at)
+    (nreverse result)))
 
+(defun print-tests (&key (include-cases? t) (start-at 'test-mixin) (stream t))
+  "Prints all of the defined test classes from :start-at on down." 
+  (map-testsuites
+   (lambda (suite level)
+     (let ((indent (coerce (make-list (* level 3) :initial-element #\Space)
+			   'string))
+	   (name (class-name suite)))
+       (format stream "~&~a~s (~:d)" 
+	       indent
+	       name
+	       (length (testsuite-methods name)))
+       (when include-cases?
+	 (loop for method-name in (testsuite-tests name) do
+	      (format stream "~&~a  ~a" indent method-name)))))
+   start-at))
+     
 (defun list-tests (&key (include-cases? t) (start-at 'test-mixin) (stream t))
-  "Lists all of the defined test classes from :start-at on down."
+  "Lists all of the defined test classes from :start-at on down." 
   (mapc (lambda (subclass-name)
-          (format stream "~&~S (~D)" 
+          (format stream "~&~s (~:d)" 
                   subclass-name
                   (length (testsuite-methods subclass-name)))
           (when include-cases?
             (loop for method-name in (testsuite-tests subclass-name) do
-                  (format stream "~&  ~A" method-name))))
+                  (format stream "~&  ~a" method-name))))
         (testsuites start-at))
   (values))
 
