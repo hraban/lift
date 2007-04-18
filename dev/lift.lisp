@@ -1193,8 +1193,13 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
   #-no-lift-tests
   (no-handler-case 
     (let ((body nil)
-          (return (gensym)))
-      (cond ((length-1-list-p name)
+          (return (gensym))
+	  (options nil)
+	  (looks-like-suite-name (looks-like-suite-name-p name))
+	  (looks-like-code (looks-like-code-p name)))
+      (cond ((and looks-like-suite-name looks-like-code)
+	     (error "Can't disambiguate suite name from possible code."))
+	    (looks-like-suite-name
              ;; testsuite given
              (setf (def :testsuite-name) (first name) 
 		   options (rest name)
