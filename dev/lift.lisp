@@ -649,8 +649,13 @@ Ensure same compares value-or-values-1 value-or-values-2 or each value of value-
    (save-equality-test :initform nil  :reader save-equality-test)
    (equality-test :initform 'equal :initarg :equality-test 
 		  :reader equality-test)
-   (log-file :initform nil :initarg :log-file :reader log-file))
-  (:documentation "A simple test suite")
+   (log-file :initform nil :initarg :log-file :reader log-file)
+   (test-data :initform nil :accessor test-data)
+   (expected-failure-p :initform nil :initarg :expected-failure-p
+		       :reader expected-failure-p)
+   (expected-error-p :initform nil :initarg :expected-error-p
+		     :reader expected-error-p))
+  (:documentation "A test suite")
   (:default-initargs
     :run-setup :once-per-test-case))
 
@@ -662,7 +667,9 @@ Ensure same compares value-or-values-1 value-or-values-2 or each value of value-
 		:accessor results-for)
    (tests-run :initform nil :accessor tests-run)
    (failures :initform nil :accessor failures)
+   (expected-failures :initform nil :accessor expected-failures)
    (errors :initform nil :accessor errors)
+   (expected-errors :initform nil :accessor expected-errors)
    (test-mode :initform :single :initarg :test-mode :accessor test-mode)
    (test-interactive? :initform nil 
                       :initarg :test-interactive? :accessor test-interactive?)
@@ -1166,7 +1173,9 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
           (return (gensym)))
       (cond ((length-1-list-p name)
              ;; testsuite given
-             (setf (def :testsuite-name) (first name) name nil body test))
+             (setf (def :testsuite-name) (first name) 
+		   options (rest name)
+		   name nil body test))
             (t
              ;; the 'name' is really part of the test...
              (setf body (cons name test))))
@@ -1205,6 +1214,39 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 		 (remove ',return *test-is-being-executed?*)))))
     (condition (c) 
                (lift-report-condition c))))
+
+(defun looks-like-suite-name-p (form)
+  (and (consp form)
+       (atom (first form))
+       (find-test-suite (first form))
+       (property-list-p (rest form))))
+
+(defun property-list-p (form)
+  (and (listp form)
+       (block check-it
+	 (let ((even? t))
+	   (loop for x in form 
+	      for want-keyword? = t then (not want-keyword?) do
+		(when (and want-keyword? (not (keywordp x)))
+		  (return-from check-it nil))
+		(setf even? (not even?)))
+	   (return-from check-it even?)))))
+
+#|
+(property-list-p '(:a :b))
+(property-list-p '(:a 2 :b 3 :c 5 :d 8))
+(property-list-p nil)
+
+(property-list-p 3)
+(property-list-p '(3))
+(property-list-p '(3 :a))
+(property-list-p '(:a 3 :b))
+|#
+
+(defun looks-like-code-p (name)
+  (declare (ignore name))
+  ;; FIXME - stub
+  nil)
 
 (defun remove-test (&key (name *current-case-method-name*)
                          (suite *current-suite-class-name*))
@@ -1432,17 +1474,39 @@ nor configuration file options were specified."))))
 
 (defun report-test-problem (problem-type result suite method condition
 			    &rest args)
-  (let ((problem (apply #'make-instance problem-type
-                   :test-suite suite
-                   :test-method method 
-                   :test-condition condition
-                   :test-step (current-step suite) args)))
-    (setf (first (tests-run result))
-          (append (first (tests-run result)) (list problem))) 
-    (etypecase problem
-      (test-failure (push problem (failures result)))
-      (test-error (push problem (errors result))))
-    problem))
+  ;; ick
+  (let ((docs nil)
+	(options (getf (test-data suite) :options))
+	(option nil))
+    (declare (ignore docs option))
+    (cond ((and (eq problem-type 'test-failure)
+		(member :expected-failure options))
+	   (setf problem-type 'test-expected-failure 
+		 option :expected-failure))
+	  ((and (eq problem-type 'test-error)
+		(member :expected-error (getf (test-data suite) :options)))
+	   (setf problem-type 'test-expected-error
+		 option :expected-error))
+	  ((and (or (eq problem-type 'test-failure) 
+		    (eq problem-type 'test-error))
+		(member :expected-problem (getf (test-data suite) :options)))
+	   (setf problem-type (or (and (eq problem-type 'test-failure) 
+				       'test-expected-failure)
+				  (and (eq problem-type 'test-error)
+				       'test-expected-error))
+		 option :expected-problem)))
+    (let ((problem (apply #'make-instance problem-type
+			  :test-suite suite
+			  :test-method method 
+			  :test-condition condition
+			  :test-step (current-step suite) args)))
+      (setf (getf (test-data suite) :problem) problem)
+      (etypecase problem
+	(test-failure (push problem (failures result)))
+	(test-expected-failure (push problem (expected-failures result)))
+	(test-error (push problem (errors result)))
+	(test-expected-error (push problem (expected-errors result))))
+      problem)))
 
 ;;; ---------------------------------------------------------------------------
 ;;; test-result and printing
@@ -1476,7 +1540,9 @@ nor configuration file options were specified."))))
 
 (defmethod print-object ((tr test-result) stream)
   (let ((complete-success? (and (null (errors tr))
-                                (null (failures tr))))) 
+                                (null (failures tr))
+				(null (expected-failures tr))
+				(null (expected-errors tr)))))
     (let* ((*print-level* (get-test-print-level))
            (*print-length* (get-test-print-length)))
       (print-unreadable-object (tr stream)
@@ -1489,8 +1555,12 @@ nor configuration file options were specified."))))
                              (format stream "Test passed"))
                             ((errors tr)
                              (format stream "Error during testing"))
+                            ((expected-errors tr)
+                             (format stream "Expected error during testing"))
+                            ((failures tr)
+                             (format stream "Test failed"))
                             (t
-                             (format stream "Test failed"))))
+                             (format stream "Test failed expectedly"))))
                      (t
                       ;; from run-test
                       (format stream "~A.~A ~A" 
@@ -1501,17 +1571,22 @@ nor configuration file options were specified."))))
                                     ((errors tr)
                                      "Error")
                                     (t
-                                     "failed"))))))
+                                     "failed")))
+		      (when (or (expected-errors tr) (expected-failures tr))
+			(format stream "(~[~:;, ~:*~A expected failure~:P~]~[~:;, ~:*~A expected error~:P~])" 
+				(expected-failures tr) (expected-errors tr))))))
               (t
                ;; multiple tests run
                (format stream "Results for ~A " (results-for tr))
                (if complete-success?
                  (format stream "[~A Successful test~:P]"
                          (length (tests-run tr)))
-                 (format stream "~A Test~:P~[~:;, ~:*~A Failure~:P~]~[~:;, ~:*~A Error~:P~]." 
+                 (format stream "~A Test~:P~[~:;, ~:*~A Failure~:P~]~[~:;, ~:*~A Error~:P~]~[~:;, ~:*~A Expected failure~:P~]~[~:;, ~:*~A Expected error~:P~]" 
                          (length (tests-run tr))
                          (length (failures tr))
-                         (length (errors tr))))))
+                         (length (errors tr))
+                         (length (expected-failures tr))
+                         (length (expected-errors tr))))))
         ;; note that suites with no tests think that they are completely 
         ;; successful. Optimistic little buggers, huh?
         (when (and (not complete-success?) *test-describe-if-not-successful?*)
@@ -1522,36 +1597,45 @@ nor configuration file options were specified."))))
 
 (defmethod describe-object ((result test-result) stream)
   (let ((number-of-failures (length (failures result)))
-        (number-of-errors (length (errors result))))
-    
+	(number-of-expected-failures (length (expected-failures result)))
+        (number-of-errors (length (errors result)))
+	(number-of-expected-errors (length (expected-errors result))))
     (unless *test-is-being-defined?*
       (format stream "~&Test Report for ~A: ~D test~:P run" 
               (results-for result) (length (tests-run result))))
     (let* ((*print-level* (get-test-print-level))
            (*print-length* (get-test-print-length)))
-      (cond ((or (failures result) (errors result))
-             (format stream "~[~:;, ~:*~A Failure~P~]~[~:;, ~:*~A Error~P~]." 
-                     number-of-failures number-of-failures
-                     number-of-errors number-of-errors)
-             (format stream "~%~%")
-             
+      (cond ((or (failures result) (errors result)
+		 (expected-failures result) (expected-errors result))
+             (format stream "~[~:;, ~:*~A Failure~:P~]~[~:;, ~:*~A Expected failure~:P~]~[~:;, ~:*~A Error~:P~]~[~:;, ~:*~A Expected error~:P~]." 
+                     number-of-failures
+                     number-of-expected-failures
+                     number-of-errors
+                     number-of-expected-errors)
+             (format stream "~%~%")             
              (print-test-result-details stream result))
-            (t
+	    ((or (expected-failures result) (expected-errors result))
+             (format stream ", all passed *~[~:;, ~:*~A Expected failure~:P~]~[~:;, ~:*~A Expected error~:P~])." 
+                     number-of-expected-failures
+                     number-of-expected-errors)
+             (format stream "~%~%")             
+             (print-test-result-details stream result))
+	    (t
              (unless *test-is-being-defined?*
-               (format stream ", all passed!")))))
-    
+               (format stream ", all passed!")))))    
     (values)))
 
 ;;; ---------------------------------------------------------------------------
 
 (defun print-test-result-details (stream result)
-  (dolist (report (failures result))
-    (print-test-problem "Failure: " report stream))
-  
-  (dolist (report (errors result))
-    (print-test-problem "ERROR  : " report stream)))
-
-;;; ---------------------------------------------------------------------------
+  (loop for report in (failures result) do
+       (print-test-problem "Failure: " report stream))  
+  (loop for report in (errors result) do
+       (print-test-problem "ERROR  : " report stream))
+  (loop for report in (expected-failures result) do
+       (print-test-problem "Expected failure: " report stream))
+  (loop for report in (expected-errors result) do
+       (print-test-problem "Expected Error : " report stream)))
 
 (defun print-test-problem (prefix report stream)
   (let* ((suite (test-suite report))
@@ -1591,12 +1675,37 @@ nor configuration file options were specified."))))
             (name (test-suite problem))
 	    (test-method problem))))
 
-(defclass test-failure (test-problem-mixin)
-  ((test-problem-kind :initform "Failure" :allocation :class)))
+(defclass generic-problem (test-problem-mixin)
+  ((test-problem-kind :initarg :test-problem-kind
+		      :allocation :class)))
 
-(defclass test-error (test-problem-mixin)
-  ((test-problem-kind :initform "ERROR" :allocation :class)
-   (backtrace :initform nil :initarg :backtrace :reader backtrace)))
+(defclass expected-problem-mixin ()
+  ((documentation :initform nil 
+		  :initarg :documentation
+		  :accessor failure-documentation)))
+
+(defclass test-expected-failure (expected-problem-mixin generic-problem)
+  ()
+  (:default-initargs 
+   :test-problem-kind "Expected failure"))
+
+(defclass test-failure (generic-problem)
+  ()
+  (:default-initargs 
+   :test-problem-kind "failure"))
+
+(defclass test-error-mixin (generic-problem) 
+  ((backtrace :initform nil :initarg :backtrace :reader backtrace)))
+  
+(defclass test-expected-error (expected-problem-mixin test-error-mixin)
+  ()
+  (:default-initargs 
+   :test-problem-kind "Expected error"))
+
+(defclass test-error (test-error-mixin)
+  ()
+  (:default-initargs 
+   :test-problem-kind "Error"))
 
 (defmethod test-report-code ((test-suite test-mixin) (method symbol))
   (let* ((class-name (class-name (class-of test-suite))))
@@ -1765,7 +1874,7 @@ nor configuration file options were specified."))))
        ((:once-per-test-case t) nil)
        ((:never nil) nil)))))
      
-(defun build-test-test-method (test-class test-body)
+(defun build-test-test-method (test-class test-body options)
   (multiple-value-bind (test-name body documentation name-supplied?)
                        (parse-test-body test-body)
     (declare (ignorable name-supplied?))
@@ -1784,6 +1893,8 @@ nor configuration file options were specified."))))
 	 (setf (testsuite-tests ',test-class)
 	       (append (testsuite-tests ',test-class) (list ',test-name))))
        (defmethod lift-test ((test-suite ,test-class) (case (eql ',test-name)))
+	 ,@(when options
+		 `((setf (getf (test-data test-suite) :options) ',options))) 
 	 (with-test-slots ,@body))
        (setf *current-case-method-name* 
              (intern (method-name->test-name (symbol-name ',test-name))))
