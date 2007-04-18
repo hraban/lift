@@ -51,6 +51,7 @@
 	    ;; Other
 	    ensure
 	    ensure-same
+	    ensure-different
 	    ensure-condition
 	    ensure-warning
 	    ensure-error
@@ -563,6 +564,28 @@ Ensure same compares value-or-values-1 value-or-values-2 or each value of value-
              (maybe-raise-not-same-condition 
               value other-value
               ,(if test-specified-p (list 'quote test) '*lift-equality-test*) ,report ,args)))
+     (values t)))
+
+(defmacro ensure-different (form values &key (test nil test-specified-p) (report nil) (args nil))
+  "Ensure-different compares value-or-values-1 value-or-values-2 or each value of value-or-values-1 and value-or-values-2 (if they are multiple values) using test. If any comparison returns true, then ensure-different raises a warning which uses report as a format string and args as arguments to that string (if report and args are supplied). If ensure-different is used within a test, a test failure is generated instead of a warning"
+  ;; FIXME -- share code with ensure-same
+  (setf test (remove-leading-quote test))
+  (when (and (consp test)
+             (eq (first test) 'function))
+    (setf test (second test)))
+  `(progn
+     (loop for value in (multiple-value-list ,form)
+           for other-value in (multiple-value-list ,values) do
+	  ;; WHEN instead of UNLESS
+           (when (funcall ,(if test-specified-p
+				 (list 'quote test)
+				 '*lift-equality-test*)
+                            value other-value)
+             (maybe-raise-not-same-condition 
+              value other-value
+              ,(if test-specified-p
+		   (list 'quote test)
+		   '*lift-equality-test*) ,report ,args)))
      (values t)))
 
 (defun maybe-raise-not-same-condition (value-1 value-2 test report args)
