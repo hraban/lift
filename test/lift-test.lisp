@@ -48,7 +48,7 @@ See file COPYING for license
     (ensure-same (test-mode tr) :single)
 ;    (ensure-same (test-interactive? tr) nil)
     (ensure-same (mapcar #'first (tests-run tr)) 
-		 '(lift::simple-ensure-test-1))))
+		 '(lift-test::simple-ensure-test-1))))
 
 ;;; ---------------------------------------------------------------------------
 
@@ -64,7 +64,7 @@ See file COPYING for license
     (ensure-same (length (failures tr)) 1 :report "Number of failures")
     (ensure-same (errors tr) nil :report "Number of errors")
     (ensure-same (mapcar #'first (tests-run tr))
-		 '(lift::simple-ensure-test-2))))
+		 '(lift-test::simple-ensure-test-2))))
 
 ;;; ---------------------------------------------------------------------------
 
@@ -80,7 +80,7 @@ See file COPYING for license
     (ensure-same (length (failures tr)) 0)
     (ensure-same (length (errors tr)) 1)
     (ensure-same (mapcar #'first (tests-run tr)) 
-		 '(lift::simple-ensure-test-3))))
+		 '(lift-test::simple-ensure-test-3))))
 
 
 ;;; ---------------------------------------------------------------------------
@@ -305,4 +305,30 @@ See file COPYING for license
 (addtest (test-creating-multiple-tests)
   test-1
   (ensure-same (testsuite-test-count 'test-creating-multiple-tests-helper) 2))
+
+
+
+(defvar *dynamics-before-setup* :dbs)
+
+(deftestsuite dynamics-before-setup (lift-test)
+  ()
+  :setup (setf *test-notepad* nil))
+
+(deftestsuite dynamics-before-setup-helper ()
+  ((slot (progn (push :slot *test-notepad*) :slot)))
+  :dynamic-variables (*dynamics-before-setup* 
+		      (progn (push :dynamics *test-notepad*) :dynamics))
+  :setup (push :setup *test-notepad*))
+
+(addtest (dynamics-before-setup-helper)
+  test-1
+  (push :test *test-notepad*)
+  (ensure-same *dynamics-before-setup* :dynamics))
+
+(addtest (dynamics-before-setup)
+  test-1
+  (run-test :suite 'dynamics-before-setup-helper
+	    :name 'test-1)
+  (ensure-same (reverse *test-notepad*)
+	       '(:dynamics :slot :setup :test)))
 
