@@ -671,27 +671,49 @@ Ensure same compares value-or-values-1 value-or-values-2 or each value of value-
    (test-mode :initform :single :initarg :test-mode :accessor test-mode)
    (test-interactive? :initform nil 
                       :initarg :test-interactive? :accessor test-interactive?)
-   (start-time :initarg :start-time :reader start-time))
+   (real-start-time :initarg :real-start-time :reader real-start-time)
+   (start-time :accessor start-time :initform nil)
+   (end-time :accessor end-time)
+   (real-end-time :accessor real-end-time)
+   (real-start-time-universal
+    :initarg :real-start-time-universal :reader real-start-time-universal)
+   (start-time-universal :accessor start-time-universal :initform nil)
+   (end-time-universal :accessor end-time-universal)
+   (real-end-time-universal :accessor real-end-time-universal)
+   (properties :initform nil :accessor test-result-properties))
   (:default-initargs
     :test-interactive? *test-is-being-defined?*
-    :start-time (get-universal-time)))
+    :real-start-time (get-internal-real-time)
+    :real-start-time-universal (get-universal-time)))
 
-;;; ---------------------------------------------------------------------------
+(defun test-result-property (result property)
+  (getf (test-result-properties result) property))
 
-(defgeneric testsuite-setup (test-suite)
+(defun (setf test-result-property) (value result property)
+  (setf (getf (test-result-properties result) property) value))
+
+(defgeneric testsuite-setup (test-suite result)
   (:documentation "Setup at the testsuite-level")
-  (:method ((test-suite test-mixin))
+  (:method ((test-suite test-mixin) (result test-result))
            (values))
-  (:method :before ((test-suite test-mixin))
-           (setf (current-step test-suite) 'testsuite-setup)))
+  (:method :before ((test-suite test-mixin) (result test-result))
+	   (when (eq (test-mode result) :multiple)
+	     (format *lift-debug-output* "~&Start: ~a" (type-of test-suite))
+	     (force-output *lift-debug-output*))
+           (setf (current-step test-suite) :testsuite-setup)))
 
 (defgeneric testsuite-run (test-suite result)
   (:documentation "Run the cases in this suite and it's children."))
 
-(defgeneric testsuite-teardown (test-suite)
+(defgeneric testsuite-teardown (test-suite result)
   (:documentation "Cleanup at the testsuite level.")
-  (:method ((test-suite test-mixin))
-           (values)))
+  (:method ((test-suite test-mixin) (result test-result))
+    ;; no-op
+    )
+  (:method :after ((test-suite test-mixin) (result test-result))
+    (setf (current-step test-suite) :testsuite-teardown
+	  (real-end-time result) (get-internal-real-time)
+	  (real-end-time-universal result) (get-universal-time))))
 
 (defgeneric more-prototypes-p (test-suite)
   (:documentation "Returns true if another prototype set exists for the case."))
@@ -749,13 +771,18 @@ the methods that should be run to do the tests for this test."))
   (:documentation ""))
 
 (defmethod setup-test :before ((test test-mixin))
-  (setf *test-scratchpad* nil))
+  (setf *test-scratchpad* nil
+	(current-step test) :test-setup))
 
 (defmethod setup-test ((test test-mixin))
   (values))
 
 (defmethod teardown-test progn ((test test-mixin))
   (values))
+
+(defmethod teardown-test :around ((test test-mixin))
+  (setf (current-step test) :test-teardown)
+  (call-next-method))
 
 (defmethod initialize-test ((test test-mixin))
   (values))
@@ -1191,7 +1218,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
            (push ',return *test-is-being-executed?*))
          (unwind-protect
            (let ((*test-is-being-defined?* t))
-             ,(build-test-test-method (def :testsuite-name) body)
+             ,(build-test-test-method (def :testsuite-name) body options)
              (setf *current-suite-class-name* ',(def :testsuite-name))
              (if *test-evaluate-when-defined?*
                (unless (or *test-is-being-compiled?*
@@ -1286,7 +1313,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
         (initialize-test test-suite) 
         (funcall fn))))
     ;; cleanup
-    (testsuite-teardown test-suite))
+    (testsuite-teardown test-suite result))
   (values result))
 
 (defmethod run-tests-internal ((suite symbol) &rest args &key &allow-other-keys)
@@ -1421,14 +1448,19 @@ but not both."))
 nor configuration file options were specified."))))
 
 (defmethod testsuite-run ((case test-mixin) (result test-result))
-  (let ((methods (testsuite-methods case)))
-    (loop for method in methods do
-          (run-test-internal case method result))
-    (when *test-do-children?*
-      (loop for subclass in (direct-subclasses (class-of case))
-            when (test-suite-p subclass) do
-            (run-tests-internal (class-name subclass)
-                                :result result)))))
+  (unless (start-time result)
+    (setf (start-time result) (get-internal-real-time)
+	  (start-time-universal result) (get-universal-time)))
+  (unwind-protect
+       (let ((methods (testsuite-methods case)))
+	 (loop for method in methods do
+	      (run-test-internal case method result))
+	 (when *test-do-children?*
+	   (loop for subclass in (direct-subclasses (class-of case))
+	      when (test-suite-p subclass) do
+	      (run-tests-internal (class-name subclass)
+				  :result result))))
+    (setf (end-time result) (get-universal-time))))
 
 (defmethod more-prototypes-p ((test-suite test-mixin))
   (not (null (prototypes test-suite))))
@@ -1478,10 +1510,13 @@ nor configuration file options were specified."))))
           (start-test result case name)
           (setup-test case)
           (unwind-protect
-            (progn
-              (setf (current-step case) :testing
-                    (current-method case) name)
-              (lift-test case name))
+	       (let ((result nil))
+		 (setf (current-step case) :testing
+		       result
+		       (measure
+			   (getf (test-data case) :seconds)
+			   (getf (test-data case) :conses)
+			 (lift-test case name))))
             (teardown-test case)
             (end-test result case name)))
         (ensure-failed (cond) 
@@ -1542,14 +1577,19 @@ nor configuration file options were specified."))))
     (if (eq foo :follow-print) *print-level* foo)))
 
 (defmethod start-test ((result test-result) (case test-mixin) name) 
-  (push (list name (current-values case)) (tests-run result)))
-
-;;; ---------------------------------------------------------------------------
+  (push (list (type-of case) name nil) (tests-run result))
+  (setf (current-step case) :start-test
+	(test-data case) 
+	`(:start-time ,(get-internal-real-time)
+	  :start-time-universal ,(get-universal-time))))
 
 (defmethod end-test ((result test-result) (case test-mixin) name)
-  (declare (ignore name)))
-
-;;; ---------------------------------------------------------------------------
+  (declare (ignore name))
+  (setf (current-step case) :end-test
+	(getf (test-data case) :end-time) (get-internal-real-time)
+	(end-time result) (get-internal-real-time)
+	(getf (test-data case) :end-time-universal) (get-universal-time)
+	(end-time-universal result) (get-universal-time)))
 
 (defun make-test-result (for test-mode)
   (make-instance 'test-result
@@ -1836,7 +1876,8 @@ nor configuration file options were specified."))))
 		 (when (run-teardown-p test-suite :test-case)
 		   ,@test-code))))
          ,@(when teardown-code
-             `((defmethod testsuite-teardown ((test-suite ,test-name))
+             `((defmethod testsuite-teardown ((test-suite ,test-name)
+					      (result test-result))
                  (when (run-teardown-p test-suite :testsuite)
 		   ,@test-code))))))))
 
