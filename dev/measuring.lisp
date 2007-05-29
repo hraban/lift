@@ -32,7 +32,7 @@
     `(let (,result)
        (measure-time (,seconds)
 	 (measure-conses (,bytes)
-	   (setf ,result ,@body)))
+	   (setf ,result (progn ,@body))))
        (values ,result))))
 
 (defparameter *benchmark-file*
