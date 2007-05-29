@@ -359,9 +359,12 @@ run-test-internal
 (defun html-footer (stream)
   (format stream "<div id=\"footer\">")
   (format stream "~&generated on ~a" 
+	  #+allegro
 	  (excl:locale-print-time 
 	   (get-universal-time)
-	   :fmt "%B %d, %Y %T GMT%z" :stream nil))
+	   :fmt "%B %d, %Y %T GMT%z" :stream nil)
+	  #-allegro
+	  (get-universal-time))
   (format stream "</div>")
   (format stream "~&</body></html>"))
 
