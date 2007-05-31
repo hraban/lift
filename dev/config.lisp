@@ -134,7 +134,10 @@
 		    (or (test-result-property *test-result* :name)
 			"report.html"))))
 	 (format (or (test-result-property *test-result* :format)
-		     :html)))
+		     :html))
+	 (unique-name (test-result-property *test-result* :unique-name)))
+    (when (and unique-name (not (streamp dest)))
+      (setf dest (unique-filename dest)))
     (with-standard-io-syntax 
       (let ((*print-readably* nil))
 	(handler-case 
@@ -153,5 +156,4 @@
 	    (format *debug-io*
 		    "Error ~a while generating report (format ~s) to ~a"
 		    c format dest)))))))
-
-
+  
