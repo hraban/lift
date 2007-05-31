@@ -8,6 +8,7 @@
 	    *test-result*
 	    *current-test*
 	    last-test-status
+	    suite-tested-p
 	    failures
 	    errors
 	    ensure-cases
@@ -2216,5 +2217,52 @@ nor configuration file options were specified."))))
 	(t
 	 nil)))
 
-	  
-   
+(defun suite-tested-p (suite &key (result *test-result*))
+  (and result
+       (typep *test-result* 'test-result)
+       (slot-exists-p result 'suites-run)
+       (slot-boundp result 'suites-run)
+       (consp (suites-run result))
+       (find suite (suites-run result))))
+
+(defun unique-filename (pathname)
+  (let ((date-part (date-stamp)))
+    (loop repeat 100
+       for index from 1
+	 for name = 
+	 (merge-pathnames 
+	  (make-pathname
+	   :name (format nil "~a-~a-~d" 
+			 (pathname-name pathname)
+			 date-part index))
+	  pathname) do
+	 (unless (probe-file name)
+	   (return-from unique-filename name)))
+    (error "Unable to find unique pathname for ~a" pathname)))
+	    
+(defun date-stamp (&key (datetime (get-universal-time)) (include-time? nil))
+  (multiple-value-bind
+	(second minute hour day month year day-of-the-week)
+      (decode-universal-time datetime)
+    (declare (ignore day-of-the-week))
+    (let ((date-part (format nil "~d-~2,'0d-~2,'0d" year month day))
+	  (time-part (and include-time? 
+			  (list (format nil "-~2,'0d-~2,'0d-~2,'0d"
+					hour minute second)))))
+      (apply 'concatenate 'string date-part time-part))))
+
+#+(or)
+(date-stamp :include-time? t)	
+
+;;?? might be "cleaner" with a macrolet (cf. lift-result)
+(defun lift-property (name)
+  (when *current-test*
+    (getf (getf (test-data *current-test*) :properties) name)))
+
+#+(or)
+(setf (getf (getf (third (first (tests-run *test-result*))) :properties) :foo)
+      3)
+
+(defun (setf lift-property) (value name)
+  (when *current-test*
+    (setf (getf (getf (test-data *current-test*) :properties) name) value)))
