@@ -598,7 +598,8 @@ error, then ensure-error will generate a test failure."
                             value other-value)
              (maybe-raise-not-same-condition 
               value other-value
-              ,(if test-specified-p (list 'quote test) '*lift-equality-test*) ,report ,args)))
+              ,(if test-specified-p (list 'quote test) '*lift-equality-test*)
+	      ,report ,@arguments)))
      (values t)))
 
 (defmacro ensure-different
@@ -625,13 +626,15 @@ error, then ensure-error will generate a test failure."
 		   '*lift-equality-test*) ,report ,@arguments)))
      (values t)))
 
-(defun maybe-raise-not-same-condition (value-1 value-2 test report args)
+(defun maybe-raise-not-same-condition (value-1 value-2 test 
+				       report &rest args)
   (let ((condition (make-condition 'ensure-not-same 
                                    :first-value value-1
                                    :second-value value-2
                                    :test test
                                    :message (when report
-                                              (format nil report args)))))
+                                              (apply #'format nil 
+						     report args)))))
     (if (find-restart 'ensure-failed)
       (invoke-restart 'ensure-failed condition) 
       (warn condition))))
@@ -1497,6 +1500,8 @@ but not both."))
 	     ;; cleanup
 	     (when dribble-stream 
 	       (close dribble-stream)))
+	   ;; FIXME -- ugh!
+	   (setf (tests-run result) (reverse (tests-run result)))
 	   (values result)))
 	(t
 	 (error "There is not current test suite and neither suite ~
@@ -1863,12 +1868,14 @@ nor configuration file options were specified."))))
         (format *debug-io* 
                 "~&;;; Removed Test suite ~(~A~) and its subclasses (~{~<~s~>~^, ~})."
                 classname (sort 
-                           (delete classname (mapcar #'class-name classes-removed))
+                           (delete classname 
+				   (mapcar #'class-name classes-removed))
                            #'string-lessp)))
       (unless (zerop removed-count)
         (format *debug-io* 
                 "~&;;; Removed ~D methods from test suite ~(~A~)~@[ and its subclasses~]."
-                removed-count classname (not (length-1-list-p classes-removed)))))))
+                removed-count classname 
+		(not (length-1-list-p classes-removed)))))))
 
 (defun build-initialize-test-method ()
   (let ((initforms nil)
