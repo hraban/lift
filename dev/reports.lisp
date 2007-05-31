@@ -241,7 +241,7 @@ run-test-internal
   (format stream "~&<h3>~a</h3>" heading)
   (report-tests-by-suite 
    (mapcar (lambda (problem)
-	     `(,(type-of (test-suite problem))
+	     `(,(type-of (testsuite problem))
 		,(test-method problem)
 		(:problem ,problem)))
 	   problems) stream)

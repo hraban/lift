@@ -4,7 +4,7 @@
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (export '(test-mixin
-	    test-suite-p
+	    testsuite-p
 	    *test-result*
 	    *current-test*
 	    last-test-status
@@ -53,7 +53,7 @@
 	    testsuite-tests
 	    
 	    suite
-	    find-test-suite
+	    find-testsuite
 	    ensure-random-cases-failure
 	    random-instance-for-suite
 	    defrandom-instance
@@ -292,7 +292,7 @@ All other CLOS slot options are processed normally."
   '(:suite :break-on-errors :run-setup :do-children? :result 
     :name :config))
 
-(defparameter *make-test-suite-arguments*
+(defparameter *make-testsuite-arguments*
   '(:run-setup :test-slot-names :equality-test :log-file :timeout))
 
 (defvar *current-suite-class-name* nil)
@@ -337,7 +337,7 @@ the test is running. Note that this may interact oddly with ensure-warning.")
 (defvar *test-metadata* (list)
   "A place for LIFT to put stuff.")
 (defvar *current-test* nil
-  "The current test-suite.")
+  "The current testsuite.")
 
 (defvar *lift-dribble-pathname* nil
   "If bound, then test output from run-tests will be sent to this file in ~ 
@@ -369,9 +369,9 @@ can be :supersede, :append, or :error.")
   "Could not find test: ~S.~S")
 
 (defparameter +run-tests-null-test-case+
-  "There is no current test-suite (possibly because ~
+  "There is no current testsuite (possibly because ~
    none have been defined yet?). You can specify the ~
-   test-suite to test by evaluating (run-tests :suite <suitename>).")
+   testsuite to test by evaluating (run-tests :suite <suitename>).")
 
 (defparameter +lift-unable-to-parse-test-name-and-class+ 
   "")
@@ -680,55 +680,60 @@ Ensure same compares value-or-values-1 value-or-values-2 or each value of value-
 (defun (setf test-result-property) (value result property)
   (setf (getf (test-result-properties result) property) value))
 
-(defgeneric testsuite-setup (test-suite result)
-  (:documentation "Setup at the testsuite-level")
-  (:method ((test-suite test-mixin) (result test-result))
-           (values))
-  (:method :before ((test-suite test-mixin) (result test-result))
-	   (when (eq (test-mode result) :multiple)
-	     (format *lift-debug-output* "~&Start: ~a" (type-of test-suite))
-	     (force-output *lift-debug-output*))
-           (setf (current-step test-suite) :testsuite-setup)))
+(defun print-lift-message (message &rest args)
+  (apply #'format *lift-debug-output* message args)
+  (force-output *lift-debug-output*))
 
-(defgeneric testsuite-run (test-suite result)
+(defgeneric testsuite-setup (testsuite result)
+  (:documentation "Setup at the testsuite-level")
+  (:method ((testsuite test-mixin) (result test-result))
+           (values))
+  (:method :before ((testsuite test-mixin) (result test-result))
+	   (when (and *test-print-suite-names*
+		      (eq (test-mode result) :multiple))
+	     (print-lift-message "~&Start: ~a" (type-of testsuite)))
+	   (pushnew (type-of testsuite) (suites-run result))
+           (setf (current-step testsuite) :testsuite-setup)))
+
+(defgeneric testsuite-run (testsuite result)
   (:documentation "Run the cases in this suite and it's children."))
 
-(defgeneric testsuite-teardown (test-suite result)
+(defgeneric testsuite-teardown (testsuite result)
   (:documentation "Cleanup at the testsuite level.")
-  (:method ((test-suite test-mixin) (result test-result))
+  (:method ((testsuite test-mixin) (result test-result))
     ;; no-op
     )
-  (:method :after ((test-suite test-mixin) (result test-result))
-    (setf (current-step test-suite) :testsuite-teardown
+  (:method :after ((testsuite test-mixin) (result test-result))
+    (setf (current-step testsuite) :testsuite-teardown
 	  (real-end-time result) (get-internal-real-time)
 	  (real-end-time-universal result) (get-universal-time))))
 
-(defgeneric more-prototypes-p (test-suite)
+(defgeneric more-prototypes-p (testsuite)
   (:documentation "Returns true if another prototype set exists for the case."))
 
-(defgeneric initialize-prototypes (test-suite)
+(defgeneric initialize-prototypes (testsuite)
   (:documentation "Creates lists of all prototype sets."))
 
-(defgeneric next-prototype (test-suite)
+(defgeneric next-prototype (testsuite)
   (:documentation "Ensures that the test environment has the values of the next prototype set."))
 
-(defgeneric make-single-prototype (test-suite))
+(defgeneric make-single-prototype (testsuite))
 
-(defgeneric setup-test (test-suite)
+(defgeneric setup-test (testsuite)
   (:documentation "Setup for a test-case. By default it does nothing."))
 
-(defgeneric teardown-test (test-suite)
+(defgeneric teardown-test (testsuite)
   (:documentation "Tear-down a test-case. By default it does nothing.")
   (:method-combination progn :most-specific-first))
 
-(defgeneric testsuite-methods (test-suite)
+(defgeneric testsuite-methods (testsuite)
   (:documentation "Returns a list of the test methods defined for test. I.e.,
 the methods that should be run to do the tests for this test."))
 
 (defgeneric lift-test (suite name)
   (:documentation ""))
 
-(defgeneric do-testing (test-suite result fn)
+(defgeneric do-testing (testsuite result fn)
   (:documentation ""))
 
 (defgeneric end-test (result case method-name)
@@ -746,11 +751,11 @@ the methods that should be run to do the tests for this test."))
 (defgeneric start-test (result case method-name)
   (:documentation ""))
 
-(defgeneric test-report-code (test-suite method)
+(defgeneric test-report-code (testsuite method)
   (:documentation ""))
 
-(defgeneric test-suite-p (thing)
-  (:documentation "Determine whether or not `thing` is a test-suite. Thing can be a symbol naming a suite, a subclass of `test-mixin` or an instance of a test suite. Returns nil if `thing` is not a test-suite and the symbol naming the suite if it is."))
+(defgeneric testsuite-p (thing)
+  (:documentation "Determine whether or not `thing` is a testsuite. Thing can be a symbol naming a suite, a subclass of `test-mixin` or an instance of a test suite. Returns nil if `thing` is not a testsuite and the symbol naming the suite if it is."))
 
 (defgeneric testsuite-name->gf (case name)
   (:documentation ""))
@@ -791,8 +796,8 @@ the methods that should be run to do the tests for this test."))
 ;;; ---------------------------------------------------------------------------
 
 (defmethod print-object ((tc test-mixin) stream)
-  (format stream "#<TEST SUITE: ~A>"
-          (testsuite-name tc)))
+  (print-unreadable-object (tc stream :identity t :type t)
+    (format stream "~a" (testsuite-name tc))))
 
 ;;; ---------------------------------------------------------------------------
 ;;; macros
@@ -976,7 +981,7 @@ The `deftest` form is obsolete, see `deftestsuite`."
 (defmacro deftestsuite (testsuite-name superclasses slots &rest
                                   clauses-and-options) 
   "
-Creates a test-suite named `testsuite-name` and, optionally, the code required for test setup, test tear-down and the actual test-cases. A test-suite is a collection of test-cases and other test-suites.
+Creates a testsuite named `testsuite-name` and, optionally, the code required for test setup, test tear-down and the actual test-cases. A testsuite is a collection of test-cases and other testsuites.
 
 Test suites can have multiple superclasses (just like the classes that they are). Usually, these will be other test classes and the class hierarchy becomes the test case hierarchy. If necessary, however, non-test-suite classes can also be used as superclasses.
 
@@ -1035,7 +1040,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
           (convert-clauses-into-lists clauses-and-options *deftest-clauses*))
     (initialize-current-definition)
     (setf (def :testsuite-name) testsuite-name)
-    (setf (def :superclasses) (mapcar #'find-test-suite superclasses))
+    (setf (def :superclasses) (mapcar #'find-testsuite superclasses))
     (setf (def :deftestsuite) t)
     ;; parse clauses into defs
     (loop for clause in clauses-and-options do
@@ -1155,7 +1160,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 	(dynamic-variables nil)
 	(function-specs nil))
     (dolist (super (def :superclasses))
-      (cond ((find-test-suite super)
+      (cond ((find-testsuite super)
 	     (setf slots (append slots (test-slots super))
 		   dynamic-variables 
 		   (append dynamic-variables 
@@ -1175,7 +1180,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 	   (append (def :function-specs) function-specs)))))
 
 (defmacro addtest (name &body test)
-  "Adds a single new test-case to the most recently defined test-suite."
+  "Adds a single new test-case to the most recently defined testsuite."
   #+no-lift-tests
   `nil
   #-no-lift-tests
@@ -1201,7 +1206,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
       (unless (def :testsuite-name)
         (signal-lift-error 'add-test +lift-no-current-test-class+))
       (unless (or (def :deftestsuite) 
-                  (find-test-suite (def :testsuite-name)))
+                  (find-testsuite (def :testsuite-name)))
         (signal-lift-error 'add-test +lift-test-class-not-found+
                            (def :testsuite-name)))
       `(eval-when (:compile-toplevel :load-toplevel :execute)
@@ -1234,7 +1239,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 (defun looks-like-suite-name-p (form)
   (and (consp form)
        (atom (first form))
-       (find-test-suite (first form))
+       (find-testsuite (first form))
        (property-list-p (rest form))))
 
 (defun property-list-p (form)
@@ -1281,7 +1286,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
   (assert name nil "Test name could not be determined.")
   (let* ((*test-break-on-errors?* break-on-errors?)
          (*test-do-children?* do-children?)
-         (*current-test* (make-test-suite suite args)))
+         (*current-test* (make-testsuite suite args)))
     (unless result
       (setf result (make-test-result suite :single)))
     (setf *current-case-method-name* name 
@@ -1290,29 +1295,29 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
                 (lambda () 
                   (run-test-internal *current-test* name result)))))
 
-(defun make-test-suite (suite args)
+(defun make-testsuite (suite args)
   (let ((make-instance-args nil))
-    (loop for keyword in *make-test-suite-arguments* do
+    (loop for keyword in *make-testsuite-arguments* do
        (when (member keyword args)
 	 (push keyword make-instance-args)
 	 (push (getf args keyword) make-instance-args)))
-    (apply #'make-instance (find-test-suite suite) make-instance-args)))
+    (apply #'make-instance (find-testsuite suite) make-instance-args)))
 
-(defmethod do-testing ((test-suite test-mixin) result fn)
+(defmethod do-testing ((testsuite test-mixin) result fn)
   (unwind-protect
        (progn
-	 (testsuite-setup test-suite result)
-	 (let ((*lift-equality-test* (equality-test test-suite)))
+	 (testsuite-setup testsuite result)
+	 (let ((*lift-equality-test* (equality-test testsuite)))
 	   (do ()
-	       ((not (more-prototypes-p test-suite)) result)
-	     (initialize-test test-suite) 
+	       ((not (more-prototypes-p testsuite)) result)
+	     (initialize-test testsuite) 
 	     (funcall fn))))
     ;; cleanup
-    (testsuite-teardown test-suite result))
+    (testsuite-teardown testsuite result))
   (values result))
 
 (defmethod run-tests-internal ((suite symbol) &rest args &key &allow-other-keys)
-  (let ((*current-test* (make-test-suite suite args))) 
+  (let ((*current-test* (make-testsuite suite args))) 
     (apply #'run-tests-internal 
 	   *current-test*
 	   args)))
@@ -1457,19 +1462,19 @@ nor configuration file options were specified."))))
 	      (run-test-internal case method result))
 	 (when *test-do-children?*
 	   (loop for subclass in (direct-subclasses (class-of case))
-	      when (test-suite-p subclass) do
+	      when (testsuite-p subclass) do
 	      (run-tests-internal (class-name subclass)
 				  :result result))))
     (setf (end-time result) (get-universal-time))))
 
-(defmethod more-prototypes-p ((test-suite test-mixin))
-  (not (null (prototypes test-suite))))
+(defmethod more-prototypes-p ((testsuite test-mixin))
+  (not (null (prototypes testsuite))))
 
-(defmethod initialize-prototypes ((test-suite test-mixin))
-  (setf (prototypes test-suite)
-	(list (make-single-prototype test-suite))))
+(defmethod initialize-prototypes ((testsuite test-mixin))
+  (setf (prototypes testsuite)
+	(list (make-single-prototype testsuite))))
 	
-(defmethod make-single-prototype ((test-suite test-mixin))
+(defmethod make-single-prototype ((testsuite test-mixin))
   nil)
 
 (defmethod initialize-prototypes :around ((suite test-mixin))
@@ -1477,10 +1482,10 @@ nor configuration file options were specified."))))
     (setf (slot-value suite 'prototypes-initialized?) t)
     (call-next-method)))
 
-(defmethod next-prototype ((test-suite test-mixin))
-  (setf (current-values test-suite) (first (prototypes test-suite)) 
-        (prototypes test-suite) (rest (prototypes test-suite)))
-    (dolist (key.value (current-values test-suite))
+(defmethod next-prototype ((testsuite test-mixin))
+  (setf (current-values testsuite) (first (prototypes testsuite)) 
+        (prototypes testsuite) (rest (prototypes testsuite)))
+    (dolist (key.value (current-values testsuite))
       (setf (test-environment-value (car key.value)) (cdr key.value))))
 
 (defmethod run-test-internal ((case test-mixin) (name symbol) result) 
@@ -1554,7 +1559,7 @@ nor configuration file options were specified."))))
 				       'test-expected-error))
 		 option :expected-problem)))
     (let ((problem (apply #'make-instance problem-type
-			  :test-suite suite
+			  :testsuite suite
 			  :test-method method 
 			  :test-condition condition
 			  :test-step (current-step suite) args)))
@@ -1697,7 +1702,7 @@ nor configuration file options were specified."))))
        (print-test-problem "Expected Error : " report stream)))
 
 (defun print-test-problem (prefix report stream)
-  (let* ((suite (test-suite report))
+  (let* ((suite (testsuite report))
          (method (test-method report))
          (condition (test-condition report))
          (code (test-report-code suite method))
@@ -1719,7 +1724,7 @@ nor configuration file options were specified."))))
 ;;; ---------------------------------------------------------------------------
 
 (defclass test-problem-mixin ()
-  ((test-suite :initform nil :initarg :test-suite :reader test-suite)
+  ((testsuite :initform nil :initarg :testsuite :reader testsuite)
    (test-method :initform nil :initarg :test-method :reader test-method)
    (test-condition :initform nil
 		   :initarg :test-condition 
@@ -1731,7 +1736,7 @@ nor configuration file options were specified."))))
   (print-unreadable-object (problem stream)
     (format stream "TEST-~@:(~A~): ~A in ~A" 
             (test-problem-kind problem) 
-            (name (test-suite problem))
+            (name (testsuite problem))
 	    (test-method problem))))
 
 (defclass generic-problem (test-problem-mixin)
@@ -1766,8 +1771,8 @@ nor configuration file options were specified."))))
   (:default-initargs 
    :test-problem-kind "Error"))
 
-(defmethod test-report-code ((test-suite test-mixin) (method symbol))
-  (let* ((class-name (class-name (class-of test-suite))))
+(defmethod test-report-code ((testsuite test-mixin) (method symbol))
+  (let* ((class-name (class-name (class-of testsuite))))
     (gethash method
              (test-name->code-table class-name))))
 
@@ -1817,7 +1822,7 @@ nor configuration file options were specified."))))
     (setf slot-names (nreverse slot-names)
           initforms (nreverse initforms))    
     (when initforms
-      `((defmethod make-single-prototype ((test-suite ,(def :testsuite-name)))
+      `((defmethod make-single-prototype ((testsuite ,(def :testsuite-name)))
 	  (with-test-slots
 	    (append 
 	     (when (next-method-p)
@@ -1845,7 +1850,7 @@ nor configuration file options were specified."))))
      ,@(mapcar 
 	(lambda (function-spec)
 	  (destructuring-bind (name arglist &body body) (first function-spec)
-	    `(defmethod flet-test-function ((test-suite ,(def :testsuite-name))
+	    `(defmethod flet-test-function ((testsuite ,(def :testsuite-name))
 					    (function-name (eql ',name))
 					    &rest args)
 	       (with-test-slots 
@@ -1874,13 +1879,13 @@ nor configuration file options were specified."))))
                                   slot-names))))
       `(progn
          ,@(when teardown-code
-             `((defmethod teardown-test progn ((test-suite ,test-name))
-		 (when (run-teardown-p test-suite :test-case)
+             `((defmethod teardown-test progn ((testsuite ,test-name))
+		 (when (run-teardown-p testsuite :test-case)
 		   ,@test-code))))
          ,@(when teardown-code
-             `((defmethod testsuite-teardown ((test-suite ,test-name)
+             `((defmethod testsuite-teardown ((testsuite ,test-name)
 					      (result test-result))
-                 (when (run-teardown-p test-suite :testsuite)
+                 (when (run-teardown-p testsuite :testsuite)
 		   ,@test-code))))))))
 
 (defun build-setup-test-method ()
@@ -1895,7 +1900,7 @@ nor configuration file options were specified."))))
         (setf setup (list setup)))
       (let ((code `((with-test-slots ,@setup))))
 	`(progn
-	   (defmethod setup-test :after ((test-suite ,test-name))
+	   (defmethod setup-test :after ((testsuite ,test-name))
 	     ,@code))))))
 
 (defmethod setup-test :around ((test test-mixin))
@@ -1944,9 +1949,9 @@ nor configuration file options were specified."))))
        (unless (find ',test-name (testsuite-tests ',test-class))
 	 (setf (testsuite-tests ',test-class)
 	       (append (testsuite-tests ',test-class) (list ',test-name))))
-       (defmethod lift-test ((test-suite ,test-class) (case (eql ',test-name)))
+       (defmethod lift-test ((testsuite ,test-class) (case (eql ',test-name)))
 	 ,@(when options
-		 `((setf (getf (test-data test-suite) :options) ',options))) 
+		 `((setf (getf (test-data testsuite) :options) ',options))) 
 	 (with-test-slots ,@body))
        (setf *current-case-method-name* ',test-name)
        (when (and *test-print-when-defined?*
@@ -2008,13 +2013,13 @@ nor configuration file options were specified."))))
 		   (funcall (filter block)))) collect
      (funcall (code block)))
   (unless (some (lambda (superclass)
-		  (test-suite-p superclass))
+		  (testsuite-p superclass))
 		(def :superclasses))
     (pushnew 'test-mixin (def :superclasses)))
   ;; build basic class and standard class
   `(progn
      #+MCL
-     (ccl:record-source-file ',(def :testsuite-name) 'test-suite)
+     (ccl:record-source-file ',(def :testsuite-name) 'testsuite)
      (let (#+MCL (ccl:*record-source-file* nil))
        (defclass ,(def :testsuite-name) (,@(def :superclasses))
 	 nil
@@ -2033,7 +2038,7 @@ nor configuration file options were specified."))))
                       (subseq parsed-spec (+ pos 2))))
             parsed-spec))))
 
-(defmethod test-suite-p ((classname symbol))
+(defmethod testsuite-p ((classname symbol))
   (let ((class (find-class classname nil)))
     (handler-case
       (and class
@@ -2041,11 +2046,11 @@ nor configuration file options were specified."))))
 	   classname)
       (error (c) (declare (ignore c)) (values nil)))))
 
-(defmethod test-suite-p ((object standard-object))
-  (test-suite-p (class-name (class-of object))))
+(defmethod testsuite-p ((object standard-object))
+  (testsuite-p (class-name (class-of object))))
 
-(defmethod test-suite-p ((class standard-class))
-  (test-suite-p (class-name class)))
+(defmethod testsuite-p ((class standard-class))
+  (testsuite-p (class-name class)))
 
 (defmethod testsuite-methods ((classname symbol))
   (testsuite-tests classname))
@@ -2149,26 +2154,26 @@ nor configuration file options were specified."))))
              (format s "Test ran out of time (longer than ~S-second~:P)" 
                      (maximum-time c)))))
 
-(defmethod do-testing :around ((test-suite process-test-mixin) result fn)
+(defmethod do-testing :around ((testsuite process-test-mixin) result fn)
   (declare (ignore fn))
   (handler-case
-      (with-timeout ((maximum-time test-suite))
+      (with-timeout ((maximum-time testsuite))
 	(call-next-method))
     (timeout-error 
 	(c)
       (declare (ignore c))
       (report-test-problem
-       'test-timeout-failure result test-suite (current-method test-suite)
+       'test-timeout-failure result testsuite (current-method testsuite)
        (make-instance 'test-timeout-condition
-		      :maximum-time (maximum-time test-suite))))))
+		      :maximum-time (maximum-time testsuite))))))
 
 ;;;;;
 
-(defmethod find-test-suite ((suite symbol))
-  (or (test-suite-p suite)
-      (find-test-suite (symbol-name suite))))
+(defmethod find-testsuite ((suite symbol))
+  (or (testsuite-p suite)
+      (find-testsuite (symbol-name suite))))
 
-(defmethod find-test-suite ((suite-name string))
+(defmethod find-testsuite ((suite-name string))
   (let* ((temp nil)
 	 (possibilities (remove-duplicates 
 			 (loop for p in (list-all-packages) 

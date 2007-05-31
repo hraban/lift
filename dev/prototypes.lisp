@@ -237,44 +237,46 @@
 
 
 
-(defmethod more-prototypes-p :before ((test-suite test-mixin))
-  (setf (current-step test-suite) 'more-prototypes-p))
+(defmethod more-prototypes-p :before ((testsuite test-mixin))
+  (setf (current-step testsuite) 'more-prototypes-p))
 
 ;;; ---------------------------------------------------------------------------
 
-(defmethod initialize-prototypes :before ((test-suite test-mixin))
-  (setf (current-step test-suite) 'initialize-prototypes))
+(defmethod initialize-prototypes :before ((testsuite test-mixin))
+  (setf (current-step testsuite) 'initialize-prototypes))
 
 ;;; ---------------------------------------------------------------------------
 
-(defmethod next-prototype :before ((test-suite test-mixin))
-  (setf (current-step test-suite) 'next-prototype))
+(defmethod next-prototype :before ((testsuite test-mixin))
+  (setf (current-step testsuite) 'next-prototype))
 
 ;;; ---------------------------------------------------------------------------
 
-(defmethod testsuite-teardown :before ((test-suite test-mixin))
-  (setf (current-step test-suite) 'testsuite-teardown))
+(defmethod testsuite-teardown :before ((testsuite test-mixin))
+  (setf (current-step testsuite) 'testsuite-teardown))
 
 ;;; ---------------------------------------------------------------------------
 
-(defmethod start-test :before ((result test-result) (test-suite test-mixin) method-name)
+(defmethod start-test :before
+    ((result test-result) (testsuite test-mixin) method-name)
   (declare (ignore method-name)) 
-  (setf (current-step test-suite) 'start-test))
+  (setf (current-step testsuite) 'start-test))
 
 ;;; ---------------------------------------------------------------------------
 
-(defmethod end-test :before ((result test-result) (test-suite test-mixin) method-name)
+(defmethod end-test :before
+    ((result test-result) (testsuite test-mixin) method-name)
   (declare (ignore method-name))
-  (setf (current-step test-suite) 'end-test))
+  (setf (current-step testsuite) 'end-test))
 
 ;;; ---------------------------------------------------------------------------
 
-(defmethod setup-test :before ((test-suite test-mixin))
-  (setf (current-step test-suite) 'setup-test))
+(defmethod setup-test :before ((testsuite test-mixin))
+  (setf (current-step testsuite) 'setup-test))
 
 ;;; ---------------------------------------------------------------------------
 
 #+Ignore
-(defmethod teardown-test :before ((test-suite test-mixin))
-  (setf (current-step test-suite) 'teardown-test))
+(defmethod teardown-test :before ((testsuite test-mixin))
+  (setf (current-step testsuite) 'teardown-test))
 
