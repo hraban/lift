@@ -27,7 +27,9 @@
 	    *test-evaluate-when-defined?*
 	    *test-describe-if-not-successful?*
 	    *test-maximum-time*
-          
+	    *test-print-suite-names*
+	    *test-print-test-case-names*
+
 	    *test-scratchpad*
 	    *test-notepad*
 	    *lift-equality-test*
@@ -331,6 +333,13 @@ the test is running. Note that this may interact oddly with ensure-warning.")
   "The print-length in effect when LIFT prints test results. It works exactly like `*print-length*` except that it can also take on the value :follow-print. In this case, it will be set to the value of  `*print-length*`.")
 (defvar *test-print-level* :follow-print
   "The print-level in effect when LIFT prints test results. It works exactly like `*print-level*` except that it can also take on the value :follow-print. In this case, it will be set to whatever `*print-level*` is.")
+
+(defvar *test-print-suite-names* t
+  "If true, LIFT will print the name of each test suite to *debug-io* before it begins to run the suite. See also: *test-print-test-case-names*.")
+
+(defvar *test-print-test-case-names* nil
+  "If true, LIFT will print the name of each test-case before it runs. See also: *test-print-suite-names*.")
+
 (defvar *test-result* nil
   "Set to the most recent test result by calls to run-test or run-tests.")
 (defvar *test-environment* nil)
@@ -1489,6 +1498,9 @@ nor configuration file options were specified."))))
       (setf (test-environment-value (car key.value)) (cdr key.value))))
 
 (defmethod run-test-internal ((case test-mixin) (name symbol) result) 
+  (when (and *test-print-test-case-names*
+	     (eq (test-mode result) :multiple))
+    (print-lift-message "~&  run: ~a" name))
   (let ((problem nil))
     ;;??
     (declare (ignorable problem))
