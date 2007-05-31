@@ -354,18 +354,23 @@ the test is running. Note that this may interact oddly with ensure-warning.")
 
 (defvar *test-result* nil
   "Set to the most recent test result by calls to run-test or run-tests.")
+
 (defvar *test-environment* nil)
+
 (defvar *test-metadata* (list)
   "A place for LIFT to put stuff.")
+
 (defvar *current-test* nil
   "The current testsuite.")
 
 (defvar *lift-dribble-pathname* nil
   "If bound, then test output from run-tests will be sent to this file in ~ 
 in addition to *lift-standard-output*. It can be set to nil or to a pathname.")
+
 (defvar *lift-standard-output* *standard-output*
   "Output from tests will be sent to this stream. If can set to nil or ~
 to an output stream. It defaults to *standard-output*.")
+
 (defvar *lift-if-dribble-exists* :append
   "Specifies what to do to any existing file at *lift-dribble-pathname*. It ~
 can be :supersede, :append, or :error.")
@@ -565,23 +570,20 @@ can be :supersede, :append, or :error.")
                                                    `(:message (format nil ,report ,args))))) 
                (warn "Ensure-condition didn't get the condition it expected."))))))))
 
-;;; ---------------------------------------------------------------------------
-
 (defmacro ensure-warning (&body body)
+  "Ensure-warning evaluates its body. If the body does *not* signal a 
+warning, then ensure-warning will generate a test failure."
   `(ensure-condition warning ,@body))
 
-;;; ---------------------------------------------------------------------------
-
 (defmacro ensure-error (&body body)
+  "Ensure-error evaluates its body. If the body does *not* signal an 
+error, then ensure-error will generate a test failure."
   `(ensure-condition error ,@body))
 
-;;; ---------------------------------------------------------------------------
-
-(defmacro ensure-same (form values &key (test nil test-specified-p) (report nil) (args nil))
-  "\(ensure-same value-or-values-1 value-or-values-2
-  &key \(test 'equal\) report args\)
-
-Ensure same compares value-or-values-1 value-or-values-2 or each value of value-or-values-1 value-or-values-2 (if they are multiple values) using test. If a problem is encountered ensure-same raises a warning which uses report as a format string and args as arguments to that string (if report and args are supplied). If ensure-same is used within a test, a test failure is generated instead of a warning"
+(defmacro ensure-same
+    (form values &key (test nil test-specified-p) 
+     (report nil) (arguments nil) (args arguments))
+  "Ensure same compares value-or-values-1 value-or-values-2 or each value of value-or-values-1 value-or-values-2 (if they are multiple values) using test. If a problem is encountered ensure-same raises a warning which uses report as a format string and arguments as arguments to that string (if report and arguments are supplied). If ensure-same is used within a test, a test failure is generated instead of a warning"
   (setf test (remove-leading-quote test))
   (when (and (consp test)
              (eq (first test) 'function))
@@ -596,8 +598,10 @@ Ensure same compares value-or-values-1 value-or-values-2 or each value of value-
               ,(if test-specified-p (list 'quote test) '*lift-equality-test*) ,report ,args)))
      (values t)))
 
-(defmacro ensure-different (form values &key (test nil test-specified-p) (report nil) (args nil))
-  "Ensure-different compares value-or-values-1 value-or-values-2 or each value of value-or-values-1 and value-or-values-2 (if they are multiple values) using test. If any comparison returns true, then ensure-different raises a warning which uses report as a format string and args as arguments to that string (if report and args are supplied). If ensure-different is used within a test, a test failure is generated instead of a warning"
+(defmacro ensure-different
+    (form values &key (test nil test-specified-p) 
+     (report nil) (arguments nil) (args arguments))
+  "Ensure-different compares value-or-values-1 value-or-values-2 or each value of value-or-values-1 and value-or-values-2 (if they are multiple values) using test. If any comparison returns true, then ensure-different raises a warning which uses report as a format string and `arguments` as arguments to that string (if report and `arguments` are supplied). If ensure-different is used within a test, a test failure is generated instead of a warning"
   ;; FIXME -- share code with ensure-same
   (setf test (remove-leading-quote test))
   (when (and (consp test)
@@ -1025,17 +1029,17 @@ The `deftest` form is obsolete, see `deftestsuite`."
   "
 Creates a testsuite named `testsuite-name` and, optionally, the code required for test setup, test tear-down and the actual test-cases. A testsuite is a collection of test-cases and other testsuites.
 
-Test suites can have multiple superclasses (just like the classes that they are). Usually, these will be other test classes and the class hierarchy becomes the test case hierarchy. If necessary, however, non-test-suite classes can also be used as superclasses.
+Test suites can have multiple superclasses (just like the classes that they are). Usually, these will be other test classes and the class hierarchy becomes the test case hierarchy. If necessary, however, non-testsuite classes can also be used as superclasses.
 
 Slots are specified as in defclass with the following additions:
 
 * Initargs and accessors are automatically defined. If a slot is named`my-slot`, then the initarg will be `:my-slot` and the accessors will be `my-slot` and `(setf my-slot)`. 
 * If the second argument is not a CLOS slot option keyword, then it will be used as the `:initform` for the slot. I.e., if you have
 
-    (deftestsuite my-test ()
-      ((my-slot 23)))
+        (deftestsuite my-test ()
+          ((my-slot 23)))
 
-then `my-slot` will be initialized to 23 during test setup.
+    then `my-slot` will be initialized to 23 during test setup.
 
 Test options are one of :setup, :teardown, :test, :tests, :documentation, :export-p, :dynamic-variables, :export-slots, :function, :categories, :run-setup, or :equality-test. 
 
@@ -1192,8 +1196,6 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
             (setf *test-is-being-executed?* 
 		  (remove ',return *test-is-being-executed?*))))))))
  
-;;; ---------------------------------------------------------------------------
-  
 (defun compute-superclass-inheritence ()
   ;;?? issue 27: break encapsulation of code blocks
   ;;?? we assume that we won't have too deep a hierarchy or too many 
