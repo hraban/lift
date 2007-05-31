@@ -105,6 +105,12 @@
 (defmethod handle-config-preference ((name (eql :print-level)) args)
   (setf *test-print-level* (first args)))
 
+(defmethod handle-config-preference ((name (eql :print-suite-names)) args)
+  (setf *test-print-suite-names* (first args)))
+
+(defmethod handle-config-preference ((name (eql :print-test-case-names)) args)
+  (setf *test-print-test-case-names* (first args)))
+
 (defmethod handle-config-preference ((name (eql :if-dribble-exists))
 				     args)
   (setf *lift-if-dribble-exists* (first args)))
