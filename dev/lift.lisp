@@ -507,8 +507,9 @@ can be :supersede, :append, or :error.")
                    (test :accessor test
                          :initarg :test))
   (:report (lambda (c s)
-             (format s "Ensure-same: ~S is not ~S to ~S"
-                     (first-value c) (test c) (second-value c)))))
+             (format s "Ensure-same: ~S is not ~S to ~S~@[ (~a)~]"
+                     (first-value c) (test c) (second-value c)
+		     (message c)))))
 
 ;;; ---------------------------------------------------------------------------
 
