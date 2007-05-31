@@ -336,7 +336,10 @@ the test is running. Note that this may interact oddly with ensure-warning.")
 (defparameter *lift-equality-test* 'equal
   "The function used in ensure-same to test if two things are equal. If metatilities is loaded, then you might want to use samep.")
 
-(defvar *test-describe-if-not-successful?* t
+(defvar *test-describe-if-not-successful?* nil
+  ;; Was t, but this behavior was extremely annoying since each
+  ;; time a test-restul appears in a stack backtrace it is printed
+  ;; over many unstructured lines.
   "If true, then a complete test description is printed when there are any test warnings or failures. Otherwise, one would need to explicity call describe.")
 
 (defvar *test-print-length* :follow-print
