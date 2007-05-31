@@ -71,6 +71,7 @@
 	    a-symbol
 
 	    lift-result
+	    lift-property
 	    configure-from-file)))
 
 ;;; ---------------------------------------------------------------------------
