@@ -512,16 +512,15 @@ can be :supersede, :append, or :error.")
                      (first-value c) (test c) (second-value c)
 		     (message c)))))
 
-;;; ---------------------------------------------------------------------------
-
-(defmacro ensure (predicate &key report args)
+;; hacked list to take arguments in addition to args
+(defmacro ensure (predicate &key report args (arguments args))
   `(if ,predicate
      (values t)
      (let ((condition (make-condition 
                        'ensure-failed-error 
                        :assertion ',predicate
                        ,@(when report
-                           `(:message (format nil ,report ,@args))))))
+                           `(:message (format nil ,report ,@arguments))))))
        (if (find-restart 'ensure-failed)
          (invoke-restart 'ensure-failed condition) 
          (warn condition)))))
@@ -564,12 +563,14 @@ can be :supersede, :append, or :error.")
                             (warn c)))))
            (when (not ,g)
              (if (find-restart 'ensure-failed)
-               (invoke-restart 'ensure-failed 
-                               (make-condition 'ensure-expected-condition
-                                               :expected-condition-type ',condition
-                                               :the-condition nil
-                                               ,@(when report
-                                                   `(:message (format nil ,report ,args))))) 
+               (invoke-restart
+		'ensure-failed 
+		(make-condition 
+		 'ensure-expected-condition
+		 :expected-condition-type ',condition
+		 :the-condition nil
+		 ,@(when report
+			 `(:message (format nil ,report ,args))))) 
                (warn "Ensure-condition didn't get the condition it expected."))))))))
 
 (defmacro ensure-warning (&body body)
@@ -621,7 +622,7 @@ error, then ensure-error will generate a test failure."
               value other-value
               ,(if test-specified-p
 		   (list 'quote test)
-		   '*lift-equality-test*) ,report ,args)))
+		   '*lift-equality-test*) ,report ,@arguments)))
      (values t)))
 
 (defun maybe-raise-not-same-condition (value-1 value-2 test report args)
