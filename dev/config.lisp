@@ -119,6 +119,11 @@
 				     args)
   (setf (test-result-property *test-result* (first args)) (second args)))
 
+(defmethod handle-config-preference ((name (eql :profiling-threshold))
+				     args)
+  (setf *profiling-threshold* (first args)))
+
+
 (defmethod handle-config-preference ((name (eql :build-report))
 				     args)
   (declare (ignore args))
