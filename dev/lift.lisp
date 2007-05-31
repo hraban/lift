@@ -34,8 +34,6 @@
 	    *test-scratchpad*
 	    *test-notepad*
 	    *lift-equality-test*
-	    *test-print-length*
-	    *test-print-level*
 	    *lift-debug-output*
           
 	    ;; Other
