@@ -1381,11 +1381,6 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 	   *current-test*
 	   args)))
 
-#+(or)
-(defmethod run-tests-internal ((test-class standard-class) &rest 
-			       args &key &allow-other-keys)
-  (apply #'run-tests-internal (class-name test-class) args))
-
 (defmethod run-tests-internal 
     ((case test-mixin) &key 
      (result (make-test-result (class-of case) :multiple))
@@ -1583,6 +1578,7 @@ nor configuration file options were specified."))))
           (setup-test case)
           (unwind-protect
 	       (let ((result nil))
+		 (declare (ignorable result))
 		 (setf (current-step case) :testing
 		       result
 		       (measure
@@ -2201,7 +2197,11 @@ nor configuration file options were specified."))))
  (lambda () (def :timeout)) 
  '((setf (def :timeout) (cleanup-parsed-parameter value)))
  (lambda ()
-   (pushnew 'process-test-mixin (def :superclasses))
+   (unless (some (lambda (super)
+		   (member (find-class 'process-test-mixin)
+			   (superclasses super)))
+		 (def :superclasses))
+     (pushnew 'process-test-mixin (def :superclasses)))
    (push (def :timeout) (def :default-initargs))
    (push :maximum-time (def :default-initargs))
    nil))
