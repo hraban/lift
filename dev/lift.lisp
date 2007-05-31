@@ -1559,7 +1559,7 @@ nor configuration file options were specified."))))
       :test-start
       (restart-case
         (handler-bind ((warning #'muffle-warning)       
-					; Decline to handle warnings... 
+					; ignore warnings... 
                        (error 
                         (lambda (cond)
                           (setf problem 
