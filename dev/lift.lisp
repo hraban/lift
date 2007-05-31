@@ -40,6 +40,7 @@
           
 	    ;; Other
 	    ensure
+	    ensure-null
 	    ensure-same
 	    ensure-different
 	    ensure-condition
@@ -457,6 +458,16 @@ can be :supersede, :append, or :error.")
 
 ;;; ---------------------------------------------------------------------------
 
+(define-condition ensure-null-failed-error (ensure-failed-error)
+  ((value :initform "" 
+	  :accessor value
+	  :initarg :value))
+  (:report (lambda (c s)
+             (format s "Ensure null failed: ~S ~@[(~a)~]" 
+		     (value c) (message c)))))
+
+;;; ---------------------------------------------------------------------------
+
 (define-condition ensure-expected-condition (test-condition) 
                   ((expected-condition-type
                     :initform nil
@@ -498,7 +509,18 @@ can be :supersede, :append, or :error.")
          (invoke-restart 'ensure-failed condition) 
          (warn condition)))))
 
-;;; ---------------------------------------------------------------------------
+(defmacro ensure-null (predicate &key report args)
+  (let ((g (gensym)))
+    `(let ((,g ,predicate))
+       (if (null ,g)
+	   t
+	 (let ((condition (make-condition 'ensure-null-failed-error
+			    :value ,g
+			    ,@(when report
+				`(:message (format nil ,report ,@args))))))
+	   (if (find-restart 'ensure-failed)
+	       (invoke-restart 'ensure-failed condition) 
+	     (warn condition)))))))
 
 (defmacro ensure-condition (condition &body body)
   "This macro is used to make sure that body really does produce condition."
