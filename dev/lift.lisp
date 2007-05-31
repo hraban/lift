@@ -1564,6 +1564,8 @@ nor configuration file options were specified."))))
                           (if *test-break-on-errors?*
                             (invoke-debugger cond)
                             (go :test-end))))
+		       #+(or)
+		       ;; FIXME - too much! should we catch serious-conditions?
                        (t (lambda (cond)
                             (setf problem 
                                   (report-test-problem
