@@ -39,54 +39,62 @@
   (asdf:system-relative-pathname 
    'lift "benchmark-data/benchmarks.log"))
 
+(defvar *collect-call-counts* nil)
+
 (defvar *additional-markers* nil)
+
+(defvar *profiling-threshold* nil)
 
 #+allegro
 (defun cancel-current-profile (&key force?)
-  (unless force?
-    (assert (member (prof:profiler-status) '(:inactive))))
-  (prof:stop-profiler)
-  (setf prof::*current-profile* (prof::make-current-profile)))
+  (when (prof::current-profile-actual prof::*current-profile*)
+    (unless force?
+      (assert (member (prof:profiler-status) '(:inactive))))
+    (prof:stop-profiler)
+    (setf prof::*current-profile* (prof::make-current-profile))))
 
 #+allegro
 (defun current-profile-sample-count ()
-  (ecase (prof::profiler-status)
+   (ecase (prof::profiler-status :verbose nil)
     ((:inactive :analyzed) 0)
     ((:suspended :saved)
      (slot-value (prof::current-profile-actual prof::*current-profile*) 
 		 'prof::samples))
     (:sampling (warn "Can't determine count while sampling"))))
 
+;; FIXME -- functionify this!
 #+allegro
-(defmacro with-profile-report ((name style &key (log-name *benchmark-file*)) 
+(defmacro with-profile-report ((name style &key (log-name *benchmark-file*)
+				     (call-counts-p *collect-call-counts*)) 
 			       &body body)
   (assert (member style '(:time :space)))
   `(let ((seconds 0.0) (conses 0) result)
-     (cancel-current-profile)
+     (cancel-current-profile :force? t)
      (multiple-value-prog1
-	 (prof:with-profiling (:type ,style)
+	 (prof:with-profiling (:type ,style :count ,call-counts-p)
 	   (measure seconds conses ,@body))
-       (let ((date-stamp (get-universal-time)))
-	 (ensure-directories-exist ,log-name)
-	 ;;log 
-	 (with-open-file (output ,log-name
-				 :direction :output
-				 :if-does-not-exist :create
-				 :if-exists :append)
-	   (with-standard-io-syntax
-	     (let ((*print-readably* nil))
-	       (terpri output)
-	       (format output "\(~11,d ~20,s ~10,s ~10,s ~{~s~^ ~} ~s\)"
-		       date-stamp ,name 
-		       seconds conses *additional-markers*
-		       result))))
-	 (when (> (current-profile-sample-count) 0)
-	   (let ((pathname (merge-pathnames
-			    (make-pathname 
-			     :type "prof"
-			     :name (format nil "~a-~a-~a"
-					   ,name ,style date-stamp))
-			    ,log-name)))
+       (ensure-directories-exist ,log-name)
+       ;;log 
+       (with-open-file (output ,log-name
+			       :direction :output
+			       :if-does-not-exist :create
+			       :if-exists :append)
+	 (with-standard-io-syntax
+	   (let ((*print-readably* nil))
+	     (terpri output)
+	     (format output "\(~11,d ~20,s ~10,s ~10,s ~{~s~^ ~} ~s\)"
+		     (date-stamp :include-time? t) ,name 
+		     seconds conses *additional-markers*
+		     result))))
+       (when (> (current-profile-sample-count) 0)
+	 (let ((pathname (unique-filename
+			  (merge-pathnames
+			   (make-pathname 
+			    :type "prof"
+			    :name (format nil "~a-~a-" ,name ,style))
+			   ,log-name))))
+	   (let ((prof:*significance-threshold* 
+		  (or *profiling-threshold* 0.01)))
 	     (format t "~&Profiling output being sent to ~a" pathname)
 	     (with-open-file (output pathname
 				     :direction :output
@@ -102,7 +110,11 @@
 	       (when (or (eq :time ,style)
 			 (eq :space ,style))
 		 (prof:show-flat-profile :stream output)
-		 (prof:show-call-graph :stream output)))))))))
+		 (prof:show-call-graph :stream output)
+		 (when ,call-counts-p
+		   (format output "~%~%Call counts~%")
+		   (let ((*standard-output* output))
+		     (prof:show-call-counts)))))))))))
 
 #| OLD
 ;; integrate with LIFT
