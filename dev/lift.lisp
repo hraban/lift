@@ -704,6 +704,7 @@ error, then ensure-error will generate a test failure."
 		:initarg :results-for 
 		:accessor results-for)
    (tests-run :initform nil :accessor tests-run)
+   (suites-run :initform nil :accessor suites-run)
    (failures :initform nil :accessor failures)
    (expected-failures :initform nil :accessor expected-failures)
    (errors :initform nil :accessor errors)
