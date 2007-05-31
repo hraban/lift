@@ -120,6 +120,15 @@ the class itself is not included in the mapping. Proper? defaults to nil."
                     :proper? proper?)
     (nreverse result)))
 
+(defun superclasses (thing &key (proper? t))
+  "Returns a list of superclasses of thing. Thing can be a class, object or symbol naming a class. The list of classes returned is 'proper'; it does not include the class itself."
+  (let ((result (class-precedence-list (get-class thing))))
+    (if proper? (rest result) result)))
+
+(defun direct-superclasses (thing)
+  "Returns the immediate superclasses of thing. Thing can be a class, object or symbol naming a class."
+  (class-direct-superclasses (get-class thing)))
+
 (declaim (inline length-1-list-p)) 
 (defun length-1-list-p (x) 
   "Is x a list of length 1?"
@@ -1210,7 +1219,15 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 	   (append (def :direct-dynamic-variables) dynamic-variables))
 	  (def :function-specs)
 	  (remove-duplicates 
-	   (append (def :function-specs) function-specs)))))
+	   (append (def :function-specs) function-specs)))
+    (setf (def :superclasses)
+	  (loop for class in (def :superclasses) 
+	     unless (some (lambda (oter)
+			    (and (not (eq class oter))
+				 (member class (superclasses oter))))
+			  (def :superclasses)) collect
+	     class))
+    ))
 
 (defmacro addtest (name &body test)
   "Adds a single new test-case to the most recently defined testsuite."
