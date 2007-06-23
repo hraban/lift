@@ -763,7 +763,7 @@ error, then ensure-error will generate a test failure."
 	   (when (and *test-print-testsuite-names*
 		      (eq (test-mode result) :multiple))
 	     (print-lift-message "~&Start: ~a" (type-of testsuite)))
-	   (pushnew (type-of testsuite) (suites-run result))
+	   (push (type-of testsuite) (suites-run result))
            (setf (current-step testsuite) :testsuite-setup)))
 
 (defgeneric testsuite-run (testsuite result)
@@ -1506,8 +1506,10 @@ nor configuration file options were specified."))))
 	 (loop for method in methods do
 	      (run-test-internal case method result))
 	 (when *test-do-children?*
-	   (loop for subclass in (direct-subclasses (class-of case))
-	      when (testsuite-p subclass) do
+	   (loop for subclass in (direct-subclasses (class-of case))		
+	      when (and (testsuite-p subclass)
+			(not (member (class-name subclass) 
+				     (suites-run result)))) do
 	      (run-tests-internal (class-name subclass)
 				  :result result))))
     (setf (end-time result) (get-universal-time))))
