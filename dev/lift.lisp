@@ -18,6 +18,10 @@
 	    remove-test
 	    run-test
 	    run-tests
+
+	    measure-time
+	    measure-conses
+	    with-profile-report
           
 	    ;; Variables
 	    *test-ignore-warnings?*
