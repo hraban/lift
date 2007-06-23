@@ -2117,17 +2117,13 @@ nor configuration file options were specified."))))
 		(def :superclasses))
     (pushnew 'test-mixin (def :superclasses)))
   ;; build basic class and standard class
-  `(progn
-     #+MCL
-     (ccl:record-source-file ',(def :testsuite-name) 'testsuite)
-     (let (#+MCL (ccl:*record-source-file* nil))
-       (defclass ,(def :testsuite-name) (,@(def :superclasses))
-	 nil
-	 ,@(when (def :documentation)
-		 `((:documentation ,(def :documentation))))
-	 (:default-initargs
-             :test-slot-names ',(def :slot-names)
-             ,@(def :default-initargs))))))
+  `(defclass ,(def :testsuite-name) (,@(def :superclasses))
+     nil
+     ,@(when (def :documentation)
+	     `((:documentation ,(def :documentation))))
+     (:default-initargs
+	 :test-slot-names ',(def :slot-names)
+       ,@(def :default-initargs))))
 
 (defun parse-test-slots (slot-specs)
   (loop for spec in slot-specs collect
