@@ -11,27 +11,32 @@
     (generate-two-line-header
      "LIFT" "Fighting like cats")
     
-    ((:DIV :CLASS "contents")
+    ((:div :class "contents")
      (generate-system-sidebar)
      
-     ((:DIV :CLASS "system-description")
-       (:H3 "What it is")
-       (:P 
-        "LIFT is yet another " (:B "LI") "sp " (:B "F") "ramework for " (:B "T") "esting   in the SUnit / JUnit mold. It is, however, much cooler and that's not just because it has a spunkier acronymn.")
+     ((:div :class "system-description")
+       (:h3 "What it is")
+       (:p 
+        "LIFT is yet another " (:b "LI") "sp " (:b "F") "ramework for " (:b "T") "esting   in the SUnit / JUnit mold. It is, however, much cooler and that's not just because it has a spunkier acronymn.")
        
-       (:P (rw:link :tinaa) " documentation for LIFT is "
+      (:p "The best place to get an overview of LIFT and its features is in 
+the " ((:a :href "user-guide.html" :title "LIFT User's Guide")
+		"user's guide") ". Though still a work in progress, it covers 
+all of LIFT's basic features and many of its more advanced ones too.")
+
+       (:p (rw:link :tinaa) " documentation for LIFT is "
            (rw:link :lift-tinaa :title "available") ".")
        
-       (:P "Those with an archeological bent might find the following interesting:"
-           (:UL
-            (:LI "A " ((:A :href "assets/test-framework.pdf") "2003 paper") " from the International Lisp Conference described LIFT as it was then, and ")
-            (:LI "My presentation from the conference"
-                 (:UL 
-                  (:LI "As a " ((:A :href "assets/ILC-2003-Presentation.swf") "Flash Presentation") " (and I don't know how to navigate in this either... It's exported from Keynote)")
-                  (:LI "As a " ((:A :href "assets/ILC-2003-Presentation.pdf") "PDF")))))
+       (:p "Those with an archeological bent might find the following interesting:"
+           (:ul
+            (:li "A " ((:a :href "assets/test-framework.pdf") "2003 paper") " from the International Lisp Conference described LIFT as it was then, and ")
+            (:li "My presentation from the conference"
+                 (:ul 
+                  (:li "As a " ((:a :href "assets/ILC-2003-Presentation.swf") "Flash Presentation") " (and I don't know how to navigate in this either... It's exported from Keynote)")
+                  (:li "As a " ((:a :href "assets/ILC-2003-Presentation.pdf") "PDF")))))
            "The externals of LIFT haven't changed too much though the implementation has been improved...")
        
-       ((:A :NAME "mailing-lists"))
+       ((:a :NAME "mailing-lists"))
         (:h3 "Mailing Lists")
         (:ul 
          (:li ((:a :href "http://common-lisp.net/cgi-bin/mailman/listinfo/lift-announce") "lift-announce")
@@ -41,25 +46,29 @@
               ": A list for questions, patches, bug reports, and so on; It's for everything 
 other than announcements."))
        
-       ((:A :NAME "downloads"))
-        (:H3 "Where is it")
-        (:P "A " (rw:link :darcs) " repository is available (note that you'll also need to get " (rw:link :moptilities) " to get LIFT to work). The commands are listed below:")
-        (:PRE
+       ((:a :name "downloads"))
+        (:h3 "Where is it")
+        (:p "A " (rw:link :darcs) " repository is available (note that you'll also need to get " (rw:link :moptilities) " to get LIFT to work). The commands are listed below:")
+        (:pre
          "darcs get http://common-lisp.net/project/lift/darcs/lift
 darcs get http://common-lisp.net/project/cl-containers/moptilities/darcs/moptilities")
-        (:P "LIFT (and friends) should also be " (rw:link :asdf-install :title "ASDF installable") ". Its CLiki home is right " (rw:link :lift-cliki :title "where") " you'd expect.")
-        (:P "There's also a handy " (rw:link :lift-package :title "gzipped tar file") ".")
+        (:p "LIFT (and friends) should also be " (rw:link :asdf-install :title "ASDF installable") ". Its CLiki home is right " (rw:link :lift-cliki :title "where") " you'd expect.")
+        (:p "There's also a handy " (rw:link :lift-package :title "gzipped tar file") ".")
        
        
-       ((:A :NAME "news"))
-        (:H3 "What is happening")
-        ((:TABLE :CLASS "system-news") 
-         (:TR
-          (:TH "18 Nov 2005")
-          (:TD "Finally get LIFT to an increasingly grateful (?!) world.")))))
-    
-    
-    ((:DIV :CLASS "footer")
+       ((:a :name "news"))
+        (:h3 "What is happening")
+        ((:table :class "system-news") 
+	 (:tr
+          (:th "23 June 2007")
+          (:td "Scads of improvements in loads of places. The "
+	       ((:a :href "user-guide.html" :title "LIFT User's Guide")
+		"user's guide") "has the details."))
+         (:tr
+          (:th "18 Nov 2005")
+          (:td "Finally get LIFT to an increasingly grateful (?!) world.")))))
+        
+    ((:div :class "footer")
      (generate-button-row 
       (format nil "Last updated: ~A" 
               (format-date "%A, %e %B %Y" (get-universal-time))))))))

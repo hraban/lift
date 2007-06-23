@@ -1,9 +1,16 @@
 /* @group toc */
 
-
-
 .table-of-contents {
 	font-size: 90%;
+	margin-bottom: 1em;
+	padding-bottom: 1em;
+}
+
+.table-of-contents h2, h3, h4 {
+	padding-top: 0;
+	padding-bottom: 0;
+	margin-top: 0;
+	margin-bottom: 1px;
 }
 
 .table-of-contents h2 {
@@ -32,7 +39,8 @@
 	font-style: inherit;
 	position: relative;
 	left: 8px;
-}	
+}
+	
 /* @end */
 
 /* @group anchors */
@@ -95,6 +103,13 @@ h1, h2, h3, h4 {
   font-family: "Lucida Grande", Lucida, Verdana, sans-serif;
 }
 
+h2 {
+}
+
+h3, h4 {
+	font-style: italic;
+}
+
 .hidden {
 	visibility: hidden;
 }
@@ -149,15 +164,12 @@ h1, h2, h3, h4 {
 }
 
 pre {
+	background-color: #ffc8ff;
 	overflow: auto;
 	padding-bottom: 5px;
 	margin-right: 1cm;
 	margin-left: 1cm;
 	font-family: "Courier New", Courier, mono;
-}
-
-code {
-	background-color: #b8ffc8;
 }
 
 .note {
@@ -192,3 +204,4 @@ code {
 	font-size: 80%;
 	text-align: right;
 }
+
