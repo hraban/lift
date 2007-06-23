@@ -1,6 +1,6 @@
 {set-property html yes}
 {set-property style-sheet style}
-{set-property author Gary Warren King}
+{set-property author "Gary Warren King"}
 
   [del.icio.us]: http://del.icio.us
   [Arnesi]: http://common-lisp.net/project/bese/arnesi.html

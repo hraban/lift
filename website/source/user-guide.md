@@ -150,7 +150,7 @@ The example above also shows that you can define tests directly in the deftestsu
       TEST-4
       TEST-5
 
-So far, our tests have not required any setup or teardown. Let's next look at at a few tests that do. The first example is from the [ADSF-Install][] testsuite. It uses its fixtures setup to make sure that the working directory is empty (so that it is ensured of installing into a clean system).{footnote We'll talk about the :dynamic-variables clause in more detail below}
+So far, our tests have not required any setup or teardown. Let's next look at at a few tests that do. The first example is from the [ASDF-Install][] testsuite. It uses its fixtures setup to make sure that the working directory is empty (so that it is ensured of installing into a clean system).{footnote We'll talk about the :dynamic-variables clause in more detail below}
 
     (deftestsuite test-asdf-install-basic-installation (test-asdf-install) 
       ()
@@ -160,7 +160,8 @@ So far, our tests have not required any setup or teardown. Let's next look at at
        (delete-directory-and-files *working-directory* 
            :if-does-not-exist :ignore)))
 
-This next testsuite is from [Log5][]. Though the details aren't important, you can be assured that LIFT will run the setup before every test-case and the teardown after every test-case (even if there is an error).  
+This next testsuite is from [Log5][log5]. 
+Though the details aren't important, you can be assured that LIFT will run the setup before every test-case and the teardown after every test-case (even if there is an error).  
 
     (deftestsuite test-stream-sender-with-stream (test-stream-sender)
      (sender-name
@@ -171,6 +172,7 @@ This next testsuite is from [Log5][]. Though the details aren't important, you c
     	 string-stream (make-string-output-stream)))   
      (:teardown (stop-sender-fn sender-name :warn-if-not-found-p nil))
      :equality-test #'string-equal)
+
 
 #### Deftestsuite options and arguments
 
