@@ -1132,7 +1132,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
                   (remove-previous-definitions ',(def :testsuite-name))
                   (setf *current-case-method-name* nil)
                   ;; and then redefine the class
-                  ,(build-test-class)
+		  ,(build-test-class)
                   (setf *current-suite-class-name* ',(def :testsuite-name)
 			(test-slots ',(def :testsuite-name)) 
 			',(def :slot-names)
@@ -1142,55 +1142,56 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 			(testsuite-function-specs ',(def :testsuite-name))
 			',(def :function-specs))
                   ,@(when (def :export-p)
-                      `((export '(,(def :testsuite-name)))))
+			  `((export '(,(def :testsuite-name)))))
                   ,@(when (def :export-slots?)
-                      `((export ',(def :direct-slot-names))))
+			  `((export ',(def :direct-slot-names))))
                   ;; make a place to save test-case information
                   (empty-test-tables ',(def :testsuite-name))
-                  ;;; create methods
+;;; create methods
                   ;; setup :before
-                  ,@(build-initialize-test-method) 
-                  ,@(loop for (nil . block) in *code-blocks* 
-                          when (and block 
-                                    (code block)
-                                    (eq (operate-when block) :methods)
-                                    (or (not (filter block))
-                                        (funcall (filter block)))) collect
-                          (funcall (code block)))
-		  ,@(when (def :dynamic-variables)
-			  `((defmethod do-testing :around
-				((suite ,(def :testsuite-name)) result fn) 
-			      (declare (ignore result fn))
-			      (cond ((done-dynamics? suite)
-				     (call-next-method))
-				    (t
-				     (setf (slot-value suite 'done-dynamics?) t)
-				     (let* (,@(build-dynamics))
-				       (call-next-method)))))))
-                  ;; tests
-                  ,@(when test-list
-                      `((let ((*test-evaluate-when-defined?* nil))
-                          ,@(loop for test in (nreverse test-list) collect
-                                  `(addtest (,(def :testsuite-name)) 
-                                     ,@test))
-                          (setf *testsuite-test-count* nil))))
-		  ,(if *test-evaluate-when-defined?* 
-                     `(unless (or *test-is-being-compiled?*
-                                  *test-is-being-loaded?*)
-                        (let ((*test-break-on-errors?* *test-break-on-errors?*))
-			  (run-tests :suite ',testsuite-name)))
-                     `(find-class ',testsuite-name)))
+		  (eval-when (:load-toplevel :execute)
+		    ,@(build-initialize-test-method) 
+		    ,@(loop for (nil . block) in *code-blocks* 
+			 when (and block 
+				   (code block)
+				   (eq (operate-when block) :methods)
+				   (or (not (filter block))
+				       (funcall (filter block)))) collect
+			 (funcall (code block)))
+		    ,@(when (def :dynamic-variables)
+			    `((defmethod do-testing :around
+				  ((suite ,(def :testsuite-name)) result fn) 
+				(declare (ignore result fn))
+				(cond ((done-dynamics? suite)
+				       (call-next-method))
+				      (t
+				       (setf (slot-value suite 'done-dynamics?) t)
+				       (let* (,@(build-dynamics))
+					 (call-next-method)))))))
+		    ;; tests
+		    ,@(when test-list
+			    `((let ((*test-evaluate-when-defined?* nil))
+				,@(loop for test in (nreverse test-list) collect
+				       `(addtest (,(def :testsuite-name)) 
+					  ,@test))
+				(setf *testsuite-test-count* nil))))
+		    ,(if *test-evaluate-when-defined?* 
+			 `(unless (or *test-is-being-compiled?*
+				      *test-is-being-loaded?*)
+			    (let ((*test-break-on-errors?* *test-break-on-errors?*))
+			      (run-tests :suite ',testsuite-name)))
+			 `(find-class ',testsuite-name))))
                 (condition (c) 
-		  (break)
-		  (setf *testsuite-test-count* nil)
-		  (lift-report-condition c))))
-            ;; cleanup
-            (setf *test-is-being-compiled?* 
-		  (remove ',return *test-is-being-compiled?*))
-            (setf *test-is-being-loaded?* 
-		  (remove ',return *test-is-being-loaded?*))
-            (setf *test-is-being-executed?* 
-		  (remove ',return *test-is-being-executed?*))))))))
+			   (break)
+			   (setf *testsuite-test-count* nil)
+			   (lift-report-condition c))))
+	  ;; cleanup
+	  (setf *test-is-being-compiled?* 
+		(remove ',return *test-is-being-compiled?*))
+	  (setf *test-is-being-loaded?* 
+		(remove ',return *test-is-being-loaded?*))
+	  (setf *test-is-being-executed?* 
+		(remove ',return *test-is-being-executed?*)))))))
  
 (defun compute-superclass-inheritence ()
   ;;?? issue 27: break encapsulation of code blocks
@@ -1224,8 +1225,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 			    (and (not (eq class oter))
 				 (member class (superclasses oter))))
 			  (def :superclasses)) collect
-	     class))
-    ))
+	     class))))
 
 (defmacro addtest (name &body test)
   "Adds a single new test-case to the most recently defined testsuite."
