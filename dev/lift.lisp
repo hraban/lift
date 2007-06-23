@@ -1575,7 +1575,8 @@ nor configuration file options were specified."))))
 		       (measure
 			   (getf (test-data case) :seconds)
 			   (getf (test-data case) :conses)
-			 (lift-test case name))))
+			 (lift-test case name)))
+		 (check-for-surprises result case name))
             (teardown-test case)
             (end-test result case name)))
         (ensure-failed (cond) 
@@ -1588,6 +1589,49 @@ nor configuration file options were specified."))))
   (setf (third (first (tests-run result))) (test-data case))
   (setf *test-result* result))
 
+(define-condition unexpected-success-failure (test-condition)
+  ((expected :reader expected :initarg :expected)
+   (expected-more :reader expected-more :initarg :expected-more))
+  (:report (lambda (c s)
+	     (format s "Test succeeded but we expected ~s (~s)"
+		     (expected c)
+		     (expected-more c)))))
+
+(defun check-for-surprises (results testsuite name)
+  (declare (ignore results name))
+  (let* ((options (getf (test-data testsuite) :options))
+	 (expected-failure-p (second (member :expected-failure options)))
+	 (expected-error-p (second (member :expected-error options)))
+	 (expected-problem-p (second (member :expected-problem options)))
+	 (condition nil))
+    (cond 
+      (expected-failure-p
+       (setf (slot-value testsuite 'expected-failure-p) expected-failure-p))
+      (expected-error-p
+       (setf (slot-value testsuite 'expected-error-p) expected-error-p))
+      (expected-problem-p
+       (setf (slot-value testsuite 'expected-problem-p) expected-problem-p)))
+    (cond
+      ((expected-failure-p testsuite)
+       (setf condition 
+	     (make-condition 'unexpected-success-failure
+			     :expected :failure
+			     :expected-more (expected-failure-p testsuite))))
+      ((expected-error-p testsuite)
+       (setf condition 
+	     (make-condition 'unexpected-success-failure
+			     :expected :error
+			     :expected-more (expected-error-p testsuite))))
+      ((expected-problem-p testsuite)
+       (setf condition 
+	     (make-condition 'unexpected-success-failure
+			     :expected :problem
+			     :expected-more (expected-problem-p testsuite)))))
+    (when condition
+      (if (find-restart 'ensure-failed)
+	  (invoke-restart 'ensure-failed condition)
+	  (warn condition)))))
+
 (defun report-test-problem (problem-type result suite method condition
 			    &rest args)
   ;; ick
@@ -1596,6 +1640,7 @@ nor configuration file options were specified."))))
 	(option nil))
     (declare (ignore docs option))
     (cond ((and (eq problem-type 'test-failure)
+		(not (typep condition 'unexpected-success-failure))
 		(member :expected-failure options))
 	   (setf problem-type 'test-expected-failure 
 		 option :expected-failure))
