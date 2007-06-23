@@ -1400,7 +1400,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 		 (funcall fn suite level)
 		 (loop for subclass in (subclasses suite :proper? t) do
 		      (do-it subclass (1+ level))))))
-    (do-it (find-class start-at nil) 0))))
+    (do-it (find-class (find-testsuite start-at) nil) 0))))
 
 (defun testsuites (&optional (start-at 'test-mixin))
   "Returns a list of testsuite classes. The optional parameter provides
