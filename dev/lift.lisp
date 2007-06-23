@@ -302,12 +302,6 @@ All other CLOS slot options are processed normally."
 ;;; global environment thingies
 ;;; ---------------------------------------------------------------------------
 
-#+(or)
-;; FIXME - not used
-(defparameter *run-tests-arguments*
-  '(:suite :break-on-errors :run-setup :do-children? :result 
-    :name :config))
-
 (defparameter *make-testsuite-arguments*
   '(:run-setup :test-slot-names :equality-test :log-file :timeout))
 
@@ -837,8 +831,6 @@ the methods that should be run to do the tests for this test."))
 (defmethod initialize-test ((test test-mixin))
   (values))
 
-;;; ---------------------------------------------------------------------------
-
 (defmethod initialize-test :before ((test test-mixin))
   ;; only happens once
   (initialize-prototypes test) 
@@ -864,48 +856,31 @@ the methods that should be run to do the tests for this test."))
   "An associative-container which saves interesting information about
 the thing being defined.")
 
-;;; ---------------------------------------------------------------------------
-
 (defun initialize-current-definition ()
   (setf *current-definition* nil))
-
-;;; ---------------------------------------------------------------------------
 
 (defun set-definition (name value)
   (let ((current (assoc name *current-definition*)))
     (if current
       (setf (cdr current) value)
       (push (cons name value) *current-definition*)))
-  
-  (values value))
-
-;;; ---------------------------------------------------------------------------
+    (values value))
 
 (defun def (name &optional (definition *current-definition*))
   (when definition (cdr (assoc name definition))))
 
-;;; ---------------------------------------------------------------------------
-
 (defun (setf def) (value name)
   (set-definition name value))
 
-;;; ---------------------------------------------------------------------------
-
 (defvar *code-blocks* nil)
-
-;;; ---------------------------------------------------------------------------
 
 (defstruct (code-block (:type list) (:conc-name nil))
   block-name (priority 0) filter code operate-when)
-
-;;; ---------------------------------------------------------------------------
 
 (defgeneric block-handler (name value)
   (:documentation "")
   (:method ((name t) (value t))
            (error "Unknown clause: ~A" name)))
-
-;;; ---------------------------------------------------------------------------
 
 (defun add-code-block (name priority operate-when filter handler code)
   (let ((current (assoc name *code-blocks*))
@@ -918,12 +893,10 @@ the thing being defined.")
     (if current
       (setf (cdr current) value)
       (push (cons name value) *code-blocks*))
-  
     (eval 
      `(defmethod block-handler ((name (eql ',name)) value)
         (declare (ignorable value))
-        ,@handler)))
-    
+        ,@handler)))    
     (setf *code-blocks* (sort *code-blocks* #'< 
 			      :key (lambda (name.cb)
 				     (priority (cdr name.cb))))))
@@ -956,8 +929,6 @@ The `deftest` form is obsolete, see `deftestsuite`."
   
   (warn "Deftest is obsolete, use deftestsuite instead.")
   `(deftestsuite ,testsuite-name ,superclasses ,slots ,@clauses-and-options))
-
-;;; ---------------------------------------------------------------------------
 
 (setf *code-blocks* nil)
 
@@ -1136,14 +1107,14 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
           (push ',return *test-is-being-loaded?*))
         (eval-when (:execute)
           (push ',return *test-is-being-executed?*))
-        (let (#+MCL (ccl:*warn-if-redefine* nil))
-          (unwind-protect
-            (let ((*test-is-being-defined?* t))
-              (no-handler-case 
+	(unwind-protect
+	     (let (#+MCL (ccl:*warn-if-redefine* nil)
+			 (*test-is-being-defined?* t))
+	       (no-handler-case 
                 (progn
                   ;; remove previous methods (do this 
 		  ;; _before_ we define the class)
-		  ;#+(or)
+					;#+(or)
                   (remove-previous-definitions ',(def :testsuite-name))
                   (setf *current-case-method-name* nil)
                   ;; and then redefine the class
