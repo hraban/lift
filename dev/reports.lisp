@@ -295,8 +295,7 @@ run-test-internal
 				    'testsuite-some-errors)
 				   (t
 				    'testsuite-some-failures))))
-	   (format stream "~&<div class=\"testsuite-title\">~
-<table class=\"~a\"><tr><td>~a</td>" extra-class suite)
+	   (format stream "~&<div class=\"testsuite-title\"><table class=\"~a\"><tr><td>~a</td>" extra-class suite)
 	   (format stream "<td class=\"testsuite-test-count\">~:d test~:p</td>"
 		   this-suite-end)
 	   (format stream "<td class=\"testsuite-summary\">")

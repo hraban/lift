@@ -32,7 +32,7 @@
 	    *test-evaluate-when-defined?*
 	    *test-describe-if-not-successful?*
 	    *test-maximum-time*
-	    *test-print-suite-names*
+	    *test-print-testsuite-names*
 	    *test-print-test-case-names*
 
 	    *test-scratchpad*
@@ -316,7 +316,7 @@ All other CLOS slot options are processed normally."
 (defvar *testsuite-test-count* nil
   "Temporary variable used to 'communicate' between deftestsuite and addtest.")
 (defvar *lift-debug-output* *debug-io*
-  "Messages from LIFT will be sent to this stream. It can set to nil or ~
+  "Messages from LIFT will be sent to this stream. It can set to nil or
 to an output stream. It defaults to *debug-io**.")
 
 (defvar *test-break-on-errors?* nil)
@@ -345,11 +345,11 @@ the test is running. Note that this may interact oddly with ensure-warning.")
 (defvar *test-print-level* :follow-print
   "The print-level in effect when LIFT prints test results. It works exactly like `*print-level*` except that it can also take on the value :follow-print. In this case, it will be set to whatever `*print-level*` is.")
 
-(defvar *test-print-suite-names* t
+(defvar *test-print-testsuite-names* t
   "If true, LIFT will print the name of each test suite to *debug-io* before it begins to run the suite. See also: *test-print-test-case-names*.")
 
 (defvar *test-print-test-case-names* nil
-  "If true, LIFT will print the name of each test-case before it runs. See also: *test-print-suite-names*.")
+  "If true, LIFT will print the name of each test-case before it runs. See also: *test-print-testsuite-names*.")
 
 (defvar *test-result* nil
   "Set to the most recent test result by calls to run-test or run-tests.")
@@ -363,15 +363,15 @@ the test is running. Note that this may interact oddly with ensure-warning.")
   "The current testsuite.")
 
 (defvar *lift-dribble-pathname* nil
-  "If bound, then test output from run-tests will be sent to this file in ~ 
+  "If bound, then test output from run-tests will be sent to this file in 
 in addition to *lift-standard-output*. It can be set to nil or to a pathname.")
 
 (defvar *lift-standard-output* *standard-output*
-  "Output from tests will be sent to this stream. If can set to nil or ~
+  "Output from tests will be sent to this stream. If can set to nil or
 to an output stream. It defaults to *standard-output*.")
 
 (defvar *lift-if-dribble-exists* :append
-  "Specifies what to do to any existing file at *lift-dribble-pathname*. It ~
+  "Specifies what to do to any existing file at *lift-dribble-pathname*. It
 can be :supersede, :append, or :error.")
   
 ;;; ---------------------------------------------------------------------------
@@ -394,8 +394,8 @@ can be :supersede, :append, or :error.")
   "Could not find test: ~S.~S")
 
 (defparameter +run-tests-null-test-case+
-  "There is no current testsuite (possibly because ~
-   none have been defined yet?). You can specify the ~
+  "There is no current testsuite (possibly because
+   none have been defined yet?). You can specify the
    testsuite to test by evaluating (run-tests :suite <suitename>).")
 
 (defparameter +lift-unable-to-parse-test-name-and-class+ 
@@ -740,7 +740,7 @@ error, then ensure-error will generate a test failure."
   (:method ((testsuite test-mixin) (result test-result))
            (values))
   (:method :before ((testsuite test-mixin) (result test-result))
-	   (when (and *test-print-suite-names*
+	   (when (and *test-print-testsuite-names*
 		      (eq (test-mode result) :multiple))
 	     (print-lift-message "~&Start: ~a" (type-of testsuite)))
 	   (pushnew (type-of testsuite) (suites-run result))
@@ -836,13 +836,10 @@ the methods that should be run to do the tests for this test."))
   (initialize-prototypes test) 
   (next-prototype test))
 
-;;; ---------------------------------------------------------------------------
-
-(defmethod initialize-instance :after ((tc test-mixin) &key)
-  (when (null (testsuite-name tc))
-    (setf (slot-value tc 'name) (symbol-name (type-of tc)))))
-
-;;; ---------------------------------------------------------------------------
+(defmethod initialize-instance :after ((testsuite test-mixin) &key)
+  (when (null (testsuite-name testsuite))
+    (setf (slot-value testsuite 'name) 
+	  (symbol-name (type-of testsuite)))))
 
 (defmethod print-object ((tc test-mixin) stream)
   (print-unreadable-object (tc stream :identity t :type t)
@@ -922,10 +919,7 @@ the thing being defined.")
 
 (defmacro deftest (testsuite-name superclasses slots &rest
                                   clauses-and-options) 
-  "
-### deftest
-
-The `deftest` form is obsolete, see `deftestsuite`."
+  "The `deftest` form is obsolete, see [deftestsuite][]."
   
   (warn "Deftest is obsolete, use deftestsuite instead.")
   `(deftestsuite ,testsuite-name ,superclasses ,slots ,@clauses-and-options))
@@ -1446,7 +1440,7 @@ control over where in the test hierarchy the search begins."
   (remf args :run-setup)
   (remf args :dribble)
   (cond ((and suite config)
-	 (error "Specify either configuration file or test suite ~
+	 (error "Specify either configuration file or test suite
 but not both."))
 	(config
 	 (run-tests-from-file config))
@@ -1475,7 +1469,7 @@ but not both."))
 	   (setf (tests-run result) (reverse (tests-run result)))
 	   (values result)))
 	(t
-	 (error "There is not current test suite and neither suite ~
+	 (error "There is not a current test suite and neither suite
 nor configuration file options were specified."))))
 
 (defun maybe-add-dribble (stream dribble-stream)
@@ -1627,12 +1621,12 @@ nor configuration file options were specified."))))
 	`(:start-time ,(get-internal-real-time)
 	  :start-time-universal ,(get-universal-time))))
 
-(defmethod end-test ((result test-result) (case test-mixin) name)
+(defmethod end-test ((result test-result) (testsuite test-mixin) name)
   (declare (ignore name))
-  (setf (current-step case) :end-test
-	(getf (test-data case) :end-time) (get-internal-real-time)
+  (setf (current-step testsuite) :end-test
+	(getf (test-data testsuite) :end-time) (get-internal-real-time)
 	(end-time result) (get-internal-real-time)
-	(getf (test-data case) :end-time-universal) (get-universal-time)
+	(getf (test-data testsuite) :end-time-universal) (get-universal-time)
 	(end-time-universal result) (get-universal-time)))
 
 (defun make-test-result (for test-mode)
