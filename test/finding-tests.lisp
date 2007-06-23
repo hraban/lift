@@ -25,19 +25,19 @@
 
 (addtest (test-find-test-suite)
   simple-searching
-  (ensure-same (lift::find-test-suite 'test-find-test-suite)
+  (ensure-same (lift::find-testsuite 'test-find-test-suite)
 	       'test-find-test-suite)
-  (ensure-same (lift::find-test-suite 'one-test-package::test-finding)
+  (ensure-same (lift::find-testsuite 'one-test-package::test-finding)
 	       'one-test-package::test-finding)
-  (ensure-same (lift::find-test-suite 'two-test-package::test-finding)
+  (ensure-same (lift::find-testsuite 'two-test-package::test-finding)
 	       'two-test-package::test-finding))
 
 (addtest (test-find-test-suite)
   not-such-suite
   (ensure-condition lift::test-class-not-defined
-    (lift::find-test-suite (gensym))))
+    (lift::find-testsuite (gensym))))
 
 (addtest (test-find-test-suite)
   two-many-tests
-  (ensure-error (lift::find-test-suite "test-finding")))
+  (ensure-error (lift::find-testsuite "test-finding")))
 
