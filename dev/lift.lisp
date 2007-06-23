@@ -1453,7 +1453,7 @@ control over where in the test hierarchy the search begins."
 		  (result (make-test-result (or suite config) :multiple))
 					;run-setup
 		  &allow-other-keys)
-  "Run all of the tests in a suite. Arguments are :suite, :result, ~
+  "Run all of the tests in a suite. Arguments are :suite, :result,
 :do-children? and :break-on-errors?" 
   (remf args :suite)
   (remf args :break-on-errors?)
