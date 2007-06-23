@@ -21,14 +21,12 @@
   [lift-mailing-list]: http://common-lisp.net/cgi-bin/mailman/listinfo/lift-devel
   [lift-email]: mailto:lift-devel@common-lisp.net
 
-  [log5]: http://common-lisp.net/project/log5
-  [asdf-install]: http://common-lisp.net/project/asdf-install
+  [Log5]: http://common-lisp.net/project/log5
+  [ASDF-install]: http://common-lisp.net/project/asdf-install
   
   [SUnit]: http://www.sunit.com/
   [JUnit]: http://www.junit.com/
   
-{include glossary.md}
-
 <div id="header">
 {include navigation.md}
 </div>

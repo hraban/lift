@@ -1,5 +1,5 @@
-{set-property html yes}
-{set-property title LIFT User's Guide}
+{include header.md}
+{set-property title "LIFT User's Guide"}
 {set-property style-sheet user-guide}
 {set-property docs-package lift}
 
@@ -17,69 +17,95 @@ In LIFT, [testcases][] are organized into hierarchical [testsuites][] each of
 which can have its own [fixture][]. When run, a testcase can succeed, fail, 
 or error. LIFT supports randomized testing, benchmarking, profiling, and reporting.
 
- [testcases]> glossary A testcase is the smallest unit of testing.
+ [testcases]> glossary A test-case is the smallest unit of testing.
  [testsuites]> glossary A testsuite is a group of tests plus their environment plus local variables and configuration settings. 
- [fixture]> glossary The environment in which a testcase runs. This includes code for both setup and teardown.
+ [fixture]> glossary The environment in which a test-case runs. This includes code for both setup and teardown.
  
 ## Overview : our first testsuite
 
-LIFT supports interactive testing so imagine that we type each of the following forms into a file and evaluate them as we go. The comments explain what is going on.
+LIFT supports interactive testing so imagine that we type each of the following forms into a file and evaluate them as we go. 
 
-    {recode first-testsuite}
     (in-package #:common-lisp-user)
     (use-package :lift)
 
-    ;;; define an empty testsuite. Deftestsuite is like defclass
-    ;; so here we define a testsuite with no super-testsuites and
-    ;; no slots
-    (deftestsuite lift-examples-1 () ())
-
-    ;;; and add a test to it
-    ;; LIFT will add this to the most recently defined testsuite
-    ;; we didn't give this test a name so LIFT will name it for us
-    (addtest (lift-examples-1)
-      (ensure-same (+ 1 1) 2))
-
-    ;;; add another test using ensure-error
-    ;; Here we specify the testsuite. 
-    (addtest (lift-examples-1)
-      (ensure-error (let ((x 0)) (/ x))))
-
-    ;;; add another, slightly more specific test
-    (addtest (lift-examples-1)
-      (ensure-condition division-by-zero (let ((x 0)) (/ x))))
-
-    ;;; run all the defined tests
-    ;; Unless you tell it otherwise, LIFT runs all the testcases
-    ;; of the most recently touched testsuite. In this case, thats
-    ;; lift-example-1
-    (run-tests)
-
-If you don't supply a testcase name, LIFT will give it one. This works for quick interactive testing but makes it hard to find a problem when running regression tests. It's a much better practice to give every testcase a name -- it also makes the testsuite self documenting. 
-
-    {recode first-testsuite extend}
-    ;;; here is a testcase with a name
-    ;; it fails because floating point math isn't exact.
-    (addtest (lift-examples-1)
-      floating-point-math
-      (ensure-same (+ 1.23 1.456) 2.686))
-     
-    ;;; We try again using the function almost= for the test of ensure-same
-    (addtest (lift-examples-1)
-      floating-point-math
-      (ensure-same (+ 1.23 1.456) 2.686 :test 'almost=))
+First, we define an empty testsuite. [Deftestsuite][] is like defclass
+so here we define a testsuite with no super-testsuites and
+no slots.
     
-    ;;; whoopts, we forgot to write almost=! Here's a simple (though not
-    ;; very efficient) version
-    (defun almost= (a b)
-      (< (abs (- a b)) 0.000001))
+    > (deftestsuite lift-examples-1 () ())
+    ==> #<lift-examples-1: no tests defined>
+
+Add a test-case to our new suite. Since we don't a test name, 
+LIFT will add this to the most recently defined testsuite 
+and name it for us.
+
+    > (addtest (lift-examples-1)
+        (ensure-same (+ 1 1) 2))
+    ==> #<Test passed>
+
+Add another test using ensure-error
+Here we specify the testsuite and the name.
+
+    > (addtest (lift-examples-1)
+         div-by-zero
+       (ensure-error (let ((x 0)) (/ x))))
+    ==> #<Test passed>
+
+Though it works, [ensure-error][] is a bit heavy-handed in this case. We can use
+[ensure-condition][] to check that we get exactly the right _kind_ of error.
+
+    > (addtest (lift-examples-1)
+        div-by-zero
+       (ensure-condition division-by-zero (let ((x 0)) (/ x))))
+
+Now, we can run all the defined tests.
+Unless you tell it otherwise, LIFT runs all the test-cases
+of the most recently touched testsuite. In this case, thats
+lift-example-1.
+
+    > (run-tests)
+    ==> #<Results for lift-examples-1 [2 Successful tests]>
+
+As you saw above, if you don't supply a test-case name, LIFT will give it one. This works for quick interactive testing but makes it hard to find a problem when running regression tests. It's a much better practice to give every test-case a name -- it also makes the testsuite self documenting. 
+
+Here is a test-case that fails because floating point math isn't exact.
+
+    > (addtest (lift-examples-1)
+       floating-point-math
+       (ensure-same (+ 1.23 1.456) 2.686))
+    ==> #<Test failed>
+
+Hmmm, what happened? Lift returns a [test-result][] object so we can look at it to understand what went wrong.
+
+    > (describe *)
+    Test Report for lift-examples-1: 1 test run, 1 Failure.
     
-    ;; like run-tests, run-test runs the most recently touched testcase.
-    (run-test)
+    Failure: lift-examples-1 : floating-point-math
+      Condition: Ensure-same: 2.6859999 is not equal to 2.686
+      Code     : ((ensure-same (+ 1.23 1.456) 2.686))
+
+We try again using the function `almost=` for the test of [ensure-same][]
+
+    > (addtest (lift-examples-1)
+        floating-point-math
+        (ensure-same (+ 1.23 1.456) 2.686 :test 'almost=))
+    ==> #<Error during testing>
+
+Whoopts, we forgot to write `almost=`! Here's a simple (though not
+very efficient) version
+
+    > (defun almost= (a b)
+       (< (abs (- a b)) 0.000001))
+    ==> almost=
+
+Like run-tests, run-test runs the most recently touched test-case.
+
+    > (run-test)
+    ==> #<lift-examples-1.lift-examples-1 passed>
 
 The examples above cover most of LIFT's basics: 
 
-* Use [deftestsuite][] and [addtest][] to define testsuites and testcases.
+* Use [deftestsuite][] and [addtest][] to define testsuites and test-cases.
 * In a testcase, use members of the ensure family of macros (like [ensure][], [ensure-same][], and [ensure-condition][]) to specify what is supposed to happen
 * Run tests interactively by evaluating them or by calling [run-test][] or [run-tests][]
 
@@ -87,11 +113,11 @@ In what follows, we'll explore LIFT in more depth by looking at test hierarchies
 
 ## Defining testsuites and adding testcases.
 
-The [deftestsuite] macro defines or redefines a testsuite. Testsuites are CLOS classes and deftestsuite looks a lot like defclass.
+The [deftestsuite][] macro defines or redefines a testsuite. Testsuites are CLOS classes and deftestsuite looks a lot like defclass.
 
-    (deftestsuite name (supersuite\*)
-        (slotspec\*)
-        options\*)
+    (deftestsuite name (supersuite*)
+        (slotspec*)
+        options*)
 
 The list of supersuites lets you organize tests into a hierarchy. This can be useful both to share fixtures (i.e., setup and tearcode code) and to organize your testing: different parts of the hierarchy can test different parts of your software. The slotspecs are similar to slotspecs in defclass but with a twist: deftestsuite automatically adds an initarg and accessor for each spec{footnote Though they once did, the slotspecs don't really define slots for the class internally anymore. LIFT keeps track of slot values through a different (slower but more flexible) mechanism.}. You can specify an initial value using a pair rather than needing to specify an initform and these value can use the values of previously defined slots (as if they were being bound in a let* form). Finally, you'll also see below that slot values are immediately available with the body of a test method. These two features make writing tests very simple.
 
@@ -134,7 +160,7 @@ So far, our tests have not required any setup or teardown. Let's next look at at
        (delete-directory-and-files *working-directory* 
            :if-does-not-exist :ignore)))
 
-This next testsuite is from [Log5][]. Though the details aren't important, you can be assured that LIFT will the setup before *every* testcase and the teardown after *every* testcase (even if there is an error).  
+This next testsuite is from [Log5][]. Though the details aren't important, you can be assured that LIFT will run the setup before every test-case and the teardown after every test-case (even if there is an error).  
 
     (deftestsuite test-stream-sender-with-stream (test-stream-sender)
      (sender-name
@@ -152,7 +178,7 @@ We've already seen two other clauses that deftestsuite supports (:dynamic-variab
 
 * dynamic-variables - specifies how to initialize dynamic-variables within a testsuite
 * documentation - used, of all things, for documentation
-* equality-test - specifies the default equality-test used by ensure-same and ensure-different. See [*lift-equality-test*][]
+* equality-test - specifies the default equality-test used by ensure-same and ensure-different. See [\*lift-equality-test\*][]
 * export-p - if true, the testsuite name will be exported
 * export-slots - if true, all of the testsuite slots will be exported. It can also be a list of slot names to export
 * function - defines a local test function (think of flet or labels)
@@ -164,7 +190,7 @@ We've already seen two other clauses that deftestsuite supports (:dynamic-variab
 * tests - defines several tests
 * timeout - how long can each test take
 
-Many of these are self-explanatory and we'll look at :random-instance below when we talk about random-testing. This leaves us to discuss :dynamic-variables, :equality-test, :function, :run-setup and :timeout here.
+Many of these are self-explanatory. We'll discuss  :dynamic-variables, :equality-test, :function, :run-setup and :timeout here and look at :random-instance below when we talk about random-testing. 
 
 ##### Dynamic-variables
 
@@ -172,19 +198,36 @@ It is often the case that you'll want some dynamic variable bound around the bod
 
 ##### Equality-test
 
-To be written.
+This is used to specify the default equality-test used by [ensure-same][] for test-cases in this suite and any suites that inherit from it. Though you can use the special variable [*lift-equality-test*][] to set test, it usually better to exercise control at the testsuite level. This is especially handy when, for example, you are testing numeric functions and want to avoid having to specify the test for every `ensure-same`.
 
 ##### Function
 
-To be written.
+Let the Common Lisp forms `flet`, `labels`, and `macrolet`, [deftestsuite][]'s `function` clause lets you define functions that are local to a particular testsuite (and its descendants). There are two good reasons to use `:function`: it provides good internal documentation and structure _and_ you can use the testsuite's local variables without without any fuss or bother. Here is an example:
+
+    (deftestsuite test-size (api-tests)
+        (last-count db)
+     (:function
+        (check-size (expected)
+            (ensure (>= (size) last-count))
+            (setf last-count (size))
+            (ensure-same (size) (count-slowly db))
+            (ensure-same (size) expected)))
+     (:setup
+        (setf db (open-data "bar" :if-exists :supersede)))
+
+The `check-size` function will not conflict with any other check-size functions (from other tests or any of Lisp's other namespaces). Secondly, the references to `last-count` and `db` will automatically refer to the testsuite's variables.
 
 ##### Run-setup
 
-To be written.
+LIFT's usual behavior is to run a testsuite's `setup` and `teardown` code around every single test-case. This provides the best isolation and makes it easy to think about a test-case by itself. If test setup takes a _long_ time or if you want to break a complex test into a number of stages, then LIFT's usual behavior will just get in the way. The `run-setup` clause lets you control when `setup` (and `teardown`) occur. It can take on one of the following values:
+
+* :once-per-test-case or t (the default) - run `setup` and `teardown` around every testcase
+* :once-per-suite - run `setup` for the first test-case of a testsuite and run `teardown` after the last test-case.
+* :never or nil
 
 ##### Timeout
 
-To be written.
+Things go wrong (that is, after all, part of why we write tests!). The `timeout` clause lets you tell LIFT that if test-case hasn't completed within a certain number of seconds, then you want LIFT to complete the test with an error. 
 
 ### LIFT and Random testing
 
@@ -207,9 +250,9 @@ To be written.
 {docs deftestsuite macro}
 {docs addtest macro}
 
-### Testing conditions
+### How to test for something
 
-The following macros can be used outside of LIFT where they will function very much like `assert`. When used in the body of an `addtest` or `deftestsuite` form, however, they will record test failures instead of signaling one themselves.
+The following macros can be used outside of LIFT where they will function very much like `assert`. When used in the body of an `addtest` or `deftestsuite` form, however, they will record test failures instead of signaling one themselves.{footnote Random testing adds a few additional `ensure` variants like [ensure-random-cases][]¯¯.}
 
 {docs ensure macro}
 {docs ensure-null macro}
@@ -219,7 +262,6 @@ The following macros can be used outside of LIFT where they will function very m
 {docs ensure-warning macro}
 {docs ensure-error macro}
 {docs ensure-cases macro}
-{docs ensure-random-cases macro}
 
 ### Running tests 
 
@@ -289,20 +331,29 @@ The following macros can be used outside of LIFT where they will function very m
 
 ### Index of Functions
 
-{docs-index function :sorted t}
+{docs-index function}
 
 ### Index of variables
 
-{docs-index variable :sorted t}
+{docs-index variable}
 
 ### Index of Macros
 
 {docs-index macro}
 
+### Full symbol index
+
+{docs-index :all}
+
 <hr>
+
+#### Glossary
+
+{glossary}
+
 
 #### Footnotes
 
 {footnotes}
 
-
+{include footer.md}
