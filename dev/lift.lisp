@@ -710,7 +710,9 @@ error, then ensure-error will generate a test failure."
    (expected-failure-p :initform nil :initarg :expected-failure-p
 		       :reader expected-failure-p)
    (expected-error-p :initform nil :initarg :expected-error-p
-		     :reader expected-error-p))
+		     :reader expected-error-p)
+   (expected-problem-p :initform nil :initarg :expected-problem-p
+		       :reader expected-problem-p))
   (:documentation "A test suite")
   (:default-initargs
     :run-setup :once-per-test-case))
