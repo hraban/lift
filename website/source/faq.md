@@ -3,7 +3,7 @@
 
 # Frequently Asked Questions about log5
 
-{table-of-contents :start-at 2 :depth 3}
+{table-of-contents :start 2 :depth 3}
 
 ## Does once count as frequently?
 

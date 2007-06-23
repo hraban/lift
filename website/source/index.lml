@@ -4,10 +4,10 @@
 
 (html-file-page ("index")
   (html
-   (:HEAD (:TITLE "LIFT - the LIsp Framework for Testing")
+   (:head (:title "LIFT - the LIsp Framework for Testing")
           (generate-shared-headers))
    
-   (:BODY
+   (:body
     (generate-two-line-header
      "LIFT" "Fighting like cats")
     
