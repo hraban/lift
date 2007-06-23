@@ -510,19 +510,38 @@ can be :supersede, :append, or :error.")
 		     (message c)))))
 
 ;; hacked list to take arguments in addition to args
-(defmacro ensure (predicate &key report args (arguments args))
-  `(if ,predicate
-     (values t)
-     (let ((condition (make-condition 
-                       'ensure-failed-error 
-                       :assertion ',predicate
-                       ,@(when report
-                           `(:message (format nil ,report ,@arguments))))))
-       (if (find-restart 'ensure-failed)
-         (invoke-restart 'ensure-failed condition) 
-         (warn condition)))))
+(defmacro ensure (predicate &key report arguments)
+  "If ensure's `predicate` evaluates to false, then it will generate a 
+test failure. You can use the `report` and `arguments` keyword parameters
+to customize the report generated in test results. For example:
 
-(defmacro ensure-null (predicate &key report args)
+    (ensure (= 23 12) 
+     :report \"I hope ~a does not = ~a\" 
+     :arguments (12 23))
+
+will generate a message like
+
+    Warning: Ensure failed: (= 23 12) (I hope 12 does not = 23)
+"
+  (let ((gpredicate (gensym)))
+    `(let ((,gpredicate ,predicate))
+       (if ,gpredicate
+	   (values ,gpredicate)
+	   (let ((condition (make-condition 
+			     'ensure-failed-error 
+			     :assertion ',predicate
+			     ,@(when report
+				     `(:message 
+				       (format nil ,report ,@arguments))))))
+	     (if (find-restart 'ensure-failed)
+		 (invoke-restart 'ensure-failed condition) 
+		 (warn condition)))))))
+
+(defmacro ensure-null (predicate &key report arguments)
+  "If ensure-null's `predicate` evaluates to true, then it will generate a 
+test failure. You can use the `report` and `arguments` keyword parameters
+to customize the report generated in test results. See [ensure][] for more 
+details."
   (let ((g (gensym)))
     `(let ((,g ,predicate))
        (if (null ,g)
@@ -530,7 +549,7 @@ can be :supersede, :append, or :error.")
 	 (let ((condition (make-condition 'ensure-null-failed-error
 			    :value ,g
 			    ,@(when report
-				`(:message (format nil ,report ,@args))))))
+				`(:message (format nil ,report ,@arguments))))))
 	   (if (find-restart 'ensure-failed)
 	       (invoke-restart 'ensure-failed condition) 
 	     (warn condition)))))))
@@ -538,7 +557,7 @@ can be :supersede, :append, or :error.")
 (defmacro ensure-condition (condition &body body)
   "This macro is used to make sure that body really does produce condition."
   (setf condition (remove-leading-quote condition))
-  (destructuring-bind (condition &key report args)
+  (destructuring-bind (condition &key report arguments)
                       (if (consp condition) condition (list condition))
     (let ((g (gensym)))
       `(let ((,g nil))
@@ -554,7 +573,7 @@ can be :supersede, :append, or :error.")
                                   :expected-condition-type ',condition
                                   :the-condition cond
                                   ,@(when report
-                                      `(:message (format nil ,report ,args))))))
+                                      `(:message (format nil ,report ,arguments))))))
                           (if (find-restart 'ensure-failed)
                             (invoke-restart 'ensure-failed c) 
                             (warn c)))))
@@ -567,7 +586,7 @@ can be :supersede, :append, or :error.")
 		 :expected-condition-type ',condition
 		 :the-condition nil
 		 ,@(when report
-			 `(:message (format nil ,report ,args))))) 
+			 `(:message (format nil ,report ,arguments))))) 
                (warn "Ensure-condition didn't get the condition it expected."))))))))
 
 (defmacro ensure-warning (&body body)
@@ -582,7 +601,7 @@ error, then ensure-error will generate a test failure."
 
 (defmacro ensure-same
     (form values &key (test nil test-specified-p) 
-     (report nil) (arguments nil) (args arguments))
+     (report nil) (arguments nil))
   "Ensure same compares value-or-values-1 value-or-values-2 or each value of value-or-values-1 value-or-values-2 (if they are multiple values) using test. If a problem is encountered ensure-same raises a warning which uses report as a format string and arguments as arguments to that string (if report and arguments are supplied). If ensure-same is used within a test, a test failure is generated instead of a warning"
   (setf test (remove-leading-quote test))
   (when (and (consp test)
@@ -601,7 +620,7 @@ error, then ensure-error will generate a test failure."
 
 (defmacro ensure-different
     (form values &key (test nil test-specified-p) 
-     (report nil) (arguments nil) (args arguments))
+     (report nil) (arguments nil))
   "Ensure-different compares value-or-values-1 value-or-values-2 or each value of value-or-values-1 and value-or-values-2 (if they are multiple values) using test. If any comparison returns true, then ensure-different raises a warning which uses report as a format string and `arguments` as arguments to that string (if report and `arguments` are supplied). If ensure-different is used within a test, a test failure is generated instead of a warning"
   ;; FIXME -- share code with ensure-same
   (setf test (remove-leading-quote test))
@@ -624,14 +643,14 @@ error, then ensure-error will generate a test failure."
      (values t)))
 
 (defun maybe-raise-not-same-condition (value-1 value-2 test 
-				       report &rest args)
+				       report &rest arguments)
   (let ((condition (make-condition 'ensure-not-same 
                                    :first-value value-1
                                    :second-value value-2
                                    :test test
                                    :message (when report
                                               (apply #'format nil 
-						     report args)))))
+						     report arguments)))))
     (if (find-restart 'ensure-failed)
       (invoke-restart 'ensure-failed condition) 
       (warn condition))))
