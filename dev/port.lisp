@@ -32,8 +32,7 @@ returns a string with the corresponding backtrace.")
 (defun get-backtrace (error)
   (with-output-to-string (s)
     (let ((*debug-io* s))
-      (format *terminal-io* "~
-~@<An unhandled error condition has been signalled:~3I ~a~I~:@>~%~%"
+      (format *terminal-io* "~@<An unhandled error condition has been signalled:~3I ~a~I~:@>~%~%"
               error)
       (ccl:print-call-history :detailed-p nil))))
 
@@ -48,8 +47,7 @@ returns a string with the corresponding backtrace.")
             (tpl:*zoom-print-level* nil)
             (tpl:*zoom-print-length* nil))
         (cl:ignore-errors
-          (format *terminal-io* "~
-~&~@<An unhandled error condition has been signalled:~3I ~a~I~:@>~%~%"
+          (format *terminal-io* "~&~@<An unhandled error condition has been signalled:~3I ~a~I~:@>~%~%"
                   error))
         (cl:ignore-errors
           (let ((*terminal-io* s)
