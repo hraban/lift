@@ -28,6 +28,10 @@ returns a string with the corresponding backtrace.")
 (defun total-bytes-allocated ()
   (cl-user::get-bytes-consed))
 
+#+(or cmu scl)
+(defun total-bytes-allocated ()
+  (ext:get-bytes-consed))
+
 #+mcl
 (defun get-backtrace (error)
   (with-output-to-string (s)
@@ -117,7 +121,7 @@ returns a string with the corresponding backtrace.")
           (sb-debug:*debug-print-length* nil))
       (sb-debug:backtrace most-positive-fixnum s))))
 
-#+cmucl
+#+(or cmucl scl)
 (defun get-backtrace (error)
   (declare (ignore error))
   (with-output-to-string (s)

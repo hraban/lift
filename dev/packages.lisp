@@ -11,9 +11,10 @@
        #+mcl #:ccl
        #+cmu #:clos-mop
        #+sbcl #:sb-mop
-       class-direct-subclasses
-       class-direct-superclasses
-       class-precedence-list)
+       #+scl #:clos
+       #:class-direct-subclasses
+       #:class-direct-superclasses
+       #:class-precedence-list)
       (:export
        #:with-profile-report))))
 
