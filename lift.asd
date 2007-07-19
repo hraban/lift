@@ -25,7 +25,7 @@
 		 (:file "measuring" 
 			:depends-on ("packages"))
 		 (:file "config" 
-			:depends-on ("port"))
+			:depends-on ("port" "lift"))
 		 (:file "reports" 
 			:depends-on ("port"))
 		 #+Ignore
@@ -39,11 +39,17 @@
 				      ((:static-file "index.lml"))))))
   
   :in-order-to ((test-op (load-op lift-test)))
+#|
   :perform (test-op :after (op c)
                     (describe 
 		     (funcall (intern (symbol-name '#:run-tests) :lift) 
 			      :suite '#:lift-test)))
-  :depends-on ()) 
+|#
+  :depends-on ()
+  :perform (test-op :after (op c)
+		    (funcall
+		      (intern (symbol-name '#:run-tests) :lift)
+		      :config :generic)))
 
 (defmethod operation-done-p 
            ((o test-op) (c (eql (find-system 'lift))))
