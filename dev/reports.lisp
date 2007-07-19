@@ -15,7 +15,7 @@ For *debug-io*, *query-io*: a bidirectional stream.
 
 #|
 (progn
-  (setf (test-result-property *test-result* :style-sheet) "style.css")
+  (setf (test-result-property *test-result* :style-sheet) "test-style.css")
   (setf (test-result-property *test-result* :title) "Test Results X")
   (setf (test-result-property *test-result* :if-exists) :supersede)
   (test-result-report *test-result*  #p"/tmp/report.html" :html))
@@ -348,7 +348,8 @@ run-test-internal
   (let ((style-sheet (test-result-property result :style-sheet)))
     (when style-sheet
       (ignore-errors
-	(copy-file (asdf:system-relative-pathname 'lift "resources/style.css")
+	(copy-file (asdf:system-relative-pathname 
+		    'lift "resources/test-style.css")
 		   (make-pathname 
 		    :name (pathname-name style-sheet)
 		    :type (pathname-type style-sheet)
