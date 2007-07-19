@@ -1,6 +1,22 @@
 (in-package #:lift)
 
+(defvar *current-configuration-stream* nil)
+
+(defvar *current-asdf-system-name* nil)
+
+(defmethod asdf:perform :around ((operation asdf:test-op) (c asdf:system))
+  (let ((*current-asdf-system-name* (asdf:component-name c)))
+    (call-next-method))) 
+
 (defun run-tests-from-file (path)
+  (when (eq path :generic)
+    (setf path (or (probe-file
+		    (asdf:system-relative-pathname 
+		     *current-asdf-system-name*
+		     "lift-local.config"))
+		   (asdf:system-relative-pathname 
+		    *current-asdf-system-name*
+		    "lift-standard.config"))))
   (setf *test-result*
 	(let ((*package* *package*)
 	      (*read-eval* nil)
@@ -122,7 +138,6 @@
 (defmethod handle-config-preference ((name (eql :profiling-threshold))
 				     args)
   (setf *profiling-threshold* (first args)))
-
 
 (defmethod handle-config-preference ((name (eql :build-report))
 				     args)
