@@ -120,7 +120,7 @@
   (setf *test-print-level* (first args)))
 
 (defmethod handle-config-preference ((name (eql :print-suite-names)) args)
-  (setf *test-print-suite-names* (first args)))
+  (setf *test-print-testsuite-names* (first args)))
 
 (defmethod handle-config-preference ((name (eql :print-test-case-names)) args)
   (setf *test-print-test-case-names* (first args)))
