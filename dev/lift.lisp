@@ -1069,7 +1069,6 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 * :test - Define a single test case. Can be specified multiple times.
 
 * :tests - Define multiple test cases for this test suite. Can be specified multiple times.
-
 "
   #+no-lift-tests
   `(values)

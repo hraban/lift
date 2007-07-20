@@ -4,34 +4,49 @@
 
 (defvar *current-asdf-system-name* nil)
 
-(defmethod asdf:perform :around ((operation asdf:test-op) (c asdf:system))
-  (let ((*current-asdf-system-name* (asdf:component-name c)))
-    (call-next-method))) 
+(eval-when (:load-toplevel :execute)
+  (when (find-package :asdf)
+    (defmethod asdf:perform :around ((operation asdf:test-op) (c asdf:system))
+      (let ((*current-asdf-system-name* (asdf:component-name c)))
+	(call-next-method)))))
+
+(defun find-generic-test-configuration ()
+  (let ((srp (and *current-asdf-system-name*
+		  (find-package :asdf)
+		  (intern (symbol-name 'system-relative-pathname) :asdf))))
+    (cond (srp
+	   (or (probe-file (funcall srp  
+				    *current-asdf-system-name*
+				    "lift-local.config"))
+	       (probe-file (funcall srp  
+				    *current-asdf-system-name*
+				    "lift-standard.config"))
+	       (error "Unable to find lift-local.config or lift-standard.config relative to the current system (~s)" *current-asdf-system-name*)))
+	  (t
+	   (error "Unable to use :generic configuration option either because ASDF is not loaded or because asdf:system-relative-pathname is not bound (maybe try updating?) or because the current system cannot be determined.")))))
 
 (defun run-tests-from-file (path)
-  (when (eq path :generic)
-    (setf path (or (probe-file
-		    (asdf:system-relative-pathname 
-		     *current-asdf-system-name*
-		     "lift-local.config"))
-		   (asdf:system-relative-pathname 
-		    *current-asdf-system-name*
-		    "lift-standard.config"))))
-  (setf *test-result*
-	(let* ((*package* *package*)
-	       (*read-eval* nil)
-	       (result (make-test-result path :multiple))
-	       (*lift-dribble-pathname* nil)
-	       (*lift-debug-output* *debug-io*)
-	       (*lift-standard-output* *standard-output*)
-	       (*test-break-on-errors?* nil)
-	       (*test-do-children?* t)
-	       (*lift-equality-test* 'equal)
-	       (*test-print-length* :follow-print)
-	       (*test-print-level* :follow-print)
-	       (*lift-if-dribble-exists* :append)
-	       (*test-result* result))
-	  (%run-tests-from-file path))))
+  (let ((real-path (cond ((eq path :generic)
+			  (setf path (find-generic-test-configuration)))
+			 (t
+			  (probe-file path)))))
+    (unless real-path
+      (error "Unable to find configuration file ~s" path)) 
+    (setf *test-result*
+	  (let* ((*package* *package*)
+		 (*read-eval* nil)
+		 (result (make-test-result path :multiple))
+		 (*lift-dribble-pathname* nil)
+		 (*lift-debug-output* *debug-io*)
+		 (*lift-standard-output* *standard-output*)
+		 (*test-break-on-errors?* nil)
+		 (*test-do-children?* t)
+		 (*lift-equality-test* 'equal)
+		 (*test-print-length* :follow-print)
+		 (*test-print-level* :follow-print)
+		 (*lift-if-dribble-exists* :append)
+		 (*test-result* result))
+	    (%run-tests-from-file path)))))
 
 (defun %run-tests-from-file (path)
   (with-open-file (*current-configuration-stream* path
