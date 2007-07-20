@@ -1,6 +1,7 @@
 (in-package #:lift)
 
-(declaim (optimize (speed 3) (safety 1)))
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (declaim (optimize (speed 3) (safety 1))))
 
 (defmacro with-measuring ((var measure-fn) &body body)
   (let ((initial (gensym)))
