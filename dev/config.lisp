@@ -63,7 +63,7 @@
 				  form path c)
 			     (invoke-debugger c))))
 	   (destructuring-bind
-		 (name &rest args &key &allow-other-keys)
+		 (name &rest args)
 	       form
 	     (assert (typep name 'symbol))
 	     (setf args (massage-arguments args))
