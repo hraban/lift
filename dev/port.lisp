@@ -121,6 +121,12 @@ returns a string with the corresponding backtrace.")
           (sb-debug:*debug-print-length* nil))
       (sb-debug:backtrace most-positive-fixnum s))))
 
+#+clisp
+(defun get-backtrace (error)
+  (declare (ignore error))
+  (with-output-to-string (s)
+    (system::print-backtrace :out s)))
+
 #+(or cmucl scl)
 (defun get-backtrace (error)
   (declare (ignore error))

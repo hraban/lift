@@ -26,61 +26,84 @@
 	   (error "Unable to use :generic configuration option either because ASDF is not loaded or because asdf:system-relative-pathname is not bound (maybe try updating?) or because the current system cannot be determined.")))))
 
 (defun run-tests-from-file (path)
-  (let ((real-path (cond ((eq path :generic)
-			  (setf path (find-generic-test-configuration)))
+  (when (eq path :generic)
+    (setf path (or (probe-file
+		    (asdf:system-relative-pathname 
+		     *current-asdf-system-name*
+		     "lift-local.config"))
+		   (asdf:system-relative-pathname 
+		    *current-asdf-system-name*
+		    "lift-standard.config"))))
+  (setf *test-result*
+	(let ((*package* *package*)
+	      (*read-eval* nil)
+	      (form nil)
+	      (result (make-test-result path :multiple)))
+	  (with-open-file (in path
+			      :direction :input
+			      :if-does-not-exist :error)
+	    (let ((*lift-dribble-pathname* nil)
+		  (*lift-debug-output* *debug-io*)
+		  (*lift-standard-output* *standard-output*)
+		  (*test-break-on-errors?* nil)
+		  (*test-do-children?* t)
+		  (*lift-equality-test* 'equal)
+		  (*test-print-length* :follow-print)
+		  (*test-print-level* :follow-print)
+		  (*lift-if-dribble-exists* :append)
+		  (*test-result* result))
+	      (loop while (not (eq (setf form (read in nil :eof nil)) :eof)) 
+		 collect
+		   (handler-bind 
+		       ((error (lambda (c) (format 
+			       *error-output* 
+			       "Error while running ~a from ~a: ~a"
+			       form path c)
+			  (invoke-debugger c))))
+		     (destructuring-bind
+			   (name &rest args &key &allow-other-keys)
+			 form
+		       (assert (typep name 'symbol))
+		       (setf args (massage-arguments args))
+		       (cond 
+			 ;; check for preferences first (i.e., keywords)
+			 ((eq (symbol-package name) 
+			      (symbol-package :keyword))
+			  ;; must be a preference
+			  (handle-config-preference name args))
+			 ((subtypep (find-testsuite name)
+				    'lift:test-mixin)
+			  (apply #'run-tests :suite name 
+				 :result result args))
 			 (t
-			  (probe-file path)))))
-    (unless real-path
-      (error "Unable to find configuration file ~s" path)) 
-    (setf *test-result*
-	  (let* ((*package* *package*)
-		 (*read-eval* nil)
-		 (result (make-test-result path :multiple))
-		 (*lift-dribble-pathname* nil)
-		 (*lift-debug-output* *debug-io*)
-		 (*lift-standard-output* *standard-output*)
-		 (*test-break-on-errors?* nil)
-		 (*test-do-children?* t)
-		 (*lift-equality-test* 'equal)
-		 (*test-print-length* :follow-print)
-		 (*test-print-level* :follow-print)
-		 (*lift-if-dribble-exists* :append)
-		 (*test-result* result))
-	    (%run-tests-from-file path)))))
-
-(defun %run-tests-from-file (path)
-  (with-open-file (*current-configuration-stream* path
-		      :direction :input
-		      :if-does-not-exist :error)
-    (let ((form nil))
-      (loop while (not (eq (setf form (read *current-configuration-stream* 
-					    nil :eof nil)) :eof)) 
-	 collect
-	 (handler-bind 
-	     ((error (lambda (c) (format 
-				  *error-output* 
-				  "Error while running ~a from ~a: ~a"
-				  form path c)
-			     (invoke-debugger c))))
-	   (destructuring-bind
-		 (name &rest args)
-	       form
-	     (assert (typep name 'symbol))
-	     (setf args (massage-arguments args))
-	     (cond 
-	       ;; check for preferences first (i.e., keywords)
-	       ((eq (symbol-package name) 
-		    (symbol-package :keyword))
-		;; must be a preference
-		(handle-config-preference name args))
-	       ((subtypep (find-testsuite name)
-			  'lift:test-mixin)
-		(apply #'run-tests :suite name 
-		       :result *test-result* args))
-	       (t
-		(error "Don't understand '~s' while reading from ~s" 
-		       form path))))))))
-  (values *test-result*))
+			  (error "Don't understand '~s' while reading from ~s" 
+				 form path)))))
+		   #+(or)
+		   (handler-case 
+		     (destructuring-bind
+			   (name &rest args &key &allow-other-keys)
+			 form
+		       (assert (typep name 'symbol))
+		       (setf args (massage-arguments args))
+		       (cond 
+			 ;; check for preferences first (i.e., keywords)
+			 ((eq (symbol-package name) 
+			      (symbol-package :keyword))
+			  ;; must be a preference
+			  (handle-config-preference name args))
+			 ((subtypep (find-testsuite name)
+				    'lift:test-mixin)
+			  (apply #'run-tests :suite name 
+				 :result result args))
+			 (t
+			  (error "Don't understand '~s' while reading from ~s" 
+				 form path))))
+		   (error (c) (format 
+			       *error-output* 
+			       "Error while running ~a from ~a: ~a"
+			       form path c)
+			  (invoke-debugger c))))))
+	  (values result))))
 
 (defun massage-arguments (args)
   (loop for arg in args collect
