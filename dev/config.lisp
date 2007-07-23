@@ -85,7 +85,9 @@
 
 (defun massage-arguments (args)
   (loop for arg in args collect
-       (cond ((eq arg '*standard-output*) *standard-output*)
+       (cond ((and (symbolp arg)
+		   (string= (symbol-name arg) (symbol-name '*standard-output*)))
+	      *standard-output*)
 	     (t arg))))
 
 (defmethod handle-config-preference ((name t) args)
