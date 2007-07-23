@@ -2,7 +2,7 @@
 (in-package #:asdf-lift)
 
 (defsystem lift
-  :version "1.3.3"
+  :version "1.3.4"
   :author "Gary Warren King <gwking@metabang.com>"
   :maintainer "Gary Warren King <gwking@metabang.com>"
   :licence "MIT Style License; see file COPYING for details"
@@ -39,12 +39,6 @@
 				      ((:static-file "index.lml"))))))
   
   :in-order-to ((test-op (load-op lift-test)))
-#|
-  :perform (test-op :after (op c)
-                    (describe 
-		     (funcall (intern (symbol-name '#:run-tests) :lift) 
-			      :suite '#:lift-test)))
-|#
   :depends-on ()
   :perform (test-op :after (op c)
 		    (funcall
