@@ -170,3 +170,24 @@ the methods that should be run to do the tests for this test."))
   ()
   (:tests ((really? -4 -2 -6))
 	  ((really? -1 -1 -2))))
+
+
+(in-package lift)
+
+(defvar *test-count* 0)
+
+(deftestsuite test-initialize-slots ()
+  ((slot (incf *test-count*))))
+
+(addtest (test-initialize-slots)
+  one
+  (ensure t))
+
+(addtest (test-initialize-slots)
+  two
+  (ensure-null nil))
+
+(let ((*test-count* 0))
+  (run-tests :suite 'test-initialize-slots)
+  ;;should be 2
+  (print *test-count*))
