@@ -460,12 +460,13 @@ can be :supersede, :append, or :error.")
 (define-condition ensure-null-failed-error (ensure-failed-error)
   ((value :initform "" 
 	  :accessor value
-	  :initarg :value))
+	  :initarg :value)
+   (assertion :initform "" 
+	      :accessor assertion
+	      :initarg :assertion))
   (:report (lambda (c s)
-             (format s "Ensure null failed: ~S ~@[(~a)~]" 
-		     (value c) (message c)))))
-
-;;; ---------------------------------------------------------------------------
+             (format s "Ensure null failed: ~s evaluates to ~s ~@[(~a)~]" 
+		     (assertion c) (value c) (message c)))))
 
 (define-condition ensure-expected-condition (test-condition) 
                   ((expected-condition-type
@@ -533,6 +534,7 @@ details."
 	   t
 	 (let ((condition (make-condition 'ensure-null-failed-error
 			    :value ,g
+			    :assertion ',predicate
 			    ,@(when report
 				`(:message (format nil ,report ,@arguments))))))
 	   (if (find-restart 'ensure-failed)
