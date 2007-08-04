@@ -594,16 +594,18 @@ error, then ensure-error will generate a test failure."
   (when (and (consp test)
              (eq (first test) 'function))
     (setf test (second test)))
-  `(progn
-     (loop for value in (multiple-value-list ,form)
-           for other-value in (multiple-value-list ,values) do
-           (unless (funcall ,(if test-specified-p (list 'quote test) '*lift-equality-test*)
-                            value other-value)
-             (maybe-raise-not-same-condition 
-              value other-value
-              ,(if test-specified-p (list 'quote test) '*lift-equality-test*)
-	      ,report ,@arguments)))
-     (values t)))
+  (let ((block (gensym)))
+    `(block ,block
+       (loop for value in (multiple-value-list ,form)
+	  for other-value in (multiple-value-list ,values) do
+	  (unless (funcall ,(if test-specified-p (list 'quote test) '*lift-equality-test*)
+			   value other-value)
+	    (maybe-raise-not-same-condition 
+	     value other-value
+	     ,(if test-specified-p (list 'quote test) '*lift-equality-test*)
+	     ,report ,@arguments)
+	    (return-from ,block nil)))
+       (values t))))
 
 (defmacro ensure-different
     (form values &key (test nil test-specified-p) 
