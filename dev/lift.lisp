@@ -316,7 +316,7 @@ All other CLOS slot options are processed normally."
   "Temporary variable used to 'communicate' between deftestsuite and addtest.")
 (defvar *lift-debug-output* *debug-io*
   "Messages from LIFT will be sent to this stream. It can set to nil or
-to an output stream. It defaults to *debug-io**.")
+to an output stream. It defaults to *debug-io*.")
 
 (defvar *test-break-on-errors?* nil)
 (defvar *test-do-children?* t)
@@ -412,8 +412,6 @@ can be :supersede, :append, or :error.")
   (:report (lambda (c s)
              (format s "Compile error: '~S'" (msg c)))))
 
-;;; ---------------------------------------------------------------------------
-
 (define-condition test-class-not-defined (lift-compile-error)
                   ((test-class-name :reader test-class-name
                                     :initarg :test-class-name))
@@ -421,35 +419,27 @@ can be :supersede, :append, or :error.")
              (format s "Test class ~A not defined before it was used."
                      (test-class-name c)))))
 
-;;; ---------------------------------------------------------------------------
-
-(defun build-lift-error-message (context message &rest args)
+(defun build-lift-error-message (context message &rest arguments)
   (format nil "~A: ~A" 
           context
-          (apply #'format nil message args)))
+          (apply #'format nil message arguments)))
 
-;;; ---------------------------------------------------------------------------
-
-(defun signal-lift-error (context message &rest args)
+(defun signal-lift-error (context message &rest arguments)
   (let ((c (make-condition  
             'lift-compile-error
-            :lift-message (apply #'build-lift-error-message context message args))))
+            :lift-message (apply
+			   #'build-lift-error-message 
+			   context message arguments))))
     (unless (signal c)
       (error c))))
 
-;;; ---------------------------------------------------------------------------
-
-(defun report-lift-error (context message &rest args)
+(defun report-lift-error (context message &rest arguments)
   (format *debug-io* "~&~A."
-          (apply #'build-lift-error-message context message args))
+          (apply #'build-lift-error-message context message arguments))
   (values))
-
-;;; ---------------------------------------------------------------------------
 
 (defun lift-report-condition (c)
   (format *debug-io* "~&~A." c))
-
-;;; ---------------------------------------------------------------------------
 
 (define-condition test-condition (warning) 
                   ((message :initform ""
@@ -459,8 +449,6 @@ can be :supersede, :append, or :error.")
              (when (message c)
                (format s "~%~A" (message c))))))
 
-;;; ---------------------------------------------------------------------------
-
 (define-condition ensure-failed-error (test-condition) 
                   ((assertion :initform "" 
                               :accessor assertion
@@ -468,8 +456,6 @@ can be :supersede, :append, or :error.")
   (:report (lambda (c s)
              (format s "Ensure failed: ~S ~@[(~a)~]" 
 		     (assertion c) (message c)))))
-
-;;; ---------------------------------------------------------------------------
 
 (define-condition ensure-null-failed-error (ensure-failed-error)
   ((value :initform "" 
@@ -509,7 +495,6 @@ can be :supersede, :append, or :error.")
                      (first-value c) (test c) (second-value c)
 		     (message c)))))
 
-;; hacked list to take arguments in addition to args
 (defmacro ensure (predicate &key report arguments)
   "If ensure's `predicate` evaluates to false, then it will generate a 
 test failure. You can use the `report` and `arguments` keyword parameters
