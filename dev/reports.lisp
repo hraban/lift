@@ -78,20 +78,21 @@ run-test-internal
 ;; env variables need to be part saved in result
 
 (defun test-result-report (result output format)
-  (cond ((or (stringp output)
-	     (pathnamep output))
-	 (with-open-file (stream 
-			  output
-			  :direction :output
-			  :if-does-not-exist :create
-			  :if-exists (or (test-result-property
-					  result :if-exists)
-					 :error))
-	   (%test-result-report-stream result stream format)))
-	((streamp output)
-	 (%test-result-report-stream result output format))
-	(t
-	 (error "Don't know how to send a report to ~s" output))))
+  (let ((*report-environment* (make-report-environment)))
+    (cond ((or (stringp output)
+	       (pathnamep output))
+	   (with-open-file (stream 
+			    output
+			    :direction :output
+			    :if-does-not-exist :create
+			    :if-exists (or (test-result-property
+					    result :if-exists)
+					   :error))
+	     (%test-result-report-stream result stream format)))
+	  ((streamp output)
+	   (%test-result-report-stream result output format))
+	  (t
+	   (error "Don't know how to send a report to ~s" output)))))
 
 (defun %test-result-report-stream (result stream format)
   (start-report-output result stream format)
