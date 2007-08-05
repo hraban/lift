@@ -198,12 +198,14 @@ run-test-internal
 		   (length (failures result))
 		   (length (errors result)))))
 
-#|
-    (print (start-time-universal result) stream)
-    (print (end-time-universal result) stream)
-    (print (real-start-time result) stream)
-    (print (real-end-time result) stream)
-|#
+    (when (or (expected-errors result) (expected-failures result))
+      (format stream "~&<h3>~[~:;~:*Expected failure~:p: ~a~]~[~:;, ~]~[~:;~:*Expected error~:p: ~a~]</h3>~%" 
+	      (length (expected-failures result))
+	      ;; zero if only one or the other (so we don't need a separator...)
+	      (* (length (expected-failures result))
+		 (length (expected-errors result)))
+	      (length (expected-errors result))))
+
     (when (and (numberp (end-time-universal result))
 	       (numberp (start-time-universal result)))
       (format stream "~&<h3>Testing took: ~:d seconds</h3>"
