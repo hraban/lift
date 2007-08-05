@@ -22,7 +22,7 @@
 	    measure-time
 	    measure-conses
 	    with-profile-report
-          
+
 	    ;; Variables
 	    *test-ignore-warnings?*
 	    *test-break-on-errors?*
@@ -315,14 +315,12 @@ All other CLOS slot options are processed normally."
 (defvar *testsuite-test-count* nil
   "Temporary variable used to 'communicate' between deftestsuite and addtest.")
 (defvar *lift-debug-output* *debug-io*
-  "Messages from LIFT will be sent to this stream. It can set to nil or
-to an output stream. It defaults to *debug-io*.")
+  "Messages from LIFT will be sent to this stream. It can set to nil or to an output stream. It defaults to *debug-io*.")
 
 (defvar *test-break-on-errors?* nil)
 (defvar *test-do-children?* t)
 (defparameter *test-ignore-warnings?* nil
-  "If true, LIFT will not cause a test to fail if a warning occurs while
-the test is running. Note that this may interact oddly with ensure-warning.")
+  "If true, LIFT will not cause a test to fail if a warning occurs while the test is running. Note that this may interact oddly with ensure-warning.")
 (defparameter *test-print-when-defined?* nil)
 (defparameter *test-evaluate-when-defined?* t)
 (defparameter *test-scratchpad* nil
@@ -362,16 +360,13 @@ the test is running. Note that this may interact oddly with ensure-warning.")
   "The current testsuite.")
 
 (defvar *lift-dribble-pathname* nil
-  "If bound, then test output from run-tests will be sent to this file in 
-in addition to *lift-standard-output*. It can be set to nil or to a pathname.")
+  "If bound, then test output from run-tests will be sent to this file in addition to *lift-standard-output*. It can be set to nil or to a pathname.")
 
 (defvar *lift-standard-output* *standard-output*
-  "Output from tests will be sent to this stream. If can set to nil or
-to an output stream. It defaults to *standard-output*.")
+  "Output from tests will be sent to this stream. If can set to nil or to an output stream. It defaults to *standard-output*.")
 
 (defvar *lift-if-dribble-exists* :append
-  "Specifies what to do to any existing file at *lift-dribble-pathname*. It
-can be :supersede, :append, or :error.")
+  "Specifies what to do to any existing file at *lift-dribble-pathname*. It can be :supersede, :append, or :error.")
   
 ;;; ---------------------------------------------------------------------------
 ;;; Error messages and warnings
@@ -393,9 +388,7 @@ can be :supersede, :append, or :error.")
   "Could not find test: ~S.~S")
 
 (defparameter +run-tests-null-test-case+
-  "There is no current testsuite (possibly because
-   none have been defined yet?). You can specify the
-   testsuite to test by evaluating (run-tests :suite <suitename>).")
+  "There is no current testsuite (possibly because none have been defined yet?). You can specify the testsuite to test by evaluating (run-tests :suite <suitename>).")
 
 (defparameter +lift-unable-to-parse-test-name-and-class+ 
   "")
@@ -427,9 +420,8 @@ can be :supersede, :append, or :error.")
 (defun signal-lift-error (context message &rest arguments)
   (let ((c (make-condition  
             'lift-compile-error
-            :lift-message (apply
-			   #'build-lift-error-message 
-			   context message arguments))))
+            :lift-message (apply #'build-lift-error-message 
+				 context message arguments))))
     (unless (signal c)
       (error c))))
 
@@ -481,8 +473,6 @@ can be :supersede, :append, or :error.")
              (format s "Expected ~A but got ~S" 
                      (expected-condition-type c)
                      (the-condition c)))))
-
-;;; ---------------------------------------------------------------------------
 
 (define-condition ensure-not-same (test-condition) 
                   ((first-value :accessor first-value
@@ -869,8 +859,8 @@ the thing being defined.")
   (let ((current (assoc name *current-definition*)))
     (if current
       (setf (cdr current) value)
-      (push (cons name value) *current-definition*)))
-    (values value))
+      (push (cons name value) *current-definition*)))  
+  (values value))
 
 (defun def (name &optional (definition *current-definition*))
   (when definition (cdr (assoc name definition))))
@@ -898,7 +888,7 @@ the thing being defined.")
                 :code code)))
     (if current
       (setf (cdr current) value)
-      (push (cons name value) *code-blocks*))
+      (push (cons name value) *code-blocks*))  
     (eval 
      `(defmethod block-handler ((name (eql ',name)) value)
         (declare (ignorable value))
@@ -1423,15 +1413,13 @@ control over where in the test hierarchy the search begins."
 		  (result (make-test-result (or suite config) :multiple))
 					;run-setup
 		  &allow-other-keys)
-  "Run all of the tests in a suite. Arguments are :suite, :result,
-:do-children? and :break-on-errors?" 
+  "Run all of the tests in a suite. Arguments are :suite, :result, :do-children? and :break-on-errors?" 
   (remf args :suite)
   (remf args :break-on-errors?)
   (remf args :run-setup)
   (remf args :dribble)
   (cond ((and suite config)
-	 (error "Specify either configuration file or test suite
-but not both."))
+	 (error "Specify either configuration file or test suite but not both."))
 	(config
 	 (run-tests-from-file config))
 	((or suite (setf suite *current-suite-class-name*))
@@ -1459,8 +1447,7 @@ but not both."))
 	   (setf (tests-run result) (reverse (tests-run result)))
 	   (values result)))
 	(t
-	 (error "There is not a current test suite and neither suite
-nor configuration file options were specified."))))
+	 (error "There is not a current test suite and neither suite nor configuration file options were specified."))))
 
 (defun maybe-add-dribble (stream dribble-stream)
   (if dribble-stream
@@ -1547,7 +1534,7 @@ nor configuration file options were specified."))))
 			   (getf (test-data case) :conses)
 			 (lift-test case name)))
 		 (check-for-surprises result case name))
-            (teardown-test case)
+            (teardown-test case)	    
             (end-test result case name)))
         (ensure-failed (cond) 
 	  (setf problem 
@@ -1601,7 +1588,7 @@ nor configuration file options were specified."))))
       (if (find-restart 'ensure-failed)
 	  (invoke-restart 'ensure-failed condition)
 	  (warn condition)))))
-
+	
 (defun report-test-problem (problem-type result suite method condition
 			    &rest args)
   ;; ick
