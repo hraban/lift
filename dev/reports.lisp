@@ -68,6 +68,13 @@ run-test-internal
   (add test-data to tests-run of result)
 |#
 
+;; when it doubt, add a special
+(defvar *report-environment* nil
+  "Used internally by LIFT reports.")
+
+(defun make-report-environment ()
+  nil)
+
 ;; env variables need to be part saved in result
 
 (defun test-result-report (result output format)
@@ -313,15 +320,15 @@ run-test-internal
 	 (format stream "~&<div class=\"test-case\">")
 	 (let ((problem (getf datum :problem)))
 	   (cond ((typep problem 'test-failure)
-		  (format stream "~&<span class=\"test-name\">~a <a href=\"~a\" title=\"details\">[*]</a></span>"
-			  test-name
-			  (details-link stream test-name))
+		  (format stream "~&<span class=\"test-name\"><a href=\"~a\" title=\"details\">~a</a></span>"
+			  (details-link stream suite test-name)
+			  test-name)
 		  (format stream 
 			  "~&<span class=\"test-failure\">failure</span>" ))
 		 ((typep problem 'test-error)
-		  (format stream "~&<span class=\"test-name\">~a <a href=\"~a\" title=\"details\">[during ~a]</a></span>"
+		  (format stream "~&<span class=\"test-name\"><a href=\"~a\" title=\"details\">~a [during ~a]</a></span>"
+			  (details-link stream suite test-name)
 			  test-name
-			  (details-link stream test-name)
 			  (test-step problem))
 		  (format stream "~&<span class=\"test-error\">error</span>"))
 		 (t
@@ -339,10 +346,26 @@ run-test-internal
     (when current-suite
       (format stream "</div>"))))
 
-(defun details-link (stream name)
+(defun get-details-links-table ()
+  (let ((hash (getf *report-environment* :details-links)))
+    (or hash
+	(setf (getf *report-environment* :details-links)
+	      (make-hash-table :test 'equal)))))
+
+#+(or)
+(get-details-links-table)
+
+(defun details-link (stream suite name)
   (declare (ignore stream))
-  (make-pathname :name (format nil "details-~a" name)
-		 :type "html"))
+  (let* ((hash (get-details-links-table)))
+    (or (gethash (cons suite name) hash)
+	(progn
+	  (incf (getf *report-environment* :details-links-count 0))
+	  (setf (gethash (cons suite name) hash)
+		(make-pathname 
+		 :name (format nil "details-~a" 
+			       (getf *report-environment* :details-links-count))
+		 :type "html"))))))
 
 (defmethod end-report-output (result stream (format (eql :html)))
   (let ((style-sheet (test-result-property result :style-sheet)))
@@ -370,11 +393,13 @@ run-test-internal
   (format stream "~&</body></html>"))
 
 (defmethod generate-detailed-reports (result stream (format (eql :html)))
-  (loop for (nil test-name datum)  in (tests-run result)
+  (loop for (suite test-name datum)  in (tests-run result)
      when (getf datum :problem) do
-       (with-open-file (out (merge-pathnames
-			     (details-link stream test-name) 
-			     stream)
+     (let ((output-pathname (merge-pathnames
+			     (details-link stream suite test-name) 
+			     stream)))
+       (ensure-directories-exist output-pathname)
+       (with-open-file (out output-pathname
 			    :direction :output
 			    :if-does-not-exist :create
 			    :if-exists :supersede)
@@ -393,8 +418,7 @@ run-test-internal
 		  (with-output-to-string (s)
 		    (print-test-problem "" (getf datum :problem) s))))
 	 (format out "~&</pre>") 
-	 (html-footer out))
-       ))
+	 (html-footer out)))))
 
 #+(or)
 (defmethod summarize-test-environment (result stream format)
