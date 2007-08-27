@@ -60,6 +60,7 @@
 	    
 	    suite
 	    find-testsuite
+	    find-test-case
 	    ensure-random-cases-failure
 	    random-instance-for-suite
 	    defrandom-instance
@@ -1297,7 +1298,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
          (*current-test* (make-testsuite suite args)))
     (unless result
       (setf result (make-test-result suite :single)))
-    (setf *current-case-method-name* name 
+    (setf *current-case-method-name* (find-test-case suite name)
           *current-suite-class-name* suite)
     (do-testing *current-test* result 
                 (lambda () 
@@ -2245,6 +2246,46 @@ control over where in the test hierarchy the search begins."
 	  (t 
 	   (error "There are several test suites named ~s: they are ~{~s~^, ~}"
 		  suite-name possibilities)))))
+			     
+(defun test-case-p (suite-class name)
+  (find-method #'lift-test nil `(,suite-class (eql ,name)) nil)) 
+
+#+(or)
+(test-case-p 
+ (find-class (find-testsuite 'test-cluster-indexing-locally) nil)
+ 'db.agraph.tests::index-them)
+
+#+(or)
+(find-test-case (find-class (find-testsuite 'test-cluster-indexing-locally))
+		'index-themxx)
+
+(defmethod find-test-case ((suite symbol) name)
+  (find-test-case (find-class (find-testsuite suite)) name)) 
+
+(defmethod find-test-case ((suite test-mixin) name)
+  (find-test-case (class-of suite) name))
+
+(defmethod find-test-case ((suite-class standard-class) (name symbol))
+  (or (and (test-case-p suite-class name) name)
+      (find-test-case suite-class (symbol-name name))))
+
+(defmethod find-test-case ((suite test-mixin) (name string))
+  (find-test-case (class-of suite) name))
+
+(defmethod find-test-case ((suite-class standard-class) (name string))
+  (let* ((temp nil)
+	 (possibilities (remove-duplicates 
+			 (loop for p in (list-all-packages) 
+			    when (and (setf temp (find-symbol name p))
+				      (test-case-p suite-class temp)) collect
+			    temp))))
+    (cond ((null possibilities) 
+	   (error 'test-class-not-defined :test-class-name name))
+	  ((= (length possibilities) 1)
+	   (first possibilities))
+	  (t 
+	   (error "There are several test cases of ~s named ~s: they are ~{~s~^, ~}"
+		  suite-class name possibilities)))))
 			     
 (defun last-test-status ()
   (cond ((typep *test-result* 'test-result)
