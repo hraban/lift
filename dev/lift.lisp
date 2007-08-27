@@ -154,8 +154,6 @@ the class itself is not included in the mapping. Proper? defaults to nil."
     :accessor :documentation :type
     :allocation))
 
-;;; ---------------------------------------------------------------------------
-
 (defun parse-brief-slot
        (slot &optional
 	     (automatic-accessors? *automatic-slot-accessors?*)
@@ -270,8 +268,6 @@ All other CLOS slot options are processed normally."
       ;; finish-new-slot cleans up duplicates
       (finish-new-slot (nreverse new-slot)))))
 
-;;; ---------------------------------------------------------------------------
-
 (defun convert-clauses-into-lists (clauses-and-options clauses-to-convert)
   ;; This is useful (for me at least!) for writing macros
   (let ((parsed-clauses nil))
@@ -316,12 +312,14 @@ All other CLOS slot options are processed normally."
 (defvar *testsuite-test-count* nil
   "Temporary variable used to 'communicate' between deftestsuite and addtest.")
 (defvar *lift-debug-output* *debug-io*
-  "Messages from LIFT will be sent to this stream. It can set to nil or to an output stream. It defaults to *debug-io*.")
+  "Messages from LIFT will be sent to this stream. It can set to nil or 
+to an output stream. It defaults to *debug-io*.")
 
 (defvar *test-break-on-errors?* nil)
 (defvar *test-do-children?* t)
 (defparameter *test-ignore-warnings?* nil
-  "If true, LIFT will not cause a test to fail if a warning occurs while the test is running. Note that this may interact oddly with ensure-warning.")
+  "If true, LIFT will not cause a test to fail if a warning occurs while
+the test is running. Note that this may interact oddly with ensure-warning.")
 (defparameter *test-print-when-defined?* nil)
 (defparameter *test-evaluate-when-defined?* t)
 (defparameter *test-scratchpad* nil
@@ -361,13 +359,16 @@ All other CLOS slot options are processed normally."
   "The current testsuite.")
 
 (defvar *lift-dribble-pathname* nil
-  "If bound, then test output from run-tests will be sent to this file in addition to *lift-standard-output*. It can be set to nil or to a pathname.")
+  "If bound, then test output from run-tests will be sent to this file in  
+in addition to *lift-standard-output*. It can be set to nil or to a pathname.")
 
 (defvar *lift-standard-output* *standard-output*
-  "Output from tests will be sent to this stream. If can set to nil or to an output stream. It defaults to *standard-output*.")
+  "Output from tests will be sent to this stream. If can set to nil or 
+to an output stream. It defaults to *standard-output*.")
 
 (defvar *lift-if-dribble-exists* :append
-  "Specifies what to do to any existing file at *lift-dribble-pathname*. It can be :supersede, :append, or :error.")
+  "Specifies what to do to any existing file at *lift-dribble-pathname*. It 
+can be :supersede, :append, or :error.")
   
 ;;; ---------------------------------------------------------------------------
 ;;; Error messages and warnings
@@ -389,7 +390,9 @@ All other CLOS slot options are processed normally."
   "Could not find test: ~S.~S")
 
 (defparameter +run-tests-null-test-case+
-  "There is no current testsuite (possibly because none have been defined yet?). You can specify the testsuite to test by evaluating (run-tests :suite <suitename>).")
+  "There is no current testsuite (possibly because 
+   none have been defined yet?). You can specify the 
+   testsuite to test by evaluating (run-tests :suite <suitename>).")
 
 (defparameter +lift-unable-to-parse-test-name-and-class+ 
   "")
@@ -1414,7 +1417,8 @@ control over where in the test hierarchy the search begins."
 		  (result (make-test-result (or suite config) :multiple))
 					;run-setup
 		  &allow-other-keys)
-  "Run all of the tests in a suite. Arguments are :suite, :result, :do-children? and :break-on-errors?" 
+  "Run all of the tests in a suite. Arguments are :suite, :result, ~
+:do-children? and :break-on-errors?" 
   (remf args :suite)
   (remf args :break-on-errors?)
   (remf args :run-setup)
@@ -1448,7 +1452,8 @@ control over where in the test hierarchy the search begins."
 	   (setf (tests-run result) (reverse (tests-run result)))
 	   (values result)))
 	(t
-	 (error "There is not a current test suite and neither suite nor configuration file options were specified."))))
+	 (error "There is not a current test suite and neither suite 
+nor configuration file options were specified."))))
 
 (defun maybe-add-dribble (stream dribble-stream)
   (if dribble-stream
