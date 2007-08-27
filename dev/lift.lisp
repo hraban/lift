@@ -424,8 +424,7 @@ can be :supersede, :append, or :error.")
 (defun signal-lift-error (context message &rest arguments)
   (let ((c (make-condition  
             'lift-compile-error
-            :lift-message (apply #'build-lift-error-message 
-				 context message arguments))))
+            :lift-message (apply #'build-lift-error-message context message arguments))))
     (unless (signal c)
       (error c))))
 
@@ -863,7 +862,8 @@ the thing being defined.")
   (let ((current (assoc name *current-definition*)))
     (if current
       (setf (cdr current) value)
-      (push (cons name value) *current-definition*)))  
+      (push (cons name value) *current-definition*)))
+  
   (values value))
 
 (defun def (name &optional (definition *current-definition*))
@@ -1305,7 +1305,8 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
           *current-suite-class-name* suite)
     (do-testing *current-test* result 
                 (lambda () 
-                  (run-test-internal *current-test* name result)))))
+                  (run-test-internal
+		   *current-test* *current-case-method-name* result)))))
 
 (defun make-testsuite (suite args)
   (let ((make-instance-args nil))
@@ -1424,7 +1425,8 @@ control over where in the test hierarchy the search begins."
   (remf args :run-setup)
   (remf args :dribble)
   (cond ((and suite config)
-	 (error "Specify either configuration file or test suite but not both."))
+	 (error "Specify either configuration file or test suite 
+but not both."))
 	(config
 	 (run-tests-from-file config))
 	((or suite (setf suite *current-suite-class-name*))
