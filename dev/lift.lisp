@@ -796,10 +796,10 @@ the methods that should be run to do the tests for this test."))
 (defgeneric initialize-test (test)
   (:documentation ""))
 
-(defgeneric run-test-internal (case name result)
+(defgeneric run-test-internal (suite name result)
   (:documentation ""))
 
-(defgeneric run-tests-internal (case &key result)
+(defgeneric run-tests-internal (suite &key result)
   (:documentation ""))
 
 (defgeneric start-test (result case method-name)
@@ -1498,7 +1498,7 @@ nor configuration file options were specified."))))
     (dolist (key.value (current-values testsuite))
       (setf (test-environment-value (car key.value)) (cdr key.value))))
 
-(defmethod run-test-internal ((case test-mixin) (name symbol) result) 
+(defmethod run-test-internal ((suite test-mixin) (name symbol) result) 
   (when (and *test-print-test-case-names*
 	     (eq (test-mode result) :multiple))
     (print-lift-message "~&  run: ~a" name))
@@ -1514,7 +1514,7 @@ nor configuration file options were specified."))))
                         (lambda (cond)
                           (setf problem 
                                 (report-test-problem
-				 'test-error result case name cond
+				 'test-error result suite name cond
 				 :backtrace (get-backtrace cond)))
                           (if *test-break-on-errors?*
                             (invoke-debugger cond)
@@ -1524,32 +1524,32 @@ nor configuration file options were specified."))))
                        (t (lambda (cond)
                             (setf problem 
                                   (report-test-problem
-				   'test-error result case name cond
+				   'test-error result suite name cond
 				   :backtrace (get-backtrace cond))))))
           (setf problem nil
-		(current-method case) name)
-          (start-test result case name)
-          (setup-test case)
+		(current-method suite) name)
+          (start-test result suite name)
+          (setup-test suite)
           (unwind-protect
 	       (let ((result nil))
 		 (declare (ignorable result))
-		 (setf (current-step case) :testing
+		 (setf (current-step suite) :testing
 		       result
 		       (measure
-			   (getf (test-data case) :seconds)
-			   (getf (test-data case) :conses)
-			 (lift-test case name)))
-		 (check-for-surprises result case name))
-            (teardown-test case)	    
-            (end-test result case name)))
+			   (getf (test-data suite) :seconds)
+			   (getf (test-data suite) :conses)
+			 (lift-test suite name)))
+		 (check-for-surprises result suite name))
+            (teardown-test suite)	    
+            (end-test result suite name)))
         (ensure-failed (cond) 
 	  (setf problem 
 		(report-test-problem
-		 'test-failure result case name cond)))
+		 'test-failure result suite name cond)))
         (retry-test () :report "Retry the test." 
                     (go :test-start)))
       :test-end))
-  (setf (third (first (tests-run result))) (test-data case))
+  (setf (third (first (tests-run result))) (test-data suite))
   (setf *test-result* result))
 
 (define-condition unexpected-success-failure (test-condition)
