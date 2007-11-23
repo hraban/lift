@@ -1,4 +1,4 @@
-{include header.md}
+{include resources/ug-header.md}
 {set-property title "LIFT User's Guide"}
 {set-property style-sheet user-guide}
 {set-property docs-package lift}
@@ -119,7 +119,7 @@ The [deftestsuite][] macro defines or redefines a testsuite. Testsuites are CLOS
         (slotspec*)
         options*)
 
-The list of supersuites lets you organize tests into a hierarchy. This can be useful both to share fixtures (i.e., setup and tearcode code) and to organize your testing: different parts of the hierarchy can test different parts of your software. The slotspecs are similar to slotspecs in defclass but with a twist: deftestsuite automatically adds an initarg and accessor for each spec{footnote Though they once did, the slotspecs don't really define slots for the class internally anymore. LIFT keeps track of slot values through a different (slower but more flexible) mechanism.}. You can specify an initial value using a pair rather than needing to specify an initform and these value can use the values of previously defined slots (as if they were being bound in a let* form). Finally, you'll also see below that slot values are immediately available with the body of a test method. These two features make writing tests very simple.
+The list of supersuites lets you organize tests into a hierarchy. This can be useful both to share fixtures (i.e., setup and tearcode code) and to organize your testing: different parts of the hierarchy can test different parts of your software. The slotspecs are similar to slotspecs in defclass but with a twist: deftestsuite automatically adds an initarg and accessor for each spec{footnote "Though they once did, the slotspecs don't really define slots for the class internally anymore. LIFT keeps track of slot values through a different (slower but more flexible) mechanism."}. You can specify an initial value using a pair rather than needing to specify an initform and these value can use the values of previously defined slots (as if they were being bound in a let* form). Finally, you'll also see below that slot values are immediately available with the body of a test method. These two features make writing tests very simple.
 
     > (deftestsuite test-slots ()
         ((a 1) (b 2) (c (+ a b)))
@@ -150,7 +150,7 @@ The example above also shows that you can define tests directly in the deftestsu
       TEST-4
       TEST-5
 
-So far, our tests have not required any setup or teardown. Let's next look at at a few tests that do. The first example is from the [ASDF-Install][] testsuite. It uses its fixtures setup to make sure that the working directory is empty (so that it is ensured of installing into a clean system).{footnote We'll talk about the :dynamic-variables clause in more detail below}
+So far, our tests have not required any setup or teardown. Let's next look at at a few tests that do. The first example is from the [ASDF-Install][] testsuite. It uses its fixtures setup to make sure that the working directory is empty (so that it is ensured of installing into a clean system).{footnote "We'll talk about the :dynamic-variables clause in more detail below."}
 
     (deftestsuite test-asdf-install-basic-installation (test-asdf-install) 
       ()
@@ -180,7 +180,7 @@ We've already seen two other clauses that deftestsuite supports (:dynamic-variab
 
 * dynamic-variables - specifies how to initialize dynamic-variables within a testsuite
 * documentation - used, of all things, for documentation
-* equality-test - specifies the default equality-test used by ensure-same and ensure-different. See [\*lift-equality-test\*][]
+* equality-test - specifies the default equality-test used by ensure-same and ensure-different. See [\*lift-equality-test\*][*lift-equality-test*]
 * export-p - if true, the testsuite name will be exported
 * export-slots - if true, all of the testsuite slots will be exported. It can also be a list of slot names to export
 * function - defines a local test function (think of flet or labels)
@@ -196,7 +196,7 @@ Many of these are self-explanatory. We'll discuss  :dynamic-variables, :equality
 
 ##### Dynamic-variables
 
-It is often the case that you'll want some dynamic variable bound around the body of all of your tests. This is hard to do because LIFT doesn't expose it's mechanism for easy access.{footnote At least, it doesn't expose them yet... One long range plan is to do a better job of building a sort of test metaobject protocol that would make it easier to extend LIFT in new and exciting ways.}. The :dynamic-variables clause lets you specify a list of variables and bindings that LIFT will setup for each testcase. XXX exactly when?
+It is often the case that you'll want some dynamic variable bound around the body of all of your tests. This is hard to do because LIFT doesn't expose it's mechanism for easy access.{footnote "At least, it doesn't expose them yet... One long range plan is to do a better job of building a sort of test metaobject protocol that would make it easier to extend LIFT in new and exciting ways."}. The :dynamic-variables clause lets you specify a list of variables and bindings that LIFT will setup for each testcase. XXX exactly when?
 
 ##### Equality-test
 
@@ -254,7 +254,7 @@ To be written.
 
 ### How to test for something
 
-The following macros can be used outside of LIFT where they will function very much like `assert`. When used in the body of an `addtest` or `deftestsuite` form, however, they will record test failures instead of signaling one themselves.{footnote Random testing adds a few additional `ensure` variants like [ensure-random-cases][]¯¯.}
+The following macros can be used outside of LIFT where they will function very much like `assert`. When used in the body of an `addtest` or `deftestsuite` form, however, they will record test failures instead of signaling one themselves.{footnote "Random testing adds a few additional `ensure` variants like [ensure-random-cases][]."}
 
 {docs ensure macro}
 {docs ensure-null macro}
@@ -358,4 +358,4 @@ The following macros can be used outside of LIFT where they will function very m
 
 {footnotes}
 
-{include footer.md}
+{include resources/ug-footer.md}

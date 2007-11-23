@@ -1,4 +1,4 @@
-{include header.md}
+{include resources/header.md}
 
 ## Glossary
 
@@ -8,4 +8,4 @@
 fixture is the code that prepares the environment for the test and that resets 
 the environment after the test. Fixtures can be shared by many test-cases.
 
-{include footer.md}
+{include resources/footer.md}
