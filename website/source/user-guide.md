@@ -196,7 +196,7 @@ Many of these are self-explanatory. We'll discuss  :dynamic-variables, :equality
 
 ##### Dynamic-variables
 
-It is often the case that you'll want some dynamic variable bound around the body of all of your tests. This is hard to do because LIFT doesn't expose it's mechanism for easy access.{footnote "At least, it doesn't expose them yet... One long range plan is to do a better job of building a sort of test metaobject protocol that would make it easier to extend LIFT in new and exciting ways."}. The :dynamic-variables clause lets you specify a list of variables and bindings that LIFT will setup for each testcase. XXX exactly when?
+It is often the case that you'll want some dynamic variable bound around the body of all of your tests. This is hard to do because LIFT doesn't expose its inner mechanisms for easy access.{footnote "At least, it doesn't expose them yet... One long range plan is to do a better job of building a sort of test metaobject protocol that would make it easier to extend LIFT in new and exciting ways."} The :dynamic-variables clause lets you specify a list of variables and bindings that LIFT will setup for each testcase.
 
 ##### Equality-test
 
@@ -283,7 +283,7 @@ The following macros can be used outside of LIFT where they will function very m
 {docs *test-evaluate-when-defined?* variable}
 {docs *test-describe-if-not-successful?* variable}
 {docs *test-maximum-time* variable}
-{docs *test-print-suite-names* variable}
+{docs *test-print-testsuite-names* variable}
 {docs *test-print-test-case-names* variable}
 {docs *lift-equality-test* variable}
 {docs *lift-debug-output* variable}
@@ -320,7 +320,7 @@ The following macros can be used outside of LIFT where they will function very m
 ### Benchmarking and Profiling
 
 {docs measure-time}
-{docs measure-space}
+{docs measure-conses}
 
 ### Miscellaneous 
 
