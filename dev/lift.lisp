@@ -1294,6 +1294,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 		 (break-on-errors? *test-break-on-errors?*)
 		 (do-children? *test-do-children?*)
 		 (result nil))
+  "Run a single testcase in a test suite. Will run the most recently defined or run testcase unless the name and suite arguments are used to override them."
   (assert suite nil "Test suite could not be determined.")
   (assert name nil "Test name could not be determined.")
   (let* ((*test-break-on-errors?* break-on-errors?)
@@ -1418,7 +1419,7 @@ control over where in the test hierarchy the search begins."
 		  (result (make-test-result (or suite config) :multiple))
 					;run-setup
 		  &allow-other-keys)
-  "Run all of the tests in a suite. Arguments are :suite, :result, ~
+  "Run all of the tests in a suite. Arguments are :suite, :result,
 :do-children? and :break-on-errors?" 
   (remf args :suite)
   (remf args :break-on-errors?)
