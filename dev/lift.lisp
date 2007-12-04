@@ -347,6 +347,10 @@ the test is running. Note that this may interact oddly with ensure-warning.")
 (defvar *test-print-test-case-names* nil
   "If true, LIFT will print the name of each test-case before it runs. See also: *test-print-testsuite-names*.")
 
+(defparameter *lift-tests-to-skip* nil
+  "A lift of test-suites and (testsuite test-case) pairs that LIFT will ignore
+during calls to run-tests.")
+
 (defvar *test-result* nil
   "Set to the most recent test result by calls to run-test or run-tests.")
 
@@ -721,11 +725,35 @@ error, then ensure-error will generate a test failure."
    (start-time-universal :accessor start-time-universal :initform nil)
    (end-time-universal :accessor end-time-universal)
    (real-end-time-universal :accessor real-end-time-universal)
-   (properties :initform nil :accessor test-result-properties))
+   (properties :initform nil :accessor test-result-properties)
+   (tests-to-skip :initform nil
+		  :initarg :tests-to-skip
+		  :reader tests-to-skip
+		  :writer %set-tests-to-skip))
   (:default-initargs
     :test-interactive? *test-is-being-defined?*
     :real-start-time (get-internal-real-time)
-    :real-start-time-universal (get-universal-time)))
+    :real-start-time-universal (get-universal-time)
+    :tests-to-skip *lift-tests-to-skip*))
+
+(defmethod initialize-instance :after
+    ((result test-result) &key tests-to-skip)
+  (when tests-to-skip
+    (%set-tests-to-skip 
+     (mapcar (lambda (datum)
+	       (cond ((or (atom datum)
+			  (= (length datum) 1))
+		      (cons (find-testsuite datum) nil))
+		     ((= (length datum) 2)
+		      (cons (find-testsuite (first datum))
+			    (or (and (keywordp (second datum)) (second datum))
+				(find-test-case (find-testsuite (first datum))
+						(second datum)))))
+		     (t
+		      (warn "Unable to interpret skip datum ~a. Ignoring." 
+			    datum))))
+	     tests-to-skip)
+     result)))
 
 (defun test-result-property (result property)
   (getf (test-result-properties result) property))
@@ -1425,8 +1453,19 @@ control over where in the test hierarchy the search begins."
   (remf args :break-on-errors?)
   (remf args :run-setup)
   (remf args :dribble)
-  (cond ((and suite config)
-	 (error "Specify either configuration file or test suite 
+  (remf args :config)
+  (let ((result (or result
+		    (apply #'make-test-result
+			   (or suite config) :multiple args)))
+	(*lift-report-pathname*
+	 (cond ((null report-pathname) nil)
+	       ((eq report-pathname t)
+		(report-summary-pathname)))))
+    (when *lift-report-pathname*
+      (ensure-directories-exist *lift-report-pathname*))
+    (remf args :tests-to-skip)
+    (cond ((and suite config)
+	   (error "Specify either configuration file or test suite 
 but not both."))
 	(config
 	 (run-tests-from-file config))
@@ -1463,16 +1502,37 @@ nor configuration file options were specified."))))
       (values (make-broadcast-stream stream dribble-stream) t)
       (values stream nil)))
 
-(defmethod testsuite-run ((case test-mixin) (result test-result))
+(defun skip-test-case-p (result suite-name test-case-name)
+  (find-if (lambda (skip-datum)
+	     (and (eq suite-name (car skip-datum))
+		  (or (null (cdr skip-datum))
+		      (eq test-case-name (cdr skip-datum)))))
+	   (tests-to-skip result)))
+
+(defmethod skip-test-case (result suite-name test-case-name)
+  (declare (ignore result suite-name test-case-name))
+  )
+
+(defun skip-test-suite-children-p (result testsuite)
+  (let ((suite-name (class-name (class-of testsuite))))
+    (find-if (lambda (skip-datum)
+	       (and (eq suite-name (car skip-datum))
+		    (eq :including-children (cdr skip-datum))))
+	     (tests-to-skip result))))
+
+(defmethod testsuite-run ((testsuite test-mixin) (result test-result))
   (unless (start-time result)
     (setf (start-time result) (get-internal-real-time)
 	  (start-time-universal result) (get-universal-time)))
   (unwind-protect
        (let ((methods (testsuite-methods case)))
 	 (loop for method in methods do
-	      (run-test-internal case method result))
-	 (when *test-do-children?*
-	   (loop for subclass in (direct-subclasses (class-of case))		
+	      (if (skip-test-case-p result suite-name method)
+		  (skip-test-case result suite-name method)
+		  (run-test-internal testsuite method result)))
+	 (when (and *test-do-children?*
+		    (not (skip-test-suite-children-p result testsuite)))
+	   (loop for subclass in (direct-subclasses (class-of testsuite))		
 	      when (and (testsuite-p subclass)
 			(not (member (class-name subclass) 
 				     (suites-run result)))) do
