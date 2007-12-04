@@ -15,7 +15,7 @@
              
 		 (:file "packages")
 		 (:file "lift"
-			:depends-on ("packages" "measuring"))
+			:depends-on ("packages" "measuring" "port"))
 		 (:file "copy-file"
 			:depends-on ("packages"))
 		 (:file "random-testing" 

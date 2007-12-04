@@ -146,4 +146,42 @@ returns a string with the corresponding backtrace.")
           (debug:*debug-print-length* nil))
       (debug:backtrace most-positive-fixnum s))))
 
+(define-condition timeout-error (error)
+                  ()
+  (:report (lambda (c s)
+	     (declare (ignore c))
+	     (format s "Process timeout"))))
+
+(defmacro with-timeout ((seconds) &body body)
+  #+allegro
+  `(mp:with-timeout (,seconds (error 'timeout-error)) 
+       ,@body)
+  #+cmu
+  `(mp:with-timeout (,seconds) ,@body)
+  #+sb-thread
+  `(handler-case 
+       (sb-ext:with-timeout ,seconds ,@body)
+     (sb-ext::timeout (c)
+       (cerror "Timeout" 'timeout-error)))
+  #+(or digitool openmcl)
+  (let ((checker-process (format nil "Checker ~S" (gensym)))
+        (waiting-process (format nil "Waiter ~S" (gensym)))
+	(result (gensym))
+	(process (gensym)))
+    `(let* ((,result nil)
+	    (,process (ccl:process-run-function 
+		,checker-process
+		(lambda ()
+		  (setf ,result (progn ,@body)))))) 
+       (ccl:process-wait-with-timeout
+        ,waiting-process
+        (* ,seconds #+openmcl ccl:*ticks-per-second* #+digitool 60)
+        (lambda ()
+          (not (ccl::process-active-p ,process)))) 
+       (when (ccl::process-active-p ,process)
+	 (ccl:process-kill ,process)
+	 (cerror "Timeout" 'timeout-error))
+       (values ,result)))
+  #-(or allegro cmu sb-thread openmcl digitool)
+  `(progn ,@body))
 
