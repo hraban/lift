@@ -34,7 +34,9 @@
 	    *test-maximum-time*
 	    *test-print-testsuite-names*
 	    *test-print-test-case-names*
-
+	    *lift-dribble-pathname*
+	    *lift-report-pathname*
+	    
 	    *test-scratchpad*
 	    *test-notepad*
 	    *lift-equality-test*
@@ -366,6 +368,18 @@ during calls to run-tests.")
 (defvar *lift-dribble-pathname* nil
   "If bound, then test output from run-tests will be sent to this file in  
 in addition to *lift-standard-output*. It can be set to nil or to a pathname.")
+
+(defvar *lift-report-pathname* nil
+  "If bound, then a summary of test information will be written to it for
+later processing. It can be set to:
+
+* `nil` - generate no output
+* pathname designator - send output to this pathname
+* `t` - send output to a pathname constructed from the name of the system 
+being tested.
+
+As an example of the last case, if LIFT is testing a system named ...
+")
 
 (defvar *lift-standard-output* *standard-output*
   "Output from tests will be sent to this stream. If can set to nil or 
@@ -1458,8 +1472,8 @@ control over where in the test hierarchy the search begins."
 		  (break-on-errors? *test-break-on-errors?*)
 		  (config nil)
 		  (dribble *lift-dribble-pathname*)
-		  (result (make-test-result (or suite config) :multiple))
-					;run-setup
+		  (report-pathname t)
+		  result
 		  &allow-other-keys)
   "Run all of the tests in a suite. Arguments are :suite, :result,
 :do-children? and :break-on-errors?" 
@@ -1481,35 +1495,35 @@ control over where in the test hierarchy the search begins."
     (cond ((and suite config)
 	   (error "Specify either configuration file or test suite 
 but not both."))
-	(config
-	 (run-tests-from-file config))
-	((or suite (setf suite *current-suite-class-name*))
-	 (let* ((*test-break-on-errors?* break-on-errors?)
-		(dribble-stream
-		 (when dribble
-		   (open dribble
-			 :direction :output
-			 :if-does-not-exist :create
-			 :if-exists *lift-if-dribble-exists*)))
-		(*standard-output* (maybe-add-dribble 
-				    *lift-standard-output* dribble-stream))
-		(*error-output* (maybe-add-dribble 
-				 *error-output* dribble-stream))
-		(*debug-io* (maybe-add-dribble 
-			     *debug-io* dribble-stream)))
-	   (unwind-protect
-		(dolist (name (if (consp suite) suite (list suite)))
-		  (setf *current-suite-class-name* name)
-		  (apply #'run-tests-internal name :result result args))
-	     ;; cleanup
-	     (when dribble-stream 
-	       (close dribble-stream)))
-	   ;; FIXME -- ugh!
-	   (setf (tests-run result) (reverse (tests-run result)))
-	   (values result)))
-	(t
-	 (error "There is not a current test suite and neither suite 
-nor configuration file options were specified."))))
+	  (config
+	   (run-tests-from-file config))
+	  ((or suite (setf suite *current-suite-class-name*))
+	   (let* ((*test-break-on-errors?* break-on-errors?)
+		  (dribble-stream
+		   (when dribble
+		     (open dribble
+			   :direction :output
+			   :if-does-not-exist :create
+			   :if-exists *lift-if-dribble-exists*)))
+		  (*standard-output* (maybe-add-dribble 
+				      *lift-standard-output* dribble-stream))
+		  (*error-output* (maybe-add-dribble 
+				   *error-output* dribble-stream))
+		  (*debug-io* (maybe-add-dribble 
+			       *debug-io* dribble-stream)))
+	     (unwind-protect
+		  (dolist (name (if (consp suite) suite (list suite)))
+		    (setf *current-suite-class-name* name)
+		    (apply #'run-tests-internal name :result result args))
+	       ;; cleanup
+	       (when dribble-stream 
+		 (close dribble-stream)))
+	     ;; FIXME -- ugh!
+	     (setf (tests-run result) (reverse (tests-run result)))
+	     (values result)))
+	  (t
+	   (error "There is not a current test suite and neither suite 
+nor configuration file options were specified.")))))
 
 (defun maybe-add-dribble (stream dribble-stream)
   (if dribble-stream
@@ -1627,6 +1641,11 @@ nor configuration file options were specified."))))
                     (go :test-start)))
       :test-end))
   (setf (third (first (tests-run result))) (test-data suite))
+  (when *lift-report-pathname*
+    (let ((current (first (tests-run result))))
+      (summarize-single-test  
+       :save (first current) (second current) (third current)
+       :stream *lift-report-pathname*)))
   (setf *test-result* result))
 
 (define-condition unexpected-success-failure (test-condition)

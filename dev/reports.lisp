@@ -2,7 +2,6 @@
 
 ;; dribble
 ;; full output for all tests on separate pages per suite? whatever.
-;; maybe lift should have the option to print test suite names and test case names
 ;; test environment
 
 #|
@@ -19,6 +18,12 @@ For *debug-io*, *query-io*: a bidirectional stream.
   (setf (test-result-property *test-result* :title) "Test Results X")
   (setf (test-result-property *test-result* :if-exists) :supersede)
   (test-result-report *test-result*  #p"/tmp/report.html" :html))
+
+lift::(progn
+  (setf (test-result-property *test-result* :style-sheet) "test-style.css")
+  (setf (test-result-property *test-result* :title) "Merge LUBM 8000")
+  (setf (test-result-property *test-result* :if-exists) :error)
+  (test-result-report *test-result*  #p"/tmp/report.sav" :save))
 
 (run-tests :suite '(lift-test test-cursors))
 
@@ -69,7 +74,6 @@ run-test-internal
 
 run-test 
   do-testing with run-test-internal
-
 |#
 
 ;; when it doubt, add a special
@@ -402,11 +406,11 @@ run-test
 (defmethod generate-detailed-reports (result stream (format (eql :html)))
   (loop for (suite test-name datum)  in (tests-run result)
      when (getf datum :problem) do
-     (let ((*print-right-margin* 64))
-       (let ((output-pathname (merge-pathnames
-			       (details-link stream suite test-name) 
-			       stream)))
-	 (ensure-directories-exist output-pathname)
+     (let ((output-pathname (merge-pathnames
+			     (details-link stream suite test-name) 
+			     stream)))
+       (ensure-directories-exist output-pathname)
+       (let ((*print-right-margin* 64))
 	 (with-open-file (out output-pathname
 			      :direction :output
 			      :if-does-not-exist :create
@@ -490,32 +494,61 @@ run-test
        ;; FIXME - this is a hack intended to show tests
        ;; in the order they were run (even if it works, it's
        ;; bound to be fragile)
-	 (copy-list (tests-run result))
-	 #+(or)
-	 (nreverse (copy-list (tests-run result))) do
-	 (labels ((out (name &key (source data)
-			     (print-if-nil? nil))
-		    (let* ((key (intern (symbol-name name) :keyword))
-			   (value (getf source key))) 
-		      (when (or value print-if-nil?)
-			(format stream "~&\(~s ~a\)" key value))))
-		  (prop (name)
-		    (out name :source (getf data :properties))))
-	   (format stream "\(~%")
-	   (format stream "~&\(:suite ~a\)" suite)	     
-	   (format stream "~&\(:name ~a\)" name)
-	   ;; FIXME - we could make these extensible
-	   (out 'start-time-universal)
-	   (out 'end-time-universal)
-	   (out 'result)
-	   (out 'seconds)
-	   (out 'conses)
-	   (loop for stuff in (getf data :properties) by #'cddr do
-		(prop stuff))
-	   (format stream "~&\)")))
+	 (copy-list (tests-run result)) do
+	 (summarize-single-test format suite name data :stream stream))
     (format stream "~&\)")
     (format stream "~&\)")))
   
+(defmethod summarize-single-test :around
+    (format suite-name test-case-name data &key stream)
+  (let* ((closep nil)
+	 (stream (etypecase stream 
+		   (stream stream)
+		   ((or pathname string)
+		    (setf closep t)
+		    (open stream 
+			  :if-does-not-exist :create
+			  :if-exists :append
+			  :direction :output)))))
+    (unwind-protect
+	 (call-next-method format suite-name test-case-name data :stream stream)
+      (when closep
+	(close stream)))))
+
+(defmethod summarize-single-test 
+    ((format (eql :save)) suite-name test-case-name data
+     &key (stream *standard-output*))
+  (labels ((out (key value)
+	     (when value
+	       (format stream "~&\(~s ~s\)" key value)))
+	   (write-datum (name &key (source data))
+	     (let* ((key (intern (symbol-name name) :keyword))
+		    (value (getf source key)))
+	       (out key value)))
+	   (prop (name)
+	     (write-datum name :source (getf data :properties))))
+    (format stream "~&\(~%")
+    (format stream "~&\(:suite ~a\)" suite-name)	     
+    (format stream "~&\(:name ~a\)" test-case-name)
+    ;; FIXME - we could make these extensible
+    (write-datum 'start-time-universal)
+    (write-datum 'end-time-universal)
+    (write-datum 'result)
+    (write-datum 'seconds)
+    (write-datum 'conses)
+    (loop for stuff in (getf data :properties) by #'cddr do
+	 (prop stuff))
+    (cond ((getf data :problem)
+	   (let ((problem (getf data :problem)))
+	     (out :problem-kind (test-problem-kind problem))
+	     (out :problem-step (test-step problem))
+	     (out :problem-condition (test-condition problem))
+	     (when (slot-exists-p problem 'backtrace)
+	       (out :problem-backtrace (backtrace problem)))))
+	  (t
+	   (out :result t)))
+    (format stream "\)~%")))
+
 #+(or)
 (compile 'summarize-test-result)
 
@@ -600,7 +633,7 @@ run-test
 	 (copy-list (tests-run result))
 	 #+(or)
 	 (nreverse (copy-list (tests-run result))) do
-	 (labels ((out (name type &key (source data))
+	 (labels ((write-datum (name type &key (source data))
 		    (let* ((key (intern (symbol-name name) :keyword))
 			   (value (getf source key)))
 		      (when value
@@ -608,16 +641,16 @@ run-test
 				(symbol->turtle name)
 				(convert-value value type)))))
 		  (prop (name type)
-		    (out name type :source (getf data :properties))))
+		    (write-datum name type :source (getf data :properties))))
 	   (format stream "~&\[ ")
 	   (format stream ":testSuite ~s ;" (symbol-name suite))
 	   (format stream "~&  :testName ~s ;" (symbol-name name))
 	   ;; FIXME - we could make these extensible
-	   (out 'start-time 'dateTime)
-	   (out 'end-time 'dateTime)
-	   (out 'result 'string)
-	   (out 'seconds 'string)
-	   (out 'conses 'string)
+	   (write-datum 'start-time 'dateTime)
+	   (write-datum 'end-time 'dateTime)
+	   (write-datum 'result 'string)
+	   (write-datum 'seconds 'string)
+	   (write-datum 'conses 'string)
 	   (loop for stuff in (getf data :properties) by #'cddr do
 		(prop stuff 'string))
 	   (format stream " \]")))
@@ -627,4 +660,3 @@ run-test
 (progn
   (setf (test-result-property *test-result* :if-exists) :supersede)
   (test-result-report *test-result*  #p"/tmp/report.n3" :turtle))
-
