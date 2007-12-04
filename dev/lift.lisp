@@ -76,7 +76,8 @@
 	    a-symbol
 
 	    lift-result
-	    lift-property)))
+	    lift-property
+	    liftpropos)))
 
 ;;; ---------------------------------------------------------------------------
 ;;; shared stuff
@@ -1413,6 +1414,21 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
         (progn
           (with-test-slots ,@forms))
         (teardown-test ,test-case)))))
+
+(defun liftpropos (name &key (include-cases? nil))
+  (declare (ignore include-cases?))
+  (let ((result nil)
+	(real-name (etypecase name
+		     (string name)
+		     (symbol (symbol-name name)))))
+    (map-testsuites
+     (lambda (suite level)
+       (declare (ignore level))
+       (let ((suite-name (symbol-name (class-name suite))))
+	 (when (search real-name suite-name :test #'char-equal)
+	   (push suite-name result))))
+     'test-mixin)
+    (sort result #'string-lessp)))
 
 (defun map-testsuites (fn start-at)
   (let ((visited (make-hash-table)))
