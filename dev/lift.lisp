@@ -1785,7 +1785,15 @@ nor configuration file options were specified.")))))
 				(null (expected-failures tr))
 				(null (expected-errors tr)))))
     (let* ((*print-level* (get-test-print-level))
-           (*print-length* (get-test-print-length)))
+           (*print-length* (get-test-print-length))
+	   (non-failure-failures
+	    (count-if 
+	     (lambda (failure) 
+	       (member (class-of (test-condition failure))
+		       (subclasses 'unexpected-success-failure :proper? nil)))
+	     (expected-failures tr)))
+	   (expected-failures (- (length (expected-failures tr))
+				 non-failure-failures)))	     
       (print-unreadable-object (tr stream)
         (cond ((null (tests-run tr))
                (format stream "~A: no tests defined" (results-for tr)))
@@ -1800,6 +1808,8 @@ nor configuration file options were specified.")))))
                              (format stream "Expected error during testing"))
                             ((failures tr)
                              (format stream "Test failed"))
+			    ((plusp non-failure-failures)
+                             (format stream "Test succeeded unexpectedly"))
                             (t
                              (format stream "Test failed expectedly"))))
                      (t
@@ -1814,8 +1824,9 @@ nor configuration file options were specified.")))))
                                     (t
                                      "failed")))
 		      (when (or (expected-errors tr) (expected-failures tr))
-			(format stream "(~[~:;, ~:*~A expected failure~:P~]~[~:;, ~:*~A expected error~:P~])" 
-				(expected-failures tr) (expected-errors tr))))))
+			(format stream "(~[~:;, ~:*~A expected failure~:P~]~[~:;, ~:*~A succeeded unexpectedly~]~[~:;, ~:*~A expected error~:P~])" 
+				expected-failures non-failure-failures
+				(expected-errors tr))))))
               (t
                ;; multiple tests run
                (format stream "Results for ~A " (results-for tr))
@@ -1835,10 +1846,17 @@ nor configuration file options were specified.")))))
           (print-test-result-details stream tr))))))
 
 (defmethod describe-object ((result test-result) stream)
-  (let ((number-of-failures (length (failures result)))
-	(number-of-expected-failures (length (expected-failures result)))
+  (let* ((number-of-failures (length (failures result)))
         (number-of-errors (length (errors result)))
-	(number-of-expected-errors (length (expected-errors result))))
+	(number-of-expected-errors (length (expected-errors result)))
+	(non-failure-failures
+	 (count-if 
+	  (lambda (failure) 
+	    (member (class-of (test-condition failure))
+		    (subclasses 'unexpected-success-failure :proper? nil)))
+	  (expected-failures result)))
+	(number-of-expected-failures (- (length (expected-failures result))
+					non-failure-failures)))	     
     (unless *test-is-being-defined?*
       (format stream "~&Test Report for ~A: ~D test~:P run" 
               (results-for result) (length (tests-run result))))
@@ -1846,9 +1864,10 @@ nor configuration file options were specified.")))))
            (*print-length* (get-test-print-length)))
       (cond ((or (failures result) (errors result)
 		 (expected-failures result) (expected-errors result))
-             (format stream "~[~:;, ~:*~A Failure~:P~]~[~:;, ~:*~A Expected failure~:P~]~[~:;, ~:*~A Error~:P~]~[~:;, ~:*~A Expected error~:P~]." 
+             (format stream "~[~:;, ~:*~A Failure~:P~]~[~:;, ~:*~A Expected failure~:P~]~[~:;, ~:*~A Successful Surprise~:P~]~[~:;, ~:*~A Error~:P~]~[~:;, ~:*~A Expected error~:P~]." 
                      number-of-failures
                      number-of-expected-failures
+		     non-failure-failures
                      number-of-errors
                      number-of-expected-errors)
              (format stream "~%~%")             
