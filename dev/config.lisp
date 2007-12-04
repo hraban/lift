@@ -10,24 +10,35 @@
       (let ((*current-asdf-system-name* (asdf:component-name c)))
 	(call-next-method)))))
 
-(defun find-generic-test-configuration ()
+(defun lift-relative-pathname (pathname)
+  "Merges pathname with either the path to the currently loading system
+\(if there is one\) or the *default-pathname-defaults*."
   (let ((srp (and *current-asdf-system-name*
 		  (find-package :asdf)
 		  (intern (symbol-name 'system-relative-pathname) :asdf))))
-    (cond (srp
-	   (or (probe-file (funcall srp  
-				    *current-asdf-system-name*
-				    "lift-local.config"))
-	       (probe-file (funcall srp  
-				    *current-asdf-system-name*
-				    "lift-standard.config"))
-	       (error "Unable to find lift-local.config or lift-standard.config relative to the current system (~s)" *current-asdf-system-name*)))
-	  (t
-	   (error "Unable to use :generic configuration option either because ASDF is not loaded or because asdf:system-relative-pathname is not bound (maybe try updating?) or because the current system cannot be determined.")))))
+    (labels ((try-it (path)
+	       (merge-pathnames pathname path)))
+      (or (and srp (try-it (funcall srp *current-asdf-system-name* "")))
+	  (try-it *default-pathname-defaults*)))))
+
+(defun find-generic-test-configuration ()
+  (or (probe-file (lift-relative-pathname "lift-local.config"))
+      (probe-file (lift-relative-pathname "lift-standard.config"))))
+
+(defun report-summary-pathname ()
+  (unique-filename (generate-report-summary-pathname)))
+
+(defmethod generate-report-summary-pathname ()
+  (lift-relative-pathname "test-results/summary.sav"))
+
+#+(or)
+(generate-report-summary-pathname)
 
 (defun run-tests-from-file (path)
   (let ((real-path (cond ((eq path :generic)
-			  (setf path (find-generic-test-configuration)))
+			  (setf path 
+				(or (find-generic-test-configuration)
+				    (error "Unable to use :generic configuration option either because ASDF is not loaded or because asdf:system-relative-pathname is not bound (maybe try updating?) or because the current system cannot be determined."))))
 			 (t
 			  (probe-file path)))))
     (unless real-path
