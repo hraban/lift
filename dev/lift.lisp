@@ -299,7 +299,8 @@ All other CLOS slot options are processed normally."
 ;;; ---------------------------------------------------------------------------
 
 (defparameter *make-testsuite-arguments*
-  '(:run-setup :test-slot-names :equality-test :log-file :timeout))
+  '(:run-setup :test-slot-names :equality-test :log-file :timeout
+    :default-initargs))
 
 (defvar *current-suite-class-name* nil)
 (defvar *current-case-method-name* nil)
@@ -698,7 +699,10 @@ error, then ensure-error will generate a test failure."
    (expected-error-p :initform nil :initarg :expected-error-p
 		     :reader expected-error-p)
    (expected-problem-p :initform nil :initarg :expected-problem-p
-		       :reader expected-problem-p))
+		       :reader expected-problem-p)
+   (suite-initargs
+    :initform nil
+    :accessor suite-initargs))
   (:documentation "A test suite")
   (:default-initargs
     :run-setup :once-per-test-case))
@@ -866,10 +870,13 @@ the methods that should be run to do the tests for this test."))
   (initialize-prototypes test) 
   (next-prototype test))
 
-(defmethod initialize-instance :after ((testsuite test-mixin) &key)
+(defmethod initialize-instance :after ((testsuite test-mixin) &rest initargs 
+				       &key &allow-other-keys)
   (when (null (testsuite-name testsuite))
     (setf (slot-value testsuite 'name) 
-	  (symbol-name (type-of testsuite)))))
+	  (symbol-name (type-of testsuite))))
+  ;; FIXME - maybe remove LIFT standard arguments?
+  (setf (suite-initargs testsuite) initargs))
 
 (defmethod print-object ((tc test-mixin) stream)
   (print-unreadable-object (tc stream :identity t :type t)
@@ -1025,6 +1032,13 @@ the thing being defined.")
  :categories 0 :class-def
  nil 
  '((push value (def :categories)))
+ nil)
+
+(add-code-block
+ :default-initargs 1 :class-def
+ (lambda () (def :default-initargs))
+ '((dolist (x (reverse (cleanup-parsed-parameter value)))
+   (push x (def :default-initargs))))
  nil)
 
 (defmacro deftestsuite (testsuite-name superclasses slots &rest
@@ -1949,16 +1963,19 @@ nor configuration file options were specified."))))
           initforms (nreverse initforms))    
     (when initforms
       `((defmethod make-single-prototype ((testsuite ,(def :testsuite-name)))
-	  (with-test-slots
-	    (append 
-	     (when (next-method-p)
-	       (call-next-method))
-	     (let* (,@(mapcar (lambda (slot-name initform)
-				`(,slot-name ,initform))
-			      slot-names initforms))
-	       (list ,@(mapcar (lambda (slot-name)
-				 `(cons ',slot-name ,slot-name))
-			       slot-names))))))))))
+	  (let ((initargs (suite-initargs testsuite)))
+	    (with-test-slots
+	      (append 
+	       (when (next-method-p) (call-next-method))
+	       (let* (,@(mapcar 
+			 (lambda (slot-name initform)
+			   `(,slot-name
+			     (or (getf initargs ,(intern slot-name :keyword))
+				 ,initform)))
+			 slot-names initforms))
+		 (list ,@(mapcar (lambda (slot-name)
+				   `(cons ',slot-name ,slot-name))
+				 slot-names)))))))))))
 
 (defun (setf test-environment-value) (value name)
   (pushnew (cons name value) *test-environment* :test #'equal)
