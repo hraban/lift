@@ -956,7 +956,7 @@ the thing being defined.")
      (symbol-macrolet
 	 ,(mapcar #'(lambda (local)
 		      `(,local (test-environment-value ',local)))
-		  (def :slot-names))
+		  (test-slots (def :testsuite-name)))
        (macrolet
 	   ,(mapcar (lambda (spec)
 		      (destructuring-bind (name arglist) spec
@@ -1569,7 +1569,8 @@ nor configuration file options were specified.")))))
     (setf (start-time result) (get-internal-real-time)
 	  (start-time-universal result) (get-universal-time)))
   (unwind-protect
-       (let ((methods (testsuite-methods case)))
+       (let ((methods (testsuite-methods testsuite))
+	     (suite-name (class-name (class-of testsuite))))
 	 (loop for method in methods do
 	      (if (skip-test-case-p result suite-name method)
 		  (skip-test-case result suite-name method)
@@ -1771,10 +1772,11 @@ nor configuration file options were specified.")))))
 	(getf (test-data testsuite) :end-time-universal) (get-universal-time)
 	(end-time-universal result) (get-universal-time)))
 
-(defun make-test-result (for test-mode)
-  (make-instance 'test-result
-    :results-for for
-    :test-mode test-mode))
+(defun make-test-result (for test-mode &rest args)
+  (apply #'make-instance 'test-result
+	 :results-for for
+	 :test-mode test-mode 
+	 args))
 
 (defun testing-interactively-p ()
   (values nil))
