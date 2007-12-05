@@ -542,7 +542,11 @@ run-test
 	   (let ((problem (getf data :problem)))
 	     (out :problem-kind (test-problem-kind problem))
 	     (out :problem-step (test-step problem))
-	     (out :problem-condition (test-condition problem))
+	     (out :problem-condition 
+		  (let ((*print-readably* nil))
+		    (format nil "~s" (test-condition problem))))
+	     (out :problem-condition-description 
+		  (format nil "~a" (test-condition problem)))
 	     (when (slot-exists-p problem 'backtrace)
 	       (out :problem-backtrace (backtrace problem)))))
 	  (t
