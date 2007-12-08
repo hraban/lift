@@ -777,8 +777,8 @@ error, then ensure-error will generate a test failure."
 	     tests-to-skip)
      result)))
 
-(defun test-result-property (result property)
-  (getf (test-result-properties result) property))
+(defun test-result-property (result property &optional default)
+  (getf (test-result-properties result) property default))
 
 (defun (setf test-result-property) (value result property)
   (setf (getf (test-result-properties result) property) value))
