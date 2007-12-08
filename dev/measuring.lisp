@@ -56,7 +56,9 @@
 			    (measure ,seconds ,conses ,@body))
 			   (list ,seconds ,conses))))))
 
-(defparameter *benchmark-file*
+(defvar *profile-extra* nil)
+
+(defparameter *benchmark-log-path*
   (asdf:system-relative-pathname 
    'lift "benchmark-data/benchmarks.log"))
 
@@ -65,6 +67,22 @@
 (defvar *additional-markers* nil)
 
 (defvar *profiling-threshold* nil)
+
+(defmacro with-profile-report 
+    ((name style &key (log-name *benchmark-log-path* ln-supplied?)
+	   (call-counts-p *collect-call-counts* ccp-supplied?)
+	   (timeout nil timeout-supplied?))
+     &body body)
+  `(with-profile-report-fn 
+       ,name ,style 
+       (lambda ()
+	 (progn ,@body))
+       ,@(when ccp-supplied? 
+	       `(:call-counts-p ,call-counts-p))
+       ,@(when ln-supplied?
+	       `(:log-name ,log-name))
+       ,@(when timeout-supplied?
+	       `(:timeout ,timeout))))
 
 #+allegro
 (defun cancel-current-profile (&key force?)
@@ -83,59 +101,74 @@
 		 'prof::samples))
     (:sampling (warn "Can't determine count while sampling"))))
 
-;; FIXME -- functionify this!
 #+allegro
-(defmacro with-profile-report ((name style &key (log-name *benchmark-file*)
-				     (call-counts-p *collect-call-counts*)) 
-			       &body body)
-  (assert (member style '(:time :space)))
-  `(let ((seconds 0.0) (conses 0) result)
-     (cancel-current-profile :force? t)
-     (multiple-value-prog1
-	 (prof:with-profiling (:type ,style :count ,call-counts-p)
-	   (measure seconds conses ,@body))
-       (ensure-directories-exist ,log-name)
-       ;;log 
-       (with-open-file (output ,log-name
-			       :direction :output
-			       :if-does-not-exist :create
-			       :if-exists :append)
-	 (with-standard-io-syntax
-	   (let ((*print-readably* nil))
-	     (terpri output)
-	     (format output "\(~11,d ~20,s ~10,s ~10,s ~{~s~^ ~} ~s\)"
-		     (date-stamp :include-time? t) ,name 
-		     seconds conses *additional-markers*
-		     result))))
-       (when (> (current-profile-sample-count) 0)
-	 (let ((pathname (unique-filename
-			  (merge-pathnames
-			   (make-pathname 
-			    :type "prof"
-			    :name (format nil "~a-~a-" ,name ,style))
-			   ,log-name))))
-	   (let ((prof:*significance-threshold* 
-		  (or *profiling-threshold* 0.01)))
-	     (format t "~&Profiling output being sent to ~a" pathname)
-	     (with-open-file (output pathname
-				     :direction :output
-				     :if-does-not-exist :create
-				     :if-exists :append)
-	       (format output "~&Profile data for ~a" ,name)
-	       (format output "~&Date: ~a" 
-		       (excl:locale-print-time (get-universal-time)
-					       :fmt "%B %d, %Y %T" :stream nil))
-	       (format output "~&  Total time: ~,2F; Total space: ~:d \(~:*~d\)"
-		       seconds conses)
-	       (format output "~%~%")
-	       (when (or (eq :time ,style)
-			 (eq :space ,style))
-		 (prof:show-flat-profile :stream output)
-		 (prof:show-call-graph :stream output)
-		 (when ,call-counts-p
-		   (format output "~%~%Call counts~%")
-		   (let ((*standard-output* output))
-		     (prof:show-call-counts)))))))))))
+(defun with-profile-report-fn 
+    (name style fn &key (log-name *benchmark-log-path*)
+			       (call-counts-p *collect-call-counts*)
+			       (timeout nil))
+  (assert (member style '(:time :space :count-only)))
+  (cancel-current-profile :force? t)
+  (let* ((seconds 0.0) (conses 0)
+	 results)
+    (unwind-protect
+	 (handler-case
+	     (with-timeout (timeout)
+	       (setf results
+		     (multiple-value-list
+		      (prof:with-profiling (:type style :count call-counts-p)
+			(measure seconds conses (funcall fn))))))
+	   (timeout-error 
+	       (c)
+	     (declare (ignore c))))
+      ;; cleanup / ensure we get report
+      (ensure-directories-exist log-name)
+      ;;log 
+      (with-open-file (output log-name
+			      :direction :output
+			      :if-does-not-exist :create
+			      :if-exists :append)
+	(with-standard-io-syntax
+	  (let ((*print-readably* nil))
+	    (terpri output)
+	    (format output "\(~11,d ~20,s ~10,s ~10,s ~{~s~^ ~} ~s ~s\)"
+		    (date-stamp :include-time? t) name 
+		    seconds conses *additional-markers*
+		    results (current-profile-sample-count)))))
+      (when (> (current-profile-sample-count) 0)
+	(let ((pathname (unique-filename
+			 (merge-pathnames
+			  (make-pathname 
+			   :type "prof"
+			   :name (format nil "~a-~a-" name style))
+			  log-name))))
+	  (let ((prof:*significance-threshold* 
+		 (or *profiling-threshold* 0.01)))
+	    (format t "~&Profiling output being sent to ~a" pathname)
+	    (with-open-file (output pathname
+				    :direction :output
+				    :if-does-not-exist :create
+				    :if-exists :append)
+	      (format output "~&Profile data for ~a" name)
+	      (format output "~&Date: ~a" 
+		      (excl:locale-print-time (get-universal-time)
+					      :fmt "%B %d, %Y %T" :stream nil))
+	      (format output "~&  Total time: ~,2F; Total space: ~:d \(~:*~d\)"
+		      seconds conses)
+	      (format output "~%~%")
+	      (when (or (eq :time style)
+			(eq :space style))
+		(prof:show-flat-profile :stream output)
+		(prof:show-call-graph :stream output)
+		(when call-counts-p
+		  (format output "~%~%Call counts~%")
+		  (let ((*standard-output* output))
+		    (prof:show-call-counts))))
+	      (when *profile-extra*
+		(loop for thing in *profile-extra* do
+		     (format output "~%~%")
+		     (let ((*standard-output* output))
+		       (prof:disassemble-profile thing)))))))))
+    (values-list results)))
 
 #| OLD
 ;; integrate with LIFT

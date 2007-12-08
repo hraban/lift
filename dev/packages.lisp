@@ -16,6 +16,7 @@
        #:class-direct-superclasses
        #:class-precedence-list)
       (:export
+       #:*benchmark-log-path*
        #:with-profile-report))))
 
 (unless (and (find-package :asdf)

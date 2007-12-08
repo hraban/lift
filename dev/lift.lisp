@@ -303,7 +303,7 @@ All other CLOS slot options are processed normally."
 
 (defparameter *make-testsuite-arguments*
   '(:run-setup :test-slot-names :equality-test :log-file :timeout
-    :default-initargs))
+    :default-initargs :profile))
 
 (defvar *current-suite-class-name* nil)
 (defvar *current-case-method-name* nil)
@@ -717,7 +717,10 @@ error, then ensure-error will generate a test failure."
 		       :reader expected-problem-p)
    (suite-initargs
     :initform nil
-    :accessor suite-initargs))
+    :accessor suite-initargs)
+   (profile 
+    :initform nil
+    :accessor profile))
   (:documentation "A test suite")
   (:default-initargs
     :run-setup :once-per-test-case))
@@ -1350,7 +1353,8 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 		 (suite *current-suite-class-name*) 
 		 (break-on-errors? *test-break-on-errors?*)
 		 (do-children? *test-do-children?*)
-		 (result nil))
+		 (result nil)
+		 (profile nil))
   "Run a single testcase in a test suite. Will run the most recently defined or run testcase unless the name and suite arguments are used to override them."
   (assert suite nil "Test suite could not be determined.")
   (assert name nil "Test name could not be determined.")
@@ -1372,7 +1376,8 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
        (when (member keyword args)
 	 (push keyword make-instance-args)
 	 (push (getf args keyword) make-instance-args)))
-    (apply #'make-instance (find-testsuite suite) make-instance-args)))
+    (apply #'make-instance (find-testsuite suite) 
+	   (nreverse make-instance-args))))
 
 (defmethod do-testing ((testsuite test-mixin) result fn)
   (unwind-protect
@@ -1388,10 +1393,9 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
   (values result))
 
 (defmethod run-tests-internal ((suite symbol) &rest args &key &allow-other-keys)
-  (let ((*current-test* (make-testsuite suite args))) 
-    (apply #'run-tests-internal 
-	   *current-test*
-	   args)))
+  (let ((*current-test* (make-testsuite suite args)))
+    (remf args :profile)
+    (apply #'run-tests-internal *current-test* args)))
 
 (defmethod run-tests-internal 
     ((case test-mixin) &key 
@@ -1489,6 +1493,7 @@ control over where in the test hierarchy the search begins."
 		  (config nil)
 		  (dribble *lift-dribble-pathname*)
 		  (report-pathname t)
+		  (profile nil)
 		  result
 		  &allow-other-keys)
   "Run all of the tests in a suite. Arguments are :suite, :result,
@@ -1530,7 +1535,8 @@ but not both."))
 	     (unwind-protect
 		  (dolist (name (if (consp suite) suite (list suite)))
 		    (setf *current-suite-class-name* name)
-		    (apply #'run-tests-internal name :result result args))
+		    (apply #'run-tests-internal name 
+			   :result result :profile profile args))
 	       ;; cleanup
 	       (when dribble-stream 
 		 (close dribble-stream)))
@@ -2312,6 +2318,14 @@ nor configuration file options were specified.")))))
   (:report (lambda (c s)
              (format s "Test ran out of time (longer than ~S-second~:P)" 
                      (maximum-time c)))))
+
+(defmethod lift-test :around ((suite test-mixin) name)
+  (if (profile suite)
+      (with-profile-report ((format nil "~a-~a" 
+				    (testsuite-name suite) name) 
+			    (profile suite))
+	(call-next-method))
+      (call-next-method)))
 
 (defmethod do-testing :around ((testsuite process-test-mixin) result fn)
   (declare (ignore fn))
