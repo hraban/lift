@@ -85,8 +85,11 @@ run-test
 
 ;; env variables need to be part saved in result
 
-(defun test-result-report (result output format)
-  (let ((*report-environment* (make-report-environment)))
+(defun test-result-report (result output format
+			   &rest args
+			   &key (package *package*) &allow-other-keys)
+  (let ((*report-environment* (make-report-environment))
+	(*package* (or (find-package package) *package*)))
     (cond ((or (stringp output)
 	       (pathnamep output))
 	   (with-open-file (stream 
@@ -426,9 +429,10 @@ run-test
 					      :type (pathname-type stream))))
 	   (format out "~&<pre>")
 	   (format out "~a"
-		   (encode-pre 
+		   (wrap-encode-pre 
 		    (with-output-to-string (s)
-		      (print-test-problem "" (getf datum :problem) s))))
+		      (print-test-problem "" (getf datum :problem) s))
+		    :width (test-result-property *test-result* :print-width)))
 	   (format out "~&</pre>") 
 	   (html-footer out))))))
 
@@ -447,7 +451,7 @@ run-test
 
        (print)))
 
-(defun encode-pre (string)
+(defun wrap-encode-pre (string &key (width 80))
   ;; Copied from CL-Markdown
   ;; Copied from HTML-Encode
   ;;?? this is very consy
@@ -456,14 +460,27 @@ run-test
   (let ((output (make-array (truncate (length string) 2/3)
                             :element-type 'character
                             :adjustable t
-                            :fill-pointer 0)))
+                            :fill-pointer 0))
+	(column 0))
     (with-output-to-string (out output)
       (loop for char across string
 	 do (case char
-	      ((#\&) (write-string "&amp;" out))
-	      ((#\<) (write-string "&lt;" out))
-	      ((#\>) (write-string "&gt;" out))
-	      (t (write-char char out)))))
+	      ((#\&) (incf column) (write-string "&amp;" out))
+	      ((#\<) (incf column) (write-string "&lt;" out))
+	      ((#\>) (incf column) (write-string "&gt;" out))
+	      ((#\Tab #\Space #\Return #\Newline)
+	       (cond ((or (>= column width) 
+			  (char= char #\Return)
+			  (char= char #\Newline))
+		      (setf column 0)
+		      (terpri out))
+		     ((char= char #\Space)
+		      (incf column)
+		      (write-char char out))
+		     ((char= char #\Tab)
+		      (incf column 4)
+		      (write-string "    " out))))
+	      (t (incf column) (write-char char out)))))
     (coerce output 'simple-string)))
 
 ;;;;;

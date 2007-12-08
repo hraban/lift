@@ -23,7 +23,7 @@
 		 (:file "port" 
 			:depends-on ("packages"))
 		 (:file "measuring" 
-			:depends-on ("packages"))
+			:depends-on ("packages" "port"))
 		 (:file "config" 
 			:depends-on ("port" "lift"))
 		 (:file "reports" 

@@ -1913,6 +1913,8 @@ nor configuration file options were specified.")))))
 				(class-name (class-of suite))))))
       (when doc-string 
         (format stream "~&~A" doc-string)))
+    (setf code (with-output-to-string (out)
+		 (pprint code out)))
     (format stream "~&~<  ~@;~
                     ~@[Condition: ~<~@;~A~:>~]~
                     ~@[~&Code     : ~S~]~
