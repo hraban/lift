@@ -875,6 +875,9 @@ the methods that should be run to do the tests for this test."))
 (defgeneric testsuite-name->method (class name)
   (:documentation ""))
 
+(defgeneric flet-test-function (testsuite function-name &rest args)
+  (:documentation ""))
+
 (defmethod setup-test :before ((test test-mixin))
   (setf *test-scratchpad* nil
 	(current-step test) :test-setup))
