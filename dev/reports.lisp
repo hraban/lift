@@ -218,7 +218,8 @@ run-test
 		 (length (expected-errors result)))
 	      (length (expected-errors result))))
 
-    (when (and (numberp (end-time-universal result))
+    (when (and (slot-boundp result 'end-time-universal)
+	       (numberp (end-time-universal result))
 	       (numberp (start-time-universal result)))
       (format stream "~&<h3>Testing took: ~:d seconds</h3>"
 	      (- (end-time-universal result)
@@ -431,8 +432,9 @@ run-test
 	   (format out "~a"
 		   (wrap-encode-pre 
 		    (with-output-to-string (s)
-		      (print-test-problem "" (getf datum :problem) s))
-		    :width (test-result-property *test-result* :print-width)))
+		      (print-test-problem "" (getf datum :problem) s t))
+		    :width (test-result-property 
+			    *test-result* :print-width 60)))
 	   (format out "~&</pre>") 
 	   (html-footer out))))))
 
@@ -496,9 +498,10 @@ run-test
 
 (defmethod summarize-test-result (result stream (format (eql :save)))
   (flet ((add-property (name)
-	   (format stream "~&\(~s ~a\)" 
-		   (intern (symbol-name name) :keyword)
-		   (slot-value result name))))
+	   (when (slot-boundp result name)
+	     (format stream "~&\(~s ~a\)" 
+		     (intern (symbol-name name) :keyword)
+		     (slot-value result name)))))
     (format stream "\(~%")
     (add-property 'results-for)
     (format stream "~&\(:date-time ~a\)" (get-universal-time))
