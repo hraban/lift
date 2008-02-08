@@ -332,7 +332,7 @@ the test is running. Note that this may interact oddly with ensure-warning.")
 (defparameter *test-scratchpad* nil
   "A place to put things. This is set to nil before every test.")
 (defparameter *test-notepad* nil
-  "Another place to put things (set {ref *test-scratchpad*}.")
+  "Another place to put things \(see {ref *test-scratchpad*}\).")
 
 (defparameter *lift-equality-test* 'equal
   "The function used in ensure-same to test if two things are equal. If metatilities is loaded, then you might want to use samep.")
@@ -374,13 +374,13 @@ during calls to run-tests.")
 in addition to *lift-standard-output*. It can be set to nil or to a pathname.")
 
 (defvar *lift-report-pathname* nil
-  "If bound, then a summary of test information will be written to it for
-later processing. It can be set to:
+  "If bound to a pathname or stream, then a summary of test information will
+be written to it for later processing. It can be set to:
 
 * `nil` - generate no output
 * pathname designator - send output to this pathname
 * `t` - send output to a pathname constructed from the name of the system 
-being tested.
+being tested (this only works if ASDF is being used to test the system).
 
 As an example of the last case, if LIFT is testing a system named ...
 ")
