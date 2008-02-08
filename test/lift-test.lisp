@@ -6,17 +6,6 @@ See file COPYING for license
 
 |#
 
-(defpackage #:lift-test 
-  (:use #:common-lisp #:lift)
-  (:import-from #:lift
-                #:failures
-                #:errors
-                #:tests-run
-                #:test-mode
-                #:test-interactive?
-                #:make-test-result
-                #:testsuite-test-count
-		#:*test-environment*))
 (in-package #:lift-test)
 
 (deftestsuite lift-test () ())
@@ -30,6 +19,9 @@ See file COPYING for license
 ;;; use run-tests or run-tests to run the regular test and then grovel
 ;;; over the returned test-result to make sure it contains what it is
 ;;; supposed to.
+;;;
+;;; Note that if we don't pass in :report-pathname nil, then we'll get a lot
+;;; of spurious extra report files...
 ;;; ---------------------------------------------------------------------------
 
 (deftestsuite lift-test-ensure (lift-test) ())
@@ -110,7 +102,8 @@ See file COPYING for license
   (setf *test-notepad* nil)
   (run-tests 
    :suite 'lift-test-setup-teardown-1
-   :result (make-test-result 'lift-test-setup-teardown-1 :multiple))
+   :result (make-test-result 'lift-test-setup-teardown-1 :multiple)
+   :report-pathname nil)
   (ensure-same (reverse *test-notepad*)
                '(1 test-1 :a 1 2 test-2 :b :a 1 2 3 test-3 :c :b :a)))
 
@@ -139,7 +132,8 @@ See file COPYING for license
   (setf *test-notepad* nil)
   (run-tests 
    :suite 'lift-test-setup-teardown-3
-   :result (make-test-result 'lift-test-setup-teardown-3 :multiple))
+   :result (make-test-result 'lift-test-setup-teardown-3 :multiple)
+   :report-pathname nil)
   (ensure-same (reverse *test-notepad*)
                '(1 2 3 test-3 :c :b :a)))
 
@@ -222,7 +216,8 @@ See file COPYING for license
 (addtest (test-single-setup)
   test-a-single-setup-2
   (setf *test-notepad* nil)
-  (run-tests :suite 'test-single-setup-child-a-1 :do-children? nil)
+  (run-tests :suite 'test-single-setup-child-a-1 :do-children? nil
+	     :report-pathname nil)
   (ensure-same *test-notepad* '(:a-1 :a :a-1 :a)))
 
 (addtest (test-single-setup)
@@ -230,13 +225,15 @@ See file COPYING for license
   (setf *test-notepad* nil)
   (run-tests :suite 'test-single-setup-child-a-1 
 	     :run-setup :once-per-suite
-	     :do-children? nil)
+	     :do-children? nil
+	     :report-pathname nil)
   (ensure-same *test-notepad* '(:a-1 :a :a-1 :a)))
 
 (addtest (test-single-setup)
   test-b-single-setup-2
   (setf *test-notepad* nil)
-  (run-tests :suite 'test-single-setup-child-b-1-ss :do-children? nil)
+  (run-tests :suite 'test-single-setup-child-b-1-ss :do-children? nil
+	     :report-pathname nil)
   (ensure-same *test-notepad* '(:b-1 :b)))
 
 ;;; ---------------------------------------------------------------------------
@@ -359,7 +356,8 @@ See file COPYING for license
 
 (addtest (test-inherited-functions)
   one
-  (let ((tr (run-tests :suite 'test-inherited-functions-helper)))
+  (let ((tr (run-tests :suite 'test-inherited-functions-helper
+		       :report-pathname nil)))
     (ensure-same (length (tests-run tr)) 4)
     (ensure-null (failures tr))
     (ensure-null (errors tr))))
@@ -385,6 +383,7 @@ See file COPYING for license
 
 (addtest (test-initialize-slots)
   slot-initform-evaluated-every-time
-  (let ((tr (run-tests :suite 'test-initialize-slots-helper)))
+  (let ((tr (run-tests :suite 'test-initialize-slots-helper
+		       :report-pathname nil)))
     (ensure-same (length (tests-run tr)) 2)
     (ensure-same *test-notepad* 2 :test '=)))
