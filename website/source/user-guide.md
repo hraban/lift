@@ -28,26 +28,25 @@ LIFT supports interactive testing so imagine that we type each of the following 
     (in-package #:common-lisp-user)
     (use-package :lift)
 
-First, we define an empty testsuite. [Deftestsuite][] is like defclass
+First, we define an empty testsuite. [deftestsuite][] is like defclass
 so here we define a testsuite with no super-testsuites and
 no slots.
     
     > (deftestsuite lift-examples-1 () ())
     ==> #<lift-examples-1: no tests defined>
 
-Add a test-case to our new suite. Since we don't a test name, 
+Add a test-case to our new suite. Since we don't specify a testsuite or a test name, 
 LIFT will add this to the most recently defined testsuite 
 and name it for us.
 
-    > (addtest (lift-examples-1)
-        (ensure-same (+ 1 1) 2))
+    > (addtest (ensure-same (+ 1 1) 2))
     ==> #<Test passed>
 
 Add another test using ensure-error
 Here we specify the testsuite and the name.
 
-    > (addtest (lift-examples-1)
-         div-by-zero
+    > (addtest (lift-examples-1)  ; the testsuite name
+         div-by-zero              ; the testcase name
        (ensure-error (let ((x 0)) (/ x))))
     ==> #<Test passed>
 
@@ -56,11 +55,15 @@ Though it works, [ensure-error][] is a bit heavy-handed in this case. We can use
 
     > (addtest (lift-examples-1)
         div-by-zero
-       (ensure-condition division-by-zero (let ((x 0)) (/ x))))
+       (ensure-condition division-by-zero 
+           (let ((x 0)) (/ x))))
+    ==> #<Test passed>
 
-Now, we can run all the defined tests.
-Unless you tell it otherwise, LIFT runs all the test-cases
-of the most recently touched testsuite. In this case, thats
+Notice that because we named the testcase `div-by-zero`, LIFT will replace the previous definition with this one. If you don't name your tests, LIFT cannot distinguish between correcting an already defined test and creating a new one.
+
+Now, let's us [run-tests][] to run all our tests.
+Unless you tell it otherwise, [run-tests][] runs all the test-cases
+of the most recently touched testsuite{footnote "By 'touched', I mean the last testsuite in which a testcase was run."}. Here, thats
 lift-example-1.
 
     > (run-tests)
@@ -75,7 +78,7 @@ Here is a test-case that fails because floating point math isn't exact.
        (ensure-same (+ 1.23 1.456) 2.686))
     ==> #<Test failed>
 
-Hmmm, what happened? Lift returns a [test-result][] object so we can look at it to understand what went wrong.
+Hmmm, what happened? Lift returns a [test-result][] object so we can look at it to understand what went wrong. Let's [describe][] it:
 
     > (describe *)
     Test Report for lift-examples-1: 1 test run, 1 Failure.
@@ -98,7 +101,7 @@ very efficient) version
        (< (abs (- a b)) 0.000001))
     ==> almost=
 
-Like run-tests, run-test runs the most recently touched test-case.
+Like `run-tests`, [run-test][] runs the most recently touched test-case.
 
     > (run-test)
     ==> #<lift-examples-1.lift-examples-1 passed>
@@ -275,18 +278,31 @@ The following macros can be used outside of LIFT where they will function very m
 
 ### Configuring LIFT
 
+Many of the variables below are used as the default values
+when calling [run-test][] or [run-tests][] or when interactively defining new tests and testsuites.
+
+#### Variables that control how LIFT runs tests
+
 {docs *test-ignore-warnings?* variable}
 {docs *test-break-on-errors?* variable}
-{docs *test-print-length* variable}
-{docs *test-print-level* variable}
-{docs *test-print-when-defined?* variable}
-{docs *test-evaluate-when-defined?* variable}
-{docs *test-describe-if-not-successful?* variable}
 {docs *test-maximum-time* variable}
 {docs *test-print-testsuite-names* variable}
 {docs *test-print-test-case-names* variable}
 {docs *lift-equality-test* variable}
 {docs *lift-debug-output* variable}
+{docs *lift-dribble-pathname* variable}
+{docs *lift-report-pathname* variable}
+
+#### Variables that change how LIFT displays information
+
+{docs *test-describe-if-not-successful?* variable}
+{docs *test-evaluate-when-defined?* variable}
+{docs *test-print-length* variable}
+{docs *test-print-level* variable}
+{docs *test-print-when-defined?* variable}
+{docs *test-show-expected-p* variable}
+{docs *test-show-details-p* variable}
+{docs *test-show-code-p* variable}
 
 ### Introspection
 
