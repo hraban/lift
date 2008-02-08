@@ -1484,13 +1484,14 @@ control over where in the test hierarchy the search begins."
      
 (defun list-tests (&key (include-cases? t) (start-at 'test-mixin) (stream t))
   "Lists all of the defined test classes from :start-at on down." 
-  (mapc (lambda (subclass-name)
-          (format stream "~&~s (~:d)" 
-                  subclass-name
-                  (length (testsuite-methods subclass-name)))
-          (when include-cases?
-            (loop for method-name in (testsuite-tests subclass-name) do
-                  (format stream "~&  ~a" method-name))))
+  (mapc (lambda (subclass)
+	  (let ((subclass-name (class-name subclass)))
+	    (format stream "~&~s (~:d)" 
+		    subclass-name
+		    (length (testsuite-methods subclass-name)))
+	    (when include-cases?
+	      (loop for method-name in (testsuite-tests subclass-name) do
+		   (format stream "~&  ~a" method-name)))))
         (testsuites start-at))
   (values))
 
