@@ -1646,21 +1646,14 @@ nor configuration file options were specified."))))))
         (handler-bind ((warning #'muffle-warning)       
 					; ignore warnings... 
                        (error 
-                        (lambda (cond)
+                        (lambda (condition)
                           (setf problem 
                                 (report-test-problem
-				 'test-error result suite name cond
-				 :backtrace (get-backtrace cond)))
+				 'test-error result suite name condition
+				 :backtrace (get-backtrace condition)))
                           (if *test-break-on-errors?*
-                            (invoke-debugger cond)
-                            (go :test-end))))
-		       #+(or)
-		       ;; FIXME - too much! should we catch serious-conditions?
-                       (t (lambda (cond)
-                            (setf problem 
-                                  (report-test-problem
-				   'test-error result suite name cond
-				   :backtrace (get-backtrace cond))))))
+                            (invoke-debugger condition)
+                            (go :test-end)))))
           (setf problem nil
 		(current-method suite) name)
           (start-test result suite name)
@@ -1677,10 +1670,10 @@ nor configuration file options were specified."))))))
 		 (check-for-surprises result suite name))
             (teardown-test suite)	    
             (end-test result suite name)))
-        (ensure-failed (cond) 
+        (ensure-failed (condition) 
 	  (setf problem 
 		(report-test-problem
-		 'test-failure result suite name cond)))
+		 'test-failure result suite name condition)))
         (retry-test () :report "Retry the test." 
                     (go :test-start)))
       :test-end))
