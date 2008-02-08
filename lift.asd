@@ -27,7 +27,7 @@
 		 (:file "config" 
 			:depends-on ("port" "lift"))
 		 (:file "reports" 
-			:depends-on ("port"))
+			:depends-on ("port" "lift"))
 		 #+Ignore
 		 (:file "prototypes"
 			:depends-on ("lift"))))
@@ -36,7 +36,7 @@
 		"website"
 		:components ((:module "source"
 				      :components 
-				      ((:static-file "index.lml"))))))
+				      ((:static-file "index.md"))))))
   
   :in-order-to ((test-op (load-op lift-test)))
   :depends-on ()
