@@ -1172,7 +1172,8 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
         (eval-when (:execute)
           (push ',return *test-is-being-executed?*))
 	;; remove previous methods (do this _before_ we define the class)
-	(remove-previous-definitions ',(def :testsuite-name))
+	(unless *test-is-being-compiled?*
+	  (remove-previous-definitions ',(def :testsuite-name)))
 	,(build-test-class)
 	(unwind-protect
 	     (let ((*test-is-being-defined?* t))
@@ -1368,6 +1369,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 		 (result nil)
 		 (profile nil))
   "Run a single testcase in a test suite. Will run the most recently defined or run testcase unless the name and suite arguments are used to override them."
+  (declare (ignore profile))
   (assert suite nil "Test suite could not be determined.")
   (assert name nil "Test name could not be determined.")
   (let* ((*test-break-on-errors?* break-on-errors?)
@@ -1507,6 +1509,7 @@ control over where in the test hierarchy the search begins."
 		  (dribble *lift-dribble-pathname*)
 		  (report-pathname t)
 		  (profile nil)
+		  (do-children? *test-do-children?*)
 		  result
 		  &allow-other-keys)
   "Run all of the tests in a suite. Arguments are :suite, :result,
@@ -2064,7 +2067,9 @@ nor configuration file options were specified."))))))
 	       (let* (,@(mapcar 
 			 (lambda (slot-name initform)
 			   `(,slot-name
-			     (or (getf initargs ,(intern slot-name :keyword))
+			     (or (getf initargs 
+				       ,(intern (symbol-name slot-name)
+						:keyword))
 				 ,initform)))
 			 slot-names initforms))
 		 (list ,@(mapcar (lambda (slot-name)
