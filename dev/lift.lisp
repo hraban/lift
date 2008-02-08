@@ -41,6 +41,9 @@
 	    *test-notepad*
 	    *lift-equality-test*
 	    *lift-debug-output*
+	    *test-show-expected-p*
+	    *test-show-details-p*
+	    *test-show-code-p*
           
 	    ;; Other
 	    ensure
@@ -389,7 +392,13 @@ to an output stream. It defaults to *standard-output*.")
 (defvar *lift-if-dribble-exists* :append
   "Specifies what to do to any existing file at *lift-dribble-pathname*. It 
 can be :supersede, :append, or :error.")
-  
+
+(defvar *test-show-expected-p* t)
+
+(defvar *test-show-details-p* t)
+
+(defvar *test-show-code-p* t)
+ 
 ;;; ---------------------------------------------------------------------------
 ;;; Error messages and warnings
 ;;; ---------------------------------------------------------------------------
@@ -1854,21 +1863,33 @@ nor configuration file options were specified.")))))
           (print-test-result-details stream tr))))))
 
 (defmethod describe-object ((result test-result) stream)
+  (describe-test-result result stream))
+
+(defmethod describe-test-result (result stream 
+				 &key
+				 (show-details-p *test-show-details-p*)
+				 (show-expected-p *test-show-expected-p*)
+				 (show-code-p *test-show-code-p*))
   (let* ((number-of-failures (length (failures result)))
-        (number-of-errors (length (errors result)))
-	(number-of-expected-errors (length (expected-errors result)))
-	(non-failure-failures
-	 (count-if 
-	  (lambda (failure) 
-	    (member (class-of (test-condition failure))
-		    (subclasses 'unexpected-success-failure :proper? nil)))
-	  (expected-failures result)))
-	(number-of-expected-failures (- (length (expected-failures result))
-					non-failure-failures)))	     
+	 (number-of-errors (length (errors result)))
+	 (number-of-expected-errors (length (expected-errors result)))
+	 (non-failure-failures
+	  (count-if 
+	   (lambda (failure) 
+	     (member (class-of (test-condition failure))
+		     (subclasses 'unexpected-success-failure :proper? nil)))
+	   (expected-failures result)))
+	 (number-of-expected-failures (- (length (expected-failures result))
+					 non-failure-failures)))	     
     (unless *test-is-being-defined?*
       (format stream "~&Test Report for ~A: ~D test~:P run" 
               (results-for result) (length (tests-run result))))
-    (let* ((*print-level* (get-test-print-level))
+    (flet ((show-details ()
+	     (when show-details-p
+	       (format stream "~%~%")             
+	       (print-test-result-details 
+		stream result show-expected-p show-code-p))))
+      (let* ((*print-level* (get-test-print-level))
            (*print-length* (get-test-print-length)))
       (cond ((or (failures result) (errors result)
 		 (expected-failures result) (expected-errors result))
@@ -1878,30 +1899,33 @@ nor configuration file options were specified.")))))
 		     non-failure-failures
                      number-of-errors
                      number-of-expected-errors)
-             (format stream "~%~%")             
-             (print-test-result-details stream result))
+	     (show-details))
 	    ((or (expected-failures result) (expected-errors result))
              (format stream ", all passed *~[~:;, ~:*~A Expected failure~:P~]~[~:;, ~:*~A Expected error~:P~])." 
                      number-of-expected-failures
                      number-of-expected-errors)
-             (format stream "~%~%")             
-             (print-test-result-details stream result))
+	     (show-details))
 	    (t
              (unless *test-is-being-defined?*
                (format stream ", all passed!")))))    
-    (values)))
+    (values))))
 
-(defun print-test-result-details (stream result)
-  (loop for report in (failures result) do
-       (print-test-problem "Failure: " report stream))  
+(defun print-test-result-details (stream result show-expected-p show-code-p)
   (loop for report in (errors result) do
-       (print-test-problem "ERROR  : " report stream))
-  (loop for report in (expected-failures result) do
-       (print-test-problem "Expected failure: " report stream))
-  (loop for report in (expected-errors result) do
-       (print-test-problem "Expected Error : " report stream)))
+       (print-test-problem "ERROR  : " report stream
+			   show-code-p))  
+  (loop for report in (failures result) do
+       (print-test-problem "Failure: " report stream 
+			   show-code-p))
+  (when show-expected-p
+    (loop for report in (expected-failures result) do
+	 (print-test-problem "Expected failure: " report stream
+			     show-code-p))
+    (loop for report in (expected-errors result) do
+	 (print-test-problem "Expected Error : " report stream
+			     show-code-p))))
 
-(defun print-test-problem (prefix report stream)
+(defun print-test-problem (prefix report stream show-code-p)
   (let* ((suite (testsuite report))
          (method (test-method report))
          (condition (test-condition report))
@@ -1913,8 +1937,9 @@ nor configuration file options were specified.")))))
 				(class-name (class-of suite))))))
       (when doc-string 
         (format stream "~&~A" doc-string)))
-    (setf code (with-output-to-string (out)
-		 (pprint code out)))
+    (when show-code-p
+      (setf code (with-output-to-string (out)
+		   (pprint code out))))
     (format stream "~&~<  ~@;~
                     ~@[Condition: ~<~@;~A~:>~]~
                     ~@[~&Code     : ~S~]~
