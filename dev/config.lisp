@@ -189,20 +189,24 @@
       (setf dest (unique-filename dest)))
     (with-standard-io-syntax 
       (let ((*print-readably* nil))
-	(handler-case 
-	    (cond
-	      ((or (streamp dest) (writable-directory-p dest))
-	       (format *debug-io* "~&Sending report (format ~s) to ~a" 
-		       format dest)
-	       (test-result-report
-		*test-result*
-		dest
-		format))
-	      (t
-	       (format *debug-io* "~&Unable to write report (format ~s) to ~a" 
-		       format dest)))
-	  (error (c)
-	    (format *debug-io*
-		    "Error ~a while generating report (format ~s) to ~a"
-		    c format dest)))))))
+	(handler-bind 
+	    ((error 
+	      (lambda (c)
+		(format *debug-io*
+			"Error ~a while generating report (format ~s) to ~a"
+			c format dest)
+		(format *debug-io*
+			"~%~%Backtrace~%~%~s" 
+			(get-backtrace c)))))
+	  (cond
+	    ((or (streamp dest) (writable-directory-p dest))
+	     (format *debug-io* "~&Sending report (format ~s) to ~a" 
+		     format dest)
+	     (test-result-report
+	      *test-result*
+	      dest
+	      format))
+	    (t
+	     (format *debug-io* "~&Unable to write report (format ~s) to ~a" 
+		     format dest))))))))
   
