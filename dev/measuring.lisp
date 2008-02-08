@@ -175,97 +175,29 @@ different reports
 		       (prof:disassemble-profile thing)))))))))
     (values-list results)))
 
-#| OLD
-;; integrate with LIFT
-
-(pushnew :measure *deftest-clauses*)
-
-(add-code-block
- :measure 1 :class-def
- (lambda () (def :measure)) 
- '((setf (def :measure) (cleanup-parsed-parameter value)))
- (lambda ()
-   (pushnew 'measured-test-mixin (def :superclasses))
-   nil))
-
-(defclass measured-test-mixin ()
-  ((total-conses :initform 0
-		 :accessor total-conses)
-   (total-seconds :initform 0
-		  :accessor total-seconds)))
-|#
-
-
-#|
-(defun test-sleep (period)	 
-  (print (get-universal-time))
-  (print
-   (mp:process-wait-with-timeout 
-    "wait-for-delay" period
-    (lambda ()
-      (sleep (1+ period)))))
-  (print (get-universal-time)))
-
-#+(or)
-(test-sleep 2)
-3392550276 
-nil 
-3392550281 
-
-(defun test-gates (period)	 
-  (print (get-universal-time))
-  (let ((g (mp:make-gate nil)))
-    (print
-     (mp:process-wait-with-timeout 
-      "wait-for-delay" period
-      (lambda (gate)
-	(mp:gate-open-p gate))
-      g)))
-  (print (get-universal-time)))
-
-#+(or)
-(test-gates 2)
-3392550287 
-nil 
-3392550289 
-
-
-|#
-
-#|
-
-(princ "ls" (shell-session-input-stream *ss*))
-(terpri (shell-session-input-stream *ss*))
-(force-output (shell-session-input-stream *ss*))
-
-(read-shell-session-stream *ss* :output)
-
-(shell-session-command *ss* "ls")
-
-(shell-session-command *ss* "ps u")
-
-(end-shell-session *ss*)
-
-(compile 'read-from-stream-no-hang)
-
-(with-input-from-string (s "hello there")
-  (read-from-stream-no-hang s))
-
-(read-shell-session-stream *ss* :output)
-
-(setf *ss* (make-shell-session))
-
-(count-repetitions-in-period 
- (lambda ()
-   (shell-session-command *ss* "ps u")) 
- 2.0)
-
-(count-repetitions-in-period 
- (lambda ()
-   (selected-metatilities::os-processes)) 
- 2.0)
-
-|#
-
-#+(or)
-(test-sleep-b 2)
+(defmacro while-counting-repetitions ((period) &body body)
+  "Returns the count of the number of times `body` was executed during 
+`period` seconds."
+  (let ((gevent-count (gensym "count")))
+    `(let ((,gevent-count 0))
+       (declare (type fixnum ,gevent-count))
+       (handler-case
+	   (with-timeout (,period) 
+	     (loop  
+		(progn ,@body)
+		(incf ,gevent-count)))
+	 (timeout-error (c)
+	   (declare (ignore c))
+	   ,gevent-count)))))
+  
+(defun count-repetitions (fn period &rest args)
+  (declare (dynamic-extent args))
+  (let ((event-count 0))
+    (handler-case
+	(with-timeout (period) 
+	  (loop  
+	     (apply #'funcall fn args)
+	     (incf event-count)))
+      (timeout-error (c)
+	(declare (ignore c))
+	event-count))))
