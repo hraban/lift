@@ -62,7 +62,7 @@
   (asdf:system-relative-pathname 
    'lift "benchmark-data/benchmarks.log"))
 
-(defvar *collect-call-counts* nil)
+(defvar *count-calls-p* nil)
 
 (defvar *additional-markers* nil)
 
@@ -70,7 +70,7 @@
 
 (defmacro with-profile-report 
     ((name style &key (log-name *benchmark-log-path* ln-supplied?)
-	   (call-counts-p *collect-call-counts* ccp-supplied?)
+	   (count-calls-p *count-calls-p* ccp-supplied?)
 	   (timeout nil timeout-supplied?))
      &body body)
   `(with-profile-report-fn 
@@ -78,7 +78,7 @@
        (lambda ()
 	 (progn ,@body))
        ,@(when ccp-supplied? 
-	       `(:call-counts-p ,call-counts-p))
+	       `(:count-calls-p ,count-calls-p))
        ,@(when ln-supplied?
 	       `(:log-name ,log-name))
        ,@(when timeout-supplied?
@@ -101,10 +101,15 @@
 		 'prof::samples))
     (:sampling (warn "Can't determine count while sampling"))))
 
+#|
+(prof:with-profiling ...
+different reports
+|#
+
 #+allegro
 (defun with-profile-report-fn 
     (name style fn &key (log-name *benchmark-log-path*)
-			       (call-counts-p *collect-call-counts*)
+			       (count-calls-p *count-calls-p*)
 			       (timeout nil))
   (assert (member style '(:time :space :count-only)))
   (cancel-current-profile :force? t)
@@ -115,7 +120,7 @@
 	     (with-timeout (timeout)
 	       (setf results
 		     (multiple-value-list
-		      (prof:with-profiling (:type style :count call-counts-p)
+		      (prof:with-profiling (:type style :count count-calls-p)
 			(measure seconds conses (funcall fn))))))
 	   (timeout-error 
 	       (c)
@@ -159,7 +164,7 @@
 			(eq :space style))
 		(prof:show-flat-profile :stream output)
 		(prof:show-call-graph :stream output)
-		(when call-counts-p
+		(when count-calls-p
 		  (format output "~%~%Call counts~%")
 		  (let ((*standard-output* output))
 		    (prof:show-call-counts))))
