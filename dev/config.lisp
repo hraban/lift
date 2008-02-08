@@ -165,6 +165,14 @@
 				     args)
   (setf *profiling-threshold* (first args)))
 
+(defmethod handle-config-preference ((name (eql :count-calls-p))
+				     args)
+  (setf *count-calls-p* (first args)))
+
+(defmethod handle-config-preference ((name (eql :log-pathname))
+				     args)
+  (setf *lift-report-pathname* (first args)))
+
 (defmethod handle-config-preference ((name (eql :build-report))
 				     args)
   (declare (ignore args))
