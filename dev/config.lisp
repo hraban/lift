@@ -10,20 +10,34 @@
       (let ((*current-asdf-system-name* (asdf:component-name c)))
 	(call-next-method)))))
 
-(defun lift-relative-pathname (pathname)
+(defun lift-relative-pathname (pathname &optional (errorp nil))
   "Merges pathname with either the path to the currently loading system
 \(if there is one\) or the *default-pathname-defaults*."
-  (let ((srp (and *current-asdf-system-name*
-		  (find-package :asdf)
-		  (intern (symbol-name 'system-relative-pathname) :asdf))))
+  (let* ((asdf-package (find-package :asdf))
+	 (srp-symbol (and asdf-package
+			  (find-symbol (symbol-name 'system-relative-pathname) 
+				       asdf-package)))
+	 (srp (and *current-asdf-system-name* srp-symbol)))
     (labels ((try-it (path)
-	       (merge-pathnames pathname path)))
+	       (let ((pathname (merge-pathnames pathname path)))
+		 (if errorp (and pathname (probe-file pathname)) pathname))))
       (or (and srp (try-it (funcall srp *current-asdf-system-name* "")))
-	  (try-it *default-pathname-defaults*)))))
+	  (try-it *default-pathname-defaults*)
+	  (not errorp)
+	  (and (not asdf-package)
+	       (error "Unable to use :generic configuration option because ASDF is not loaded."))
+	  (and (not srp-symbol)
+	       (error "Unable to use :generic configuration option because asdf:system-relative-pathname is not function bound (maybe try updating ASDF?)"))
+	  (and (not *current-asdf-system-name*)
+	       (error "Unable to use :generic configuration option because because the current system cannot be determined. Are you using asdf:test-op?"))))))
 
-(defun find-generic-test-configuration ()
-  (or (probe-file (lift-relative-pathname "lift-local.config"))
-      (probe-file (lift-relative-pathname "lift-standard.config"))))
+(defun find-generic-test-configuration (&optional (errorp nil))
+  (flet ((try-it (path)
+	   (and path (probe-file path))))
+    (or (try-it (lift-relative-pathname "lift-local.config" errorp))
+	(try-it (lift-relative-pathname "lift-standard.config" errorp))
+	(and errorp
+	     (error "Unable to use :generic configuration file neither lift-local.config nor lift-standard.config can be found.")))))
 
 (defun report-summary-pathname ()
   (unique-filename (generate-report-summary-pathname)))
@@ -37,8 +51,7 @@
 (defun run-tests-from-file (path)
   (let ((real-path (cond ((eq path :generic)
 			  (setf path 
-				(or (find-generic-test-configuration)
-				    (error "Unable to use :generic configuration option either because ASDF is not loaded or because asdf:system-relative-pathname is not bound (maybe try updating?) or because the current system cannot be determined."))))
+				(find-generic-test-configuration t)))
 			 (t
 			  (probe-file path)))))
     (unless real-path
@@ -72,6 +85,7 @@
 				  *error-output* 
 				  "Error while running ~a from ~a: ~a"
 				  form path c)
+			     (print (get-backtrace c))
 			     (invoke-debugger c))))
 	   (destructuring-bind
 		 (name &rest args)
