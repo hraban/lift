@@ -515,63 +515,6 @@ run-test
 	 (summarize-single-test format suite name data :stream stream))
     (format stream "~&\)")
     (format stream "~&\)")))
-  
-(defmethod summarize-single-test :around
-    (format suite-name test-case-name data &key stream)
-  (let* ((closep nil)
-	 (stream (etypecase stream 
-		   (stream stream)
-		   ((or pathname string)
-		    (setf closep t)
-		    (open stream 
-			  :if-does-not-exist :create
-			  :if-exists :append
-			  :direction :output)))))
-    (unwind-protect
-	 (call-next-method format suite-name test-case-name data :stream stream)
-      (when closep
-	(close stream)))))
-
-(defmethod summarize-single-test 
-    ((format (eql :save)) suite-name test-case-name data
-     &key (stream *standard-output*))
-  (labels ((out (key value)
-	     (when value
-	       (format stream "~&\(~s ~s\)" key value)))
-	   (write-datum (name &key (source data))
-	     (let* ((key (intern (symbol-name name) :keyword))
-		    (value (getf source key)))
-	       (out key value)))
-	   (prop (name)
-	     (write-datum name :source (getf data :properties))))
-    (format stream "~&\(~%")
-    (format stream "~&\(:suite ~a\)" suite-name)	     
-    (format stream "~&\(:name ~a\)" test-case-name)
-    ;; FIXME - we could make these extensible
-    (write-datum 'start-time-universal)
-    (write-datum 'end-time-universal)
-    (write-datum 'result)
-    (write-datum 'seconds)
-    (write-datum 'conses)
-    (loop for stuff in (getf data :properties) by #'cddr do
-	 (prop stuff))
-    (cond ((getf data :problem)
-	   (let ((problem (getf data :problem)))
-	     (out :problem-kind (test-problem-kind problem))
-	     (out :problem-step (test-step problem))
-	     (out :problem-condition 
-		  (let ((*print-readably* nil))
-		    (format nil "~s" (test-condition problem))))
-	     (out :problem-condition-description 
-		  (format nil "~a" (test-condition problem)))
-	     (when (slot-exists-p problem 'backtrace)
-	       (out :problem-backtrace (backtrace problem)))))
-	  (t
-	   (out :result t)))
-    (format stream "\)~%")))
-
-#+(or)
-(compile 'summarize-test-result)
 
 #+(or)
 (progn
@@ -681,3 +624,128 @@ run-test
 (progn
   (setf (test-result-property *test-result* :if-exists) :supersede)
   (test-result-report *test-result*  #p"/tmp/report.n3" :turtle))
+
+;;;;
+
+(defmacro append-to-report ((var output-to) &body body)
+  (let ((gclosep (gensym "closep"))
+	(gstream (gensym "stream")))
+    `(let* ((,gclosep nil)
+	    (,gstream ,output-to)
+	    (,var (etypecase ,gstream 
+		    (stream ,gstream)
+		    ((or pathname string)
+		     (setf ,gclosep t)
+		     (open ,gstream 
+			   :if-does-not-exist :create
+			   :if-exists :append
+			   :direction :output)))))
+       (unwind-protect
+	    (labels ((out (key value)
+		       (when value
+			 (let ((*print-readably* nil))
+			   (format out "~&\(~s ~s\)" key value)))))
+	      (declare (ignorable (function out)))
+	      (progn ,@body))
+	 (when ,gclosep
+	   (close ,var))))))
+
+(defvar *lift-report-header-hook* nil)
+
+(defvar *lift-report-footer-hook* nil)
+
+(defvar *lift-report-detail-hook* nil)
+
+(defun write-report-header (stream result args)
+  (append-to-report (out stream)
+    (format out "~&\(")
+    (out :results-for (results-for result))
+    (out :arguments args)
+    (out :features (copy-list *features*))
+    (out :datetime (get-universal-time))
+    (loop for hook in *lift-report-header-hook* do
+	 (funcall hook out result))
+    (format out "~&\)~%")))
+
+(defun write-report-footer (stream result)
+  (append-to-report (out stream)
+    (format out "~&\(")
+    (out :test-case-count (length (tests-run result)))
+    (out :test-suite-count (length (suites-run result)))
+    (out :failure-count (length (failures result)))
+    (out :error-count (length (errors result)))
+    (out :expected-failure-count (length (expected-failures result)))
+    (out :expected-error-count (length (expected-errors result)))
+    (out :start-time-universal (start-time-universal result))
+    (when (slot-boundp result 'end-time-universal)
+      (out :end-time-universal (end-time-universal result)))
+    (out :testsuite-summary (collect-testsuite-summary result))
+    (loop for hook in *lift-report-footer-hook* do
+	 (funcall hook out result))
+    (format out "~&\)~%")))
+
+(defmethod summarize-single-test :around
+    (format suite-name test-case-name data &key stream)
+  (append-to-report (out stream)
+    (call-next-method format suite-name test-case-name data :stream out)))
+
+(defmethod summarize-single-test 
+    ((format (eql :save)) suite-name test-case-name data
+     &key (stream *standard-output*))
+  (labels ((out (key value)
+	     (when value
+	       (format stream "~&\(~s ~s\)" key value)))
+	   (write-datum (name &key (source data))
+	     (let* ((key (intern (symbol-name name) :keyword))
+		    (value (getf source key)))
+	       (out key value)))
+	   (prop (name)
+	     (write-datum name :source (getf data :properties))))
+    (format stream "~&\(~%")
+    (format stream "~&\(:suite ~a\)" suite-name)	     
+    (format stream "~&\(:name ~a\)" test-case-name)
+    ;; FIXME - we could make these extensible
+    (write-datum 'start-time-universal)
+    (write-datum 'end-time-universal)
+    (write-datum 'result)
+    (write-datum 'seconds)
+    (write-datum 'conses)
+    (loop for stuff in (getf data :properties) by #'cddr do
+	 (prop stuff))
+    (cond ((getf data :problem)
+	   (let ((problem (getf data :problem)))
+	     (out :problem-kind (test-problem-kind problem))
+	     (out :problem-step (test-step problem))
+	     (out :problem-condition 
+		  (let ((*print-readably* nil))
+		    (format nil "~s" (test-condition problem))))
+	     (out :problem-condition-description 
+		  (format nil "~a" (test-condition problem)))
+	     (when (slot-exists-p problem 'backtrace)
+	       (out :problem-backtrace (backtrace problem)))))
+	  (t
+	   (out :result t)))
+    (loop for hook in *lift-report-detail-hook* do
+	 (funcall hook stream data))
+    (format stream "\)~%")))
+
+;;;;
+
+(defun collect-testsuite-summary (result)
+  (let ((seen (make-hash-table)))
+    (flet ((seenp (suite)
+	     (gethash suite seen))
+	   (see (suite)
+	     (setf (gethash suite seen) t)))
+      (declare (ignore (function see) (function seenp)))
+      (loop for suite in (suites-run result) collect
+	   (list suite
+		 :testcases (testsuite-tests suite) 
+		 :direct-subsuites (mapcar 
+				    (lambda (class)
+				      (class-name class))
+				    (direct-subclasses suite)))))))
+
+#+(or)
+(collect-testsuite-summary r)
+

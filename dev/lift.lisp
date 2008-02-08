@@ -1511,54 +1511,62 @@ control over where in the test hierarchy the search begins."
 		  &allow-other-keys)
   "Run all of the tests in a suite. Arguments are :suite, :result,
 :do-children? and :break-on-errors?" 
-  (remf args :suite)
-  (remf args :break-on-errors?)
-  (remf args :run-setup)
-  (remf args :dribble)
-  (remf args :config)
-  (let ((result (or result
-		    (apply #'make-test-result
-			   (or suite config) :multiple args)))
-	(*lift-report-pathname*
-	 (cond ((null report-pathname) nil)
-	       ((eq report-pathname t)
-		(report-summary-pathname)))))
-    (when *lift-report-pathname*
-      (ensure-directories-exist *lift-report-pathname*))
+  (let ((args-copy (copy-list args)))
+    (remf args :suite)
+    (remf args :break-on-errors?)
+    (remf args :run-setup)
+    (remf args :dribble)
+    (remf args :config)
+    (remf args :report-pathname)
+    (remf args :do-children?)
     (remf args :tests-to-skip)
-    (cond ((and suite config)
-	   (error "Specify either configuration file or test suite 
+    (let* ((result (or result
+		       (apply #'make-test-result
+			      (or suite config) :multiple args)))
+	   (*lift-report-pathname*
+	    (cond ((null report-pathname) nil)
+		  ((eq report-pathname t)
+		   (report-summary-pathname))))
+	   (*test-do-children?* do-children?)
+	   (report-pathname *lift-report-pathname*))
+      (when report-pathname
+	(ensure-directories-exist report-pathname)
+	(write-report-header report-pathname result args-copy))
+      (cond ((and suite config)
+	     (error "Specify either configuration file or test suite 
 but not both."))
-	  (config
-	   (run-tests-from-file config))
-	  ((or suite (setf suite *current-suite-class-name*))
-	   (let* ((*test-break-on-errors?* break-on-errors?)
-		  (dribble-stream
-		   (when dribble
-		     (open dribble
-			   :direction :output
-			   :if-does-not-exist :create
-			   :if-exists *lift-if-dribble-exists*)))
-		  (*standard-output* (maybe-add-dribble 
-				      *lift-standard-output* dribble-stream))
-		  (*error-output* (maybe-add-dribble 
-				   *error-output* dribble-stream))
-		  (*debug-io* (maybe-add-dribble 
-			       *debug-io* dribble-stream)))
-	     (unwind-protect
-		  (dolist (name (if (consp suite) suite (list suite)))
-		    (setf *current-suite-class-name* name)
-		    (apply #'run-tests-internal name 
-			   :result result :profile profile args))
-	       ;; cleanup
-	       (when dribble-stream 
-		 (close dribble-stream)))
-	     ;; FIXME -- ugh!
-	     (setf (tests-run result) (reverse (tests-run result)))
-	     (values result)))
-	  (t
-	   (error "There is not a current test suite and neither suite 
-nor configuration file options were specified.")))))
+	    (config
+	     (run-tests-from-file config))
+	    ((or suite (setf suite *current-suite-class-name*))
+	     (let* ((*test-break-on-errors?* break-on-errors?)
+		    (dribble-stream
+		     (when dribble
+		       (open dribble
+			     :direction :output
+			     :if-does-not-exist :create
+			     :if-exists *lift-if-dribble-exists*)))
+		    (*standard-output* (maybe-add-dribble 
+					*lift-standard-output* dribble-stream))
+		    (*error-output* (maybe-add-dribble 
+				     *error-output* dribble-stream))
+		    (*debug-io* (maybe-add-dribble 
+				 *debug-io* dribble-stream)))
+	       (unwind-protect
+		    (dolist (name (if (consp suite) suite (list suite)))
+		      (setf *current-suite-class-name* name)
+		      (apply #'run-tests-internal name 
+			     :result result :profile profile args))
+		 ;; cleanup
+		 (when dribble-stream 
+		   (close dribble-stream)))
+	       ;; FIXME -- ugh!
+	       (setf (tests-run result) (reverse (tests-run result)))
+	       (when report-pathname
+		 (write-report-footer report-pathname result))
+	       (values result)))
+	    (t
+	     (error "There is not a current test suite and neither suite 
+nor configuration file options were specified."))))))
 
 (defun maybe-add-dribble (stream dribble-stream)
   (if dribble-stream
@@ -1864,7 +1872,7 @@ nor configuration file options were specified.")))))
         ;; successful. Optimistic little buggers, huh?
         (when (and (not complete-success?) *test-describe-if-not-successful?*)
           (format stream "~%") 
-          (print-test-result-details stream tr))))))
+          (print-test-result-details stream tr t t))))))
 
 (defmethod describe-object ((result test-result) stream)
   (describe-test-result result stream))

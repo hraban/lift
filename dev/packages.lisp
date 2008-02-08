@@ -17,7 +17,13 @@
        #:class-precedence-list)
       (:export
        #:*benchmark-log-path*
-       #:with-profile-report))))
+       #:*lift-report-detail-hook*
+       #:*lift-report-header-hook*
+       #:*lift-report-footer-hook*
+       #:with-profile-report
+       #:describe-test-result
+       #:count-repetitions
+       #:while-counting-repetitions))))
 
 (unless (and (find-package :asdf)
 	     (find-symbol (symbol-name 'system-relative-pathname) :asdf)
