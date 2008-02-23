@@ -387,3 +387,42 @@ See file COPYING for license
 		       :report-pathname nil)))
     (ensure-same (length (tests-run tr)) 2)
     (ensure-same *test-notepad* 2 :test '=)))
+
+;;;;;
+;;; errors during tests are reported in the test result
+
+(defun cause-an-error ()
+  (error "this is an error"))
+
+(deftestsuite test-error-catching ()
+  ())
+
+(deftestsuite test-error-catching-helper-slot-init ()
+  ((x (cause-an-error))))
+
+(addtest (test-error-catching-helper-slot-init)
+  one
+  (ensure t))
+
+(addtest (test-error-catching)
+  helper-slots
+  (let ((result (run-test :suite 'test-error-catching-helper-slots
+			  :name 'one)))
+    (ensure-same 1 (length (tests-run result)))
+    (ensure-same 1 (length (errors result)))))
+
+(deftestsuite test-error-catching-helper-body ()
+  ())
+
+(addtest (test-error-catching-helper-body)
+  one
+  (cause-an-error))
+
+(addtest (test-error-catching)
+  helper-body
+  (let ((result (run-test :suite 'test-error-catching-helper-body
+			  :name 'one)))
+    (ensure-same 1 (length (tests-run result)))
+    (ensure-same 1 (length (errors result)))))
+
+
