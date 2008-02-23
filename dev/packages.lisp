@@ -23,7 +23,8 @@
        #:with-profile-report
        #:describe-test-result
        #:count-repetitions
-       #:while-counting-repetitions))))
+       #:while-counting-repetitions
+       #:with-timeout))))
 
 (unless (and (find-package :asdf)
 	     (find-symbol (symbol-name 'system-relative-pathname) :asdf)
