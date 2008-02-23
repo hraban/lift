@@ -1393,6 +1393,40 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
     (apply #'make-instance (find-testsuite suite) 
 	   (nreverse make-instance-args))))
 
+(defmethod do-testing ((suite test-mixin) result fn)
+  (testsuite-setup suite result)
+  (let ((*lift-equality-test* (equality-test suite)))
+    (unwind-protect
+	 (do ()
+	     ((not (more-prototypes-p suite)) result)
+	   (tagbody 
+	    :test-start
+	      (restart-case
+		  (handler-bind ((warning #'muffle-warning)       
+					; ignore warnings... 
+				 (error 
+				  (lambda (condition)
+				    (report-test-problem
+				     'test-error result suite
+				     *current-case-method-name* condition
+				     :backtrace (get-backtrace condition))
+				    (if *test-break-on-errors?*
+					(invoke-debugger condition)
+					(go :test-end)))))
+		    (initialize-test suite) 
+		    (funcall fn))
+		(ensure-failed (condition) 
+		  (report-test-problem
+		   'test-failure result suite 
+		   *current-case-method-name* condition))
+		(retry-test () :report "Retry the test." 
+			    (go :test-start)))
+	    :test-end)))
+    ;; cleanup
+    (testsuite-teardown suite result))
+  (values result))
+
+#+(or)
 (defmethod do-testing ((testsuite test-mixin) result fn)
   (unwind-protect
        (progn
@@ -1640,9 +1674,35 @@ nor configuration file options were specified."))))))
   (when (and *test-print-test-case-names*
 	     (eq (test-mode result) :multiple))
     (print-lift-message "~&  run: ~a" name))
-  (let ((problem nil))
-    ;;??
-    (declare (ignorable problem))
+  (let ((*current-case-method-name* name))
+    (setf (current-method suite) name)
+    (start-test result suite name)
+    (setup-test suite)
+    (unwind-protect
+	 (let ((result nil))
+	   (declare (ignorable result))
+	   (setf (current-step suite) :testing
+		 result
+		 (measure
+		     (getf (test-data suite) :seconds)
+		     (getf (test-data suite) :conses)
+		   (lift-test suite name)))
+	   (check-for-surprises result suite name))
+      (teardown-test suite)	    
+      (end-test result suite name))
+    (setf (third (first (tests-run result))) (test-data suite))
+    (when *lift-report-pathname*
+      (let ((current (first (tests-run result))))
+	(summarize-single-test  
+	 :save (first current) (second current) (third current)
+	 :stream *lift-report-pathname*)))
+    (setf *test-result* result)))
+
+#+(or)
+(defmethod run-test-internal ((suite test-mixin) (name symbol) result) 
+  (when (and *test-print-test-case-names*
+	     (eq (test-mode result) :multiple))
+    (print-lift-message "~&  run: ~a" name))
     (tagbody 
       :test-start
       (restart-case
@@ -1650,15 +1710,13 @@ nor configuration file options were specified."))))))
 					; ignore warnings... 
                        (error 
                         (lambda (condition)
-                          (setf problem 
                                 (report-test-problem
 				 'test-error result suite name condition
-				 :backtrace (get-backtrace condition)))
+			    :backtrace (get-backtrace condition))
                           (if *test-break-on-errors?*
                             (invoke-debugger condition)
                             (go :test-end)))))
-          (setf problem nil
-		(current-method suite) name)
+	   (setf (current-method suite) name)
           (start-test result suite name)
           (setup-test suite)
           (unwind-protect
@@ -1674,12 +1732,11 @@ nor configuration file options were specified."))))))
             (teardown-test suite)	    
             (end-test result suite name)))
         (ensure-failed (condition) 
-	  (setf problem 
 		(report-test-problem
-		 'test-failure result suite name condition)))
+	  'test-failure result suite name condition))
         (retry-test () :report "Retry the test." 
                     (go :test-start)))
-      :test-end))
+   :test-end)
   (setf (third (first (tests-run result))) (test-data suite))
   (when *lift-report-pathname*
     (let ((current (first (tests-run result))))
