@@ -1219,7 +1219,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 				  `(addtest (,(def :testsuite-name)) 
 				     ,@test))
 			   (setf *testsuite-test-count* nil))))
-	       ,(if *test-evaluate-when-defined?* 
+	       ,(if (and test-list *test-evaluate-when-defined?*)
 		    `(unless (or *test-is-being-compiled?*
 				 *test-is-being-loaded?*)
 		       (let ((*test-break-on-errors?* *test-break-on-errors?*))
