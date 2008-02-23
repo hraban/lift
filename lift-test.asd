@@ -20,7 +20,7 @@
 			     (:file "equality-tests")
 			     (:file "finding-tests")
 			     (:file "order-of-operations")
-			     #+(or)
+				     #+(or)
 			     (:file "test-prototypes"))))  
   :depends-on (:lift))
 
