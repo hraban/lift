@@ -1207,7 +1207,12 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
         (eval-when (:execute)
           (push ',return *test-is-being-executed?*))
 	;; remove previous methods (do this _before_ we define the class)
-	(unless *test-is-being-compiled?*
+	(unless (or *test-is-being-compiled?*
+		    *test-is-being-loaded?*)
+	  #+(or)
+	  (print (list :cle *test-is-being-compiled?* 
+		       *test-is-being-loaded?*
+		       *test-is-being-loaded?*))
 	  (remove-previous-definitions ',(def :testsuite-name)))
 	,(build-test-class)
 	(unwind-protect
