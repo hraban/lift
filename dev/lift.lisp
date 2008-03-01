@@ -749,8 +749,6 @@ error, then ensure-error will generate a test failure."
    (current-step :initform :created :accessor current-step)
    (current-method :initform nil :accessor current-method)
    (save-equality-test :initform nil  :reader save-equality-test)
-   (equality-test :initform 'equal :initarg :equality-test 
-		  :reader equality-test)
    (log-file :initform nil :initarg :log-file :reader log-file)
    (test-data :initform nil :accessor test-data)
    (expected-failure-p :initform nil :initarg :expected-failure-p
@@ -768,6 +766,9 @@ error, then ensure-error will generate a test failure."
   (:documentation "A test suite")
   (:default-initargs
     :run-setup :once-per-test-case))
+
+(defmethod equality-test ((suite test-mixin))
+  #'equal)
 
 (defclass test-result ()
   ((results-for :initform nil 
@@ -1074,11 +1075,10 @@ the thing being defined.")
  nil)
 
 (add-code-block
- :equality-test 0 :class-def
- nil 
- '((push (first value) (def :default-initargs))
-   (push :equality-test (def :default-initargs)))
- nil)
+ :equality-test 0 :methods
+ (lambda () (def :equality-test))
+ '((setf (def :equality-test) (cleanup-parsed-parameter value)))
+ 'build-test-equality-test)
 
 (add-code-block
  :log-file 0 :class-def
@@ -2194,6 +2194,13 @@ nor configuration file options were specified."))))))
 			 ,@body)
 		      `(progn ,@body))))))
 	(def :functions))))
+
+(defun build-test-equality-test ()
+  (let ((test-name (def :testsuite-name))
+        (equality-test (def :equality-test)))
+    `(progn
+       (defmethod equality-test ((testsuite ,test-name))
+	 ,equality-test))))
 
 (defun build-test-teardown-method ()
   (let ((test-name (def :testsuite-name))
