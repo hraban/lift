@@ -450,12 +450,7 @@ can be :supersede, :append, or :error.")
                                     :initarg :testsuite-name))
   (:report (lambda (c s)
              (format s "Test class ~A not defined before it was used."
-                     (test-class-name c)))))
-
-(defun build-lift-error-message (context message &rest arguments)
-  (format nil "~A: ~A" 
-          context
-          (apply #'format nil message arguments)))
+                     (testsuite-name c)))))
 
 (define-condition test-case-not-defined (lift-compile-error)
                   ((testsuite-name :reader testsuite-name
@@ -527,6 +522,44 @@ can be :supersede, :append, or :error.")
              (format s "Ensure-same: ~S is not ~S to ~S~@[ (~a)~]"
                      (first-value c) (test c) (second-value c)
 		     (message c)))))
+
+(define-condition ensure-cases-failure (test-condition)
+  ((total :initarg :total :initform 0)
+   (problems :initarg :problems :initform nil))
+  (:report (lambda (condition stream)
+	     (format stream "Ensure-cases: ~d out of ~d cases failed. Failing cases are: ~{~%  ~{~s (~a)~}~^, ~}" 
+		     (length (slot-value condition 'problems))
+		     (slot-value condition 'total)
+		     (slot-value condition 'problems)))))
+
+(define-condition unexpected-success-failure (test-condition)
+  ((expected :reader expected :initarg :expected)
+   (expected-more :reader expected-more :initarg :expected-more))
+  (:report (lambda (c s)
+	     (format s "Test succeeded but we expected ~s (~s)"
+		     (expected c)
+		     (expected-more c)))))
+
+(defun build-lift-error-message (context message &rest arguments)
+  (format nil "~A: ~A" 
+          context
+          (apply #'format nil message arguments)))
+
+(defun signal-lift-error (context message &rest arguments)
+  (let ((c (make-condition  
+            'lift-compile-error
+            :lift-message (apply #'build-lift-error-message
+				 context message arguments))))
+    (unless (signal c)
+      (error c))))
+
+(defun report-lift-error (context message &rest arguments)
+  (format *debug-io* "~&~A."
+          (apply #'build-lift-error-message context message arguments))
+  (values))
+
+(defun lift-report-condition (c)
+  (format *debug-io* "~&~A." c))
 
 (defmacro ensure (predicate &key report arguments)
   "If ensure's `predicate` evaluates to false, then it will generate a 
@@ -630,7 +663,8 @@ error, then ensure-error will generate a test failure."
     `(block ,block
        (loop for value in (multiple-value-list ,form)
 	  for other-value in (multiple-value-list ,values) do
-	  (unless (funcall ,(if test-specified-p (list 'quote test) '*lift-equality-test*)
+	  (unless (funcall ,(if test-specified-p (list 'quote test) 
+				'*lift-equality-test*)
 			   value other-value)
 	    (maybe-raise-not-same-condition 
 	     value other-value
