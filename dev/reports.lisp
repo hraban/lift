@@ -60,9 +60,8 @@ do-testing (suite)
     <fn> (= testsuite-run)
   testsuite-teardown *
 
-testsuite-run
-  foreach method in suite, run-test-internal
-  if children, foreach direct-subclass, run-tests-internal
+run-tests
+  run-test-internal
 
 run-test-internal
   start-test - push, name, value onto test-placeholder *
@@ -71,6 +70,10 @@ run-test-internal
   teardown-test *
   end-test - setf :end-time *
   (add test-data to tests-run of result)
+
+testsuite-run
+  foreach method in suite, run-test-internal
+  if children, foreach direct-subclass, run-tests-internal
 
 run-test 
   do-testing with run-test-internal
