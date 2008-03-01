@@ -25,6 +25,7 @@ See file COPYING for license
 ;;; ---------------------------------------------------------------------------
 
 (deftestsuite lift-test-ensure (lift-test) ())
+
 (deftestsuite lift-test-ensure-helper () ())
 
 (addtest (lift-test-ensure-helper)
@@ -329,7 +330,7 @@ See file COPYING for license
   (run-test :suite 'dynamics-before-setup-helper
 	    :name 'test-1)
   (ensure-same (reverse *test-notepad*)
-	       '(:dynamics :slot :setup :test)))
+	       '(:slot :dynamics :setup :test)))
 
 
 ;;;;;
@@ -394,35 +395,256 @@ See file COPYING for license
 (defun cause-an-error ()
   (error "this is an error"))
 
-(deftestsuite test-error-catching ()
+(deftestsuite test-error-catching (lift-test)
   ())
 
 (deftestsuite test-error-catching-helper-slot-init ()
   ((x (cause-an-error))))
 
 (addtest (test-error-catching-helper-slot-init)
-  one
+  slot-init
   (ensure t))
 
 (addtest (test-error-catching)
-  helper-slots
-  (let ((result (run-test :suite 'test-error-catching-helper-slots
-			  :name 'one)))
-    (ensure-same 1 (length (tests-run result)))
+  helper-slot-init
+  (let ((result (run-test :suite 'test-error-catching-helper-slot-init
+			  :name 'slot-init)))
+    (ensure-same 1 (length (lift::suites-run result)))
     (ensure-same 1 (length (errors result)))))
+
+;;;
 
 (deftestsuite test-error-catching-helper-body ()
   ())
 
 (addtest (test-error-catching-helper-body)
-  one
+  body
   (cause-an-error))
 
 (addtest (test-error-catching)
   helper-body
   (let ((result (run-test :suite 'test-error-catching-helper-body
-			  :name 'one)))
+			  :name 'body)))
     (ensure-same 1 (length (tests-run result)))
     (ensure-same 1 (length (errors result)))))
 
+;;;
 
+(deftestsuite test-error-catching-helper-setup ()
+  ()
+  (:setup
+   (cause-an-error)))
+
+(addtest (test-error-catching-helper-setup)
+  setup
+  (ensure t))
+
+(addtest (test-error-catching)
+  helper-setup
+  (let ((result (run-test :suite 'test-error-catching-helper-setup
+			  :name 'setup)))
+    (ensure-same 1 (length (tests-run result)))
+    (ensure-same 1 (length (errors result)))))
+
+;;;
+
+(deftestsuite test-error-catching-helper-teardown ()
+  ()
+  (:teardown
+   (cause-an-error)))
+
+(addtest (test-error-catching-helper-teardown)
+  teardown
+  (ensure t))
+
+(addtest (test-error-catching)
+  helper-teardown
+  (let ((result (run-test :suite 'test-error-catching-helper-teardown
+			  :name 'teardown)))
+    (ensure-same 1 (length (tests-run result)))
+    (ensure-same 1 (length (errors result)))))
+
+;;;
+
+(defvar *test-error-catching-helper*)
+
+(deftestsuite test-error-catching-helper-dynamic-variables ()
+  ()
+  (:dynamic-variables
+   (*test-error-catching-helper* (cause-an-error))))
+
+(addtest (test-error-catching-helper-dynamic-variables)
+  dynamic-variables
+  (ensure t))
+
+(addtest (test-error-catching)
+  helper-dynamic-variables
+  (let ((result (run-test :suite 'test-error-catching-helper-dynamic-variables
+			  :name 'dynamic-variables)))
+    (ensure-same 1 (length (lift::suites-run result)))
+    (ensure-same 1 (length (errors result)))))
+
+;;;
+
+(deftestsuite test-error-catching-helper-equality-test ()
+  ()
+  (:equality-test
+   (cause-an-error)))
+
+(addtest (test-error-catching-helper-equality-test)
+  equality-test
+  (ensure t))
+
+(addtest (test-error-catching)
+  helper-equality-test
+  (let ((result (run-test :suite 'test-error-catching-helper-equality-test
+			  :name 'equality-test)))
+    (ensure-same 1 (length (lift::suites-run result)))
+    (ensure-same 1 (length (errors result)))))
+
+;;;;
+
+(deftestsuite test-interaction (lift-test)
+  ()
+  (:equality-test #'string=))
+
+(addtest (test-interaction)
+  run-test-sets-values
+  (run-test :suite 'lift-test-ensure-helper :name 'simple-ensure-test-3)
+  (ensure-same 
+   (symbol-name lift::*current-test-case-name*)
+   (symbol-name 'simple-ensure-test-3))
+  (ensure-same 
+   (symbol-name lift::*current-testsuite-name*)
+   (symbol-name 'lift-test-ensure-helper)))
+
+(addtest (test-interaction)
+  run-tests-sets-values
+  (run-tests :suite 'lift-test-ensure-helper
+	     :report-pathname nil)
+  (ensure-same 
+   (symbol-name lift::*current-testsuite-name*)
+   (symbol-name 'lift-test-ensure-helper))
+  (ensure-same 
+   (symbol-name lift::*current-test-case-name*)
+   (symbol-name 'simple-ensure-test-3)))
+
+(addtest (test-interaction)
+  run-test-sets-values-nested
+  (run-test :suite 'test-interaction :test-case 'run-tests-sets-values)
+  (ensure-same 
+   (symbol-name lift::*current-testsuite-name*)
+   (symbol-name 'test-interaction))
+  (ensure-same 
+   (symbol-name lift::*current-test-case-name*)
+   (symbol-name 'run-tests-sets-values)))
+
+;;;;
+
+(deftestsuite test-expected-errors (lift-test)
+  ())
+
+(deftestsuite test-expected-errors-helper ()
+  ())
+
+(addtest (test-expected-errors-helper
+	  :expected-error t)
+  (error "this is an error"))
+
+(addtest (test-expected-errors)
+  test-passes
+  (let ((result (run-tests :suite 'test-expected-errors-helper
+			   :report-pathname nil)))
+    (ensure-same 1 (length (tests-run result)))
+    (ensure-same 0 (length (errors result)))
+    (ensure-same 1 (length (expected-errors result)))
+    ))
+
+(addtest (test-expected-errors)
+  donot-break-on-errors
+  ;; this is weird
+  ;; I wonder if it's worth trying to abstract "up"
+  (let ((*debugger-hook* (lambda (condition hook)
+			   (declare (ignore hook))
+			   (when (find-restart 'entered-debugger)
+			     (invoke-restart 'entered-debugger condition))
+			   (invoke-debugger condition))))
+    (restart-case
+      (let ((result (run-tests :suite 'test-expected-errors-helper 
+			       :report-pathname nil
+			       :break-on-errors? t)))
+	(ensure-same 1 (length (tests-run result)))
+	(ensure-same 0 (length (errors result)))
+	(ensure-same 1 (length (expected-errors result)))
+	)
+    (entered-debugger (c)
+      (declare (ignore c))
+      (ensure-null "We should not be here")))))
+
+;;;;
+
+;;?? these pass but the cliquep test did not seem to be working. Why?
+(deftestsuite test-scratchpad-resets (lift-test)
+  ())
+
+(deftestsuite test-scratchpad-resets-helper ()
+  ()
+  (:test
+   (test-3 (push :test *test-scratchpad*)))
+  (:test
+   (test-4 (push :burt *test-scratchpad*))))
+
+(addtest (test-scratchpad-resets)
+  run-once-have-one
+  (run-test :suite 'test-scratchpad-resets-helper :test-case 'test-3)
+  (ensure-same '(:test) *test-scratchpad*))
+
+(addtest (test-scratchpad-resets)
+  run-twice-have-one
+  (run-test :suite 'test-scratchpad-resets-helper :test-case 'test-3)
+  (run-test :suite 'test-scratchpad-resets-helper :test-case 'test-3)
+  (ensure-same '(:test) *test-scratchpad*))
+ 
+(addtest (test-scratchpad-resets)
+  run-twice-have-one-run-tests
+  (run-tests :suite 'test-scratchpad-resets-helper :report-pathname nil)
+  (run-tests :suite 'test-scratchpad-resets-helper :report-pathname nil)
+  (ensure-same '(:burt) *test-scratchpad*))
+
+;;;;
+
+(deftestsuite test-break-on-failure (lift-test)
+  ())
+
+(deftestsuite test-break-on-failure-helper ()
+  ())
+
+(addtest (test-break-on-failure-helper)
+  failing-test
+  (ensure-null "this fails"))
+
+(addtest (test-break-on-failure)
+  donot-break-on-failures
+  (let* ((*test-break-on-failures?* nil)
+	 (result (run-tests :suite 'test-break-on-failure-helper
+			    :report-pathname nil)))
+    (ensure-same 1 (length (tests-run result)))
+    (ensure-same 1 (length (failures result)))))
+
+(addtest (test-break-on-failure)
+  do-break-on-failures
+  (let* ((*test-break-on-failures?* t)
+	 (*debugger-hook* (lambda (condition hook)
+			    (declare (ignore hook))
+			    (when (find-restart 'entered-debugger)
+			      (invoke-restart 'entered-debugger condition))
+			    (invoke-debugger condition)))
+	 (result nil))
+    (restart-case
+	(setf result (run-tests :suite 'test-break-on-failure-helper
+				:report-pathname nil))
+      (entered-debugger (c)
+	(declare (ignore c))
+	(setf *test-scratchpad* t)))
+    (ensure-null result)
+    (ensure-same *test-scratchpad* t :test 'eq)))

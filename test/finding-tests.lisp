@@ -23,7 +23,7 @@
 
 (addtest (test-find-test-suite)
   not-such-suite
-  (ensure-condition lift::test-class-not-defined
+  (ensure-condition lift::testsuite-not-defined
     (lift::find-testsuite (gensym))))
 
 (addtest (test-find-test-suite)

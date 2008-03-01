@@ -1,6 +1,12 @@
 (in-package #:lift)
 
-(deftestsuite equality-test-1 ()
+#+(or)
+(run-tests :suite 'equality-test)
+
+(deftestsuite equality-test (lift-test)
+  ())
+
+(deftestsuite equality-test-1 (equality-test)
   ()
   (:equality-test '=)
   (:documentation "Ensure that equality-test is inherited"))
@@ -31,4 +37,16 @@
 (run-tests :suite 'equality-test-2)
 (run-tests :suite 'equality-test-3)
 |#
+
+(deftestsuite test-equality-test-works (equality-test)
+  ()
+  (:equality-test 'equalp)
+  (:setup
+   (print lift::*lift-equality-test*)
+   (ensure-same #(1 2 4) #(1 2 4))))
+
+(addtest (test-equality-test-works)
+  test-1
+  (ensure-same #(1 2 4) #(1 2 4)))
+
 
