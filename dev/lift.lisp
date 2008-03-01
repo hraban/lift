@@ -10,7 +10,9 @@
 	    last-test-status
 	    suite-tested-p
 	    failures
+	    expected-failures
 	    errors
+	    expected-errors
 	    ensure-cases
 	    ensure-random-cases
 	    deftestsuite
