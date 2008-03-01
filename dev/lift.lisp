@@ -325,6 +325,9 @@ All other CLOS slot options are processed normally."
   "Messages from LIFT will be sent to this stream. It can set to nil or 
 to an output stream. It defaults to *debug-io*.")
 
+(defvar *test-maximum-time* 2
+  "Maximum number of seconds a process test is allowed to run before we give up.")
+
 (defvar *test-break-on-errors?* nil)
 (defvar *test-break-on-failures?* nil)
 (defvar *test-do-children?* t)
@@ -454,20 +457,23 @@ can be :supersede, :append, or :error.")
           context
           (apply #'format nil message arguments)))
 
-(defun signal-lift-error (context message &rest arguments)
-  (let ((c (make-condition  
-            'lift-compile-error
-            :lift-message (apply #'build-lift-error-message context message arguments))))
-    (unless (signal c)
-      (error c))))
+(define-condition test-case-not-defined (lift-compile-error)
+                  ((testsuite-name :reader testsuite-name
+				   :initarg :testsuite-name)
+		   (test-case-name :reader test-case-name
+				   :initarg :test-case-name))
+  (:report (lambda (c s)
+             (format s "Testsuite ~s has no test-case named ~s."
+                     (testsuite-name c)
+		     (test-case-name c)))))
 
-(defun report-lift-error (context message &rest arguments)
-  (format *debug-io* "~&~A."
-          (apply #'build-lift-error-message context message arguments))
-  (values))
-
-(defun lift-report-condition (c)
-  (format *debug-io* "~&~A." c))
+(define-condition test-timeout-condition (test-condition) 
+                  ((maximum-time :initform *test-maximum-time* 
+                                 :accessor maximum-time
+                                 :initarg :maximum-time))
+  (:report (lambda (c s)
+             (format s "Test ran out of time (longer than ~S-second~:P)" 
+                     (maximum-time c)))))
 
 (define-condition test-condition (warning) 
                   ((message :initform ""
@@ -669,15 +675,6 @@ error, then ensure-error will generate a test failure."
     (if (find-restart 'ensure-failed)
       (invoke-restart 'ensure-failed condition) 
       (warn condition))))
-
-(define-condition ensure-cases-failure (test-condition)
-  ((total :initarg :total :initform 0)
-   (problems :initarg :problems :initform nil))
-  (:report (lambda (condition stream)
-	     (format stream "Ensure-cases: ~d out of ~d cases failed. Failing cases are: ~{~%  ~{~s (~a)~}~^, ~}" 
-		     (length (slot-value condition 'problems))
-		     (slot-value condition 'total)
-		     (slot-value condition 'problems)))))
 
 (defmacro ensure-cases ((&rest vars) (&rest cases) &body body)
   (let ((case (gensym))
@@ -2416,14 +2413,6 @@ nor configuration file options were specified."))))))
 
 (defclass test-timeout-failure (test-failure)
   ((test-problem-kind :initform "Timeout" :allocation :class)))
-
-(define-condition test-timeout-condition (test-condition) 
-                  ((maximum-time :initform *test-maximum-time* 
-                                 :accessor maximum-time
-                                 :initarg :maximum-time))
-  (:report (lambda (c s)
-             (format s "Test ran out of time (longer than ~S-second~:P)" 
-                     (maximum-time c)))))
 
 (defmethod lift-test :around ((suite test-mixin) name)
   (if (profile suite)
