@@ -1,13 +1,19 @@
 (in-package lift)
 
-it's a failure wen :expected-error doesn't error or :expected-problem
+I tried to be clever and abstract out the do-testing part from the run-tests
+and run-test. The trouble is that this abstraction isn't right. I end up 
+needing to wrap error catching at two levels (one at the outer level to handle
+when multiple tests are happening and one on the inner run-test-internal 
+level). The solution is probably a big refactoring that better models the
+multi-test and single-test cases individually.
+
+it's a failure when :expected-error doesn't error or :expected-problem
   doesn't fail
 
 nicer reporting; espec for ensure-cases
 
-turtle -> ntriples -> triple-store -> sparql quer -> graps
+turtle -> ntriples -> triple-store -> sparql query -> graphs
   
-
 options for addtest
   expect-failure := string | t
   evaluate-when-defined := t | nil
