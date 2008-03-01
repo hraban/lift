@@ -1423,12 +1423,17 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
          (*current-test* (make-testsuite suite args)))
     (unless result
       (setf result (make-test-result suite :single)))
-    (setf *current-case-method-name* (find-test-case suite name)
-          *current-suite-class-name* suite)
-    (do-testing *current-test* result 
-                (lambda () 
-                  (run-test-internal
-		   *current-test* *current-case-method-name* result)))))
+    (prog1
+	(let ((*current-test-case-name* (find-test-case suite test-case))
+	      (*current-testsuite-name* suite))
+      	  (do-testing-in-environment
+	      *current-test* result 
+	      (lambda () 
+		(run-test-internal
+		 *current-test* *current-test-case-name* result)))
+	  (setf *test-result* result))
+      (setf *current-test-case-name* (find-test-case suite test-case)
+	    *current-testsuite-name* suite))))
 
 (defun make-testsuite (suite args)
   (let ((make-instance-args nil))
@@ -1722,55 +1727,17 @@ nor configuration file options were specified."))))))
       (let ((current (first (tests-run result))))
 	(summarize-single-test  
 	 :save (first current) (second current) (third current)
-	 :stream *lift-report-pathname*)))
-    (setf *test-result* result)))
+	 :stream *lift-report-pathname*))))
+  (setf *current-test-case-name* name
+	*test-result* result))
 
-#+(or)
-(defmethod run-test-internal ((suite test-mixin) (name symbol) result) 
-  (when (and *test-print-test-case-names*
-	     (eq (test-mode result) :multiple))
-    (print-lift-message "~&  run: ~a" name))
-    (tagbody 
-      :test-start
-      (restart-case
-        (handler-bind ((warning #'muffle-warning)       
-					; ignore warnings... 
-                       (error 
-                        (lambda (condition)
-                                (report-test-problem
-				 'test-error result suite name condition
-			    :backtrace (get-backtrace condition))
-                          (if *test-break-on-errors?*
-                            (invoke-debugger condition)
-                            (go :test-end)))))
-	   (setf (current-method suite) name)
-          (start-test result suite name)
-          (setup-test suite)
-          (unwind-protect
-	       (let ((result nil))
-		 (declare (ignorable result))
-		 (setf (current-step suite) :testing
-		       result
-		       (measure
-			   (getf (test-data suite) :seconds)
-			   (getf (test-data suite) :conses)
-			 (lift-test suite name)))
-		 (check-for-surprises result suite name))
-            (teardown-test suite)	    
-            (end-test result suite name)))
-        (ensure-failed (condition) 
-		(report-test-problem
-	  'test-failure result suite name condition))
-        (retry-test () :report "Retry the test." 
-                    (go :test-start)))
-   :test-end)
-  (setf (third (first (tests-run result))) (test-data suite))
-  (when *lift-report-pathname*
-    (let ((current (first (tests-run result))))
-      (summarize-single-test  
-       :save (first current) (second current) (third current)
-       :stream *lift-report-pathname*)))
-  (setf *test-result* result))
+(defun testcase-expects-error-p (&optional (test *current-test*))
+  (let* ((options (getf (test-data test) :options)))
+    (second (member :expected-error options))))
+
+(defun testcase-expects-failure-p (&optional (test *current-test*))
+  (let* ((options (getf (test-data test) :options)))
+    (second (member :expected-failure options))))
 
 (defun testcase-expects-problem-p (&optional (test *current-test*))
   (let* ((options (getf (test-data test) :options)))
@@ -1839,9 +1806,9 @@ nor configuration file options were specified."))))))
 			  :test-step (current-step suite) args)))
       (setf (getf (test-data suite) :problem) problem)
       (etypecase problem
-	(test-failure (push problem (failures result)))
+	((or test-failure testsuite-failure) (push problem (failures result)))
 	(test-expected-failure (push problem (expected-failures result)))
-	(test-error (push problem (errors result)))
+	((or test-error testsuite-error) (push problem (errors result)))
 	(test-expected-error (push problem (expected-errors result))))
       problem)))
 
@@ -2431,7 +2398,7 @@ nor configuration file options were specified."))))))
    (push :maximum-time (def :default-initargs))
    nil))
 
-(defclass process-test-mixin ()
+(defclass process-test-mixin (test-mixin)
   ((maximum-time :initform *test-maximum-time* 
                  :accessor maximum-time
                  :initarg :maximum-time)))
