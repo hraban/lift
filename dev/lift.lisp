@@ -1431,51 +1431,81 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
     (apply #'make-instance (find-testsuite suite) 
 	   (nreverse make-instance-args))))
 
-(defmethod do-testing ((suite test-mixin) result fn)
+#+(or)
+(defmethod do-testing-in-environment :around ((suite test-mixin) result fn)
+  (declare (ignore fn))
   (testsuite-setup suite result)
-  (let ((*lift-equality-test* (equality-test suite)))
-    (unwind-protect
-	 (do ()
-	     ((not (more-prototypes-p suite)) result)
-	   (tagbody 
-	    :test-start
-	      (restart-case
-		  (handler-bind ((warning #'muffle-warning)       
+  (unwind-protect
+       (tagbody 
+	:test-start
+	  (do ()
+	      ((not (more-prototypes-p suite)) result)
+	    (restart-case
+		(handler-bind ((warning #'muffle-warning)       
 					; ignore warnings... 
-				 (error 
-				  (lambda (condition)
-				    (report-test-problem
-				     'test-error result suite
-				     *current-case-method-name* condition
-				     :backtrace (get-backtrace condition))
-				    (if *test-break-on-errors?*
-					(invoke-debugger condition)
-					(go :test-end)))))
+			       (error 
+				(lambda (condition)
+				  (report-test-problem
+				   'testsuite-error result suite
+				   *current-test-case-name* condition
+				   :backtrace (get-backtrace condition))
+				  (if *test-break-on-errors?*
+				      (invoke-debugger condition)
+				      (go :test-end)))))
+		  (let ((*lift-equality-test* (equality-test suite)))
 		    (initialize-test suite) 
-		    (funcall fn))
-		(ensure-failed (condition) 
-		  (report-test-problem
-		   'test-failure result suite 
-		   *current-case-method-name* condition))
-		(retry-test () :report "Retry the test." 
-			    (go :test-start)))
-	    :test-end)))
+		    (call-next-method)))
+	      (ensure-failed (condition) 
+		(report-test-problem
+		 'testsuite-failure result suite 
+		 *current-test-case-name* condition))
+	      (retry-test () :report "Retry the test." 
+			  (go :test-start))))
+	:test-end)
     ;; cleanup
     (testsuite-teardown suite result))
   (values result))
 
-#+(or)
-(defmethod do-testing ((testsuite test-mixin) result fn)
-  (unwind-protect
-       (progn
-	 (testsuite-setup testsuite result)
-	 (let ((*lift-equality-test* (equality-test testsuite)))
-	   (do ()
-	       ((not (more-prototypes-p testsuite)) result)
-	     (initialize-test testsuite) 
-	     (funcall fn))))
-    ;; cleanup
-    (testsuite-teardown testsuite result))
+(defmethod do-testing-in-environment :around ((suite test-mixin) result fn)
+  (declare (ignore fn))
+  (tagbody 
+   :test-start
+     (restart-case
+	 (handler-bind ((warning #'muffle-warning)       
+					; ignore warnings... 
+			(error 
+			 (lambda (condition)
+			   (report-test-problem
+			    'testsuite-error result suite
+			    *current-test-case-name* condition
+			    :backtrace (get-backtrace condition))
+			   (if *test-break-on-errors?*
+			       (invoke-debugger condition)
+			       (go :test-end)))))
+	   (unwind-protect
+		(let ((*lift-equality-test* (equality-test suite)))
+		  (testsuite-setup suite result)
+		  (do ()
+		      ((not (more-prototypes-p suite)) result)
+		    (initialize-test suite) 
+		    (call-next-method)))
+	     ;; cleanup
+	     (testsuite-teardown suite result)))
+       (ensure-failed (condition) 
+	 (report-test-problem
+	  'testsuite-failure result suite 
+	  *current-test-case-name* condition))
+       (retry-test () :report "Retry the test." 
+		   (go :test-start)))
+   :test-end)
+  (values result))
+
+(defmethod do-testing-in-environment ((suite test-mixin) result fn)
+  (do-testing suite result fn)
+  (values result))
+
+(defmethod do-testing ((suite test-mixin) result fn)
+  (funcall fn)
   (values result))
 
 (defmethod run-tests-internal ((suite symbol) &rest args &key &allow-other-keys)
@@ -1488,9 +1518,10 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
      (result (make-test-result (class-of case) :multiple))
      (do-children? *test-do-children?*))
   (let ((*test-do-children?* do-children?))
-    (do-testing case result
-		(lambda ()
-		  (testsuite-run case result)))
+    (do-testing-in-environment
+	case result
+	(lambda ()
+	  (testsuite-run case result)))
     (setf *test-result* result)))
 
 #+Later
@@ -1717,23 +1748,49 @@ nor configuration file options were specified."))))))
   (when (and *test-print-test-case-names*
 	     (eq (test-mode result) :multiple))
     (print-lift-message "~&  run: ~a" name))
-  (let ((*current-case-method-name* name))
-    (setf (current-method suite) name)
-    (start-test result suite name)
-    (setup-test suite)
-    (unwind-protect
-	 (let ((result nil))
-	   (declare (ignorable result))
-	   (setf (current-step suite) :testing
-		 result
-		 (measure
-		     (getf (test-data suite) :seconds)
-		     (getf (test-data suite) :conses)
-		   (lift-test suite name)))
-	   (check-for-surprises result suite name))
-      (teardown-test suite)	    
-      (end-test result suite name))
-    (setf (third (first (tests-run result))) (test-data suite))
+  (let ((*current-test-case-name* name))
+    (tagbody 
+     :test-start
+       (restart-case
+	   (handler-bind ((warning #'muffle-warning)       
+					; ignore warnings... 
+			  (error 
+			   (lambda (condition)
+			     (report-test-problem
+			      'test-error result suite
+			      *current-test-case-name* condition
+			      :backtrace (get-backtrace condition))
+			     (if (and *test-break-on-errors?*
+				      (not (testcase-expects-error-p)))
+				 (invoke-debugger condition)
+				 (go :test-end)))))
+	     (setf (current-method suite) name)
+	     (start-test result suite name)
+	     (unwind-protect
+		  (progn
+		    (setup-test suite)
+		    (setf (current-step suite) :testing)
+		    (measure
+			(getf (test-data suite) :seconds)
+			(getf (test-data suite) :conses)
+		      (lift-test suite name))
+		    (check-for-surprises suite))
+	       ;; cleanup
+	       (teardown-test suite)	    
+	       (end-test result suite name)))
+	 (ensure-failed (condition) 
+	   (report-test-problem
+	    'test-failure result suite 
+	    *current-test-case-name* condition)
+	   (if (and *test-break-on-failures?*
+		    (not (testcase-expects-failure-p)))
+	       (invoke-debugger condition)
+				 (go :test-end)))
+	 (retry-test () :report "Retry the test." 
+		     (go :test-start)))
+     :test-end)
+    (push (list (type-of suite) *current-test-case-name* (test-data suite))
+	  (tests-run result))
     (when *lift-report-pathname*
       (let ((current (first (tests-run result))))
 	(summarize-single-test  
@@ -2098,6 +2155,16 @@ nor configuration file options were specified."))))))
   ()
   (:default-initargs 
    :test-problem-kind "Error"))
+
+(defclass testsuite-error (test-error-mixin)
+  ()
+  (:default-initargs 
+   :test-problem-kind "Testsuite error"))
+
+(defclass testsuite-failure (generic-problem)
+  ()
+  (:default-initargs 
+   :test-problem-kind "Testsuite failure"))
 
 (defmethod test-report-code ((testsuite test-mixin) (method symbol))
   (let* ((class-name (class-name (class-of testsuite))))
