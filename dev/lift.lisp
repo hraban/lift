@@ -311,8 +311,8 @@ All other CLOS slot options are processed normally."
   '(:run-setup :test-slot-names :equality-test :log-file :timeout
     :default-initargs :profile))
 
-(defvar *current-suite-class-name* nil)
-(defvar *current-case-method-name* nil)
+(defvar *current-testsuite-name* nil)
+(defvar *current-test-case-name* nil)
 
 (defvar *test-is-being-defined?* nil)
 (defvar *test-is-being-compiled?* nil)
@@ -442,9 +442,9 @@ can be :supersede, :append, or :error.")
   (:report (lambda (c s)
              (format s "Compile error: '~S'" (msg c)))))
 
-(define-condition test-class-not-defined (lift-compile-error)
-                  ((test-class-name :reader test-class-name
-                                    :initarg :test-class-name))
+(define-condition testsuite-not-defined (lift-compile-error)
+                  ((testsuite-name :reader testsuite-name
+                                    :initarg :testsuite-name))
   (:report (lambda (c s)
              (format s "Test class ~A not defined before it was used."
                      (test-class-name c)))))
@@ -1181,8 +1181,8 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 	,(build-test-class)
 	(unwind-protect
 	     (let ((*test-is-being-defined?* t))
-	       (setf *current-case-method-name* nil)
-	       (setf *current-suite-class-name* ',(def :testsuite-name)
+	       (setf *current-test-case-name* nil)
+	       (setf *current-testsuite-name* ',(def :testsuite-name)
 		     (test-slots ',(def :testsuite-name)) 
 		     ',(def :slot-names)
 		     (testsuite-dynamic-variables ',(def :testsuite-name))
@@ -1254,7 +1254,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 		   (append function-specs 
 			   (testsuite-function-specs super))))
 	    (t
-	     (error 'test-class-not-defined :test-class-name super))))
+	     (error 'testsuite-not-defined :testsuite-name super))))
     (setf (def :slot-names) 
 	  (remove-duplicates (append (def :direct-slot-names) slots))
 	  (def :dynamic-variables)
@@ -1292,8 +1292,8 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 	   ;; the 'name' is really part of the test...
 	   (setf body (cons name test))))
     (unless (def :testsuite-name)
-      (when *current-suite-class-name*
-	(setf (def :testsuite-name) *current-suite-class-name*)))
+      (when *current-testsuite-name*
+	(setf (def :testsuite-name) *current-testsuite-name*)))
     (unless (def :testsuite-name)
       (signal-lift-error 'add-test +lift-no-current-test-class+))
     (unless (or (def :deftestsuite) 
@@ -1310,7 +1310,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
        (unwind-protect
 	    (let ((*test-is-being-defined?* t))
 	      ,(build-test-test-method (def :testsuite-name) body options)
-	      (setf *current-suite-class-name* ',(def :testsuite-name))
+	      (setf *current-testsuite-name* ',(def :testsuite-name))
 	      (if *test-evaluate-when-defined?*
 		  (unless (or *test-is-being-compiled?*
 			      *test-is-being-loaded?*)
@@ -1358,16 +1358,17 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
   ;; FIXME - stub
   nil)
 
-(defun remove-test (&key (name *current-case-method-name*)
-                         (suite *current-suite-class-name*))
+(defun remove-test (&key (test-case *current-test-case-name*)
+                         (suite *current-testsuite-name*))
   (assert suite nil "Test suite could not be determined.")
-  (assert name nil "Test name could not be determined.")
+  (assert test-case nil "Test-case could not be determined.")
   (setf (testsuite-tests suite)
-	(remove name (testsuite-tests suite))))
+	(remove test-case (testsuite-tests suite))))
 
 (defun run-test (&rest args
-		 &key (name *current-case-method-name*)
-		 (suite *current-suite-class-name*) 
+		 &key (test-case *current-test-case-name*)
+		 (name test-case name-supplied-p)
+		 (suite *current-testsuite-name*) 
 		 (break-on-errors? *test-break-on-errors?*)
 		 (break-on-failures? *test-break-on-failures?*)
 		 (do-children? *test-do-children?*)
@@ -1376,7 +1377,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
   "Run a single testcase in a test suite. Will run the most recently defined or run testcase unless the name and suite arguments are used to override them."
   (declare (ignore profile))
   (assert suite nil "Test suite could not be determined.")
-  (assert name nil "Test name could not be determined.")
+  (assert test-case nil "Test-case could not be determined.")
   (let* ((*test-break-on-errors?* break-on-errors?)
 	 (*test-break-on-failures?* break-on-failures?)
          (*test-do-children?* do-children?)
@@ -1582,7 +1583,7 @@ control over where in the test hierarchy the search begins."
 but not both."))
 	    (config
 	     (run-tests-from-file config))
-	    ((or suite (setf suite *current-suite-class-name*))
+	    ((or suite (setf suite *current-testsuite-name*))
 	     (let* ((*test-break-on-errors?* break-on-errors?)
 		    (*test-break-on-failures?* break-on-failures?)
 		    (dribble-stream
@@ -1598,10 +1599,11 @@ but not both."))
 		    (*debug-io* (maybe-add-dribble 
 				 *debug-io* dribble-stream)))
 	       (unwind-protect
-		    (dolist (name (if (consp suite) suite (list suite)))
-		      (setf *current-suite-class-name* name)
-		      (apply #'run-tests-internal name 
-			     :result result :profile profile args))
+		    (dolist (testsuite (if (consp suite) suite (list suite)))
+		      (let ((*current-testsuite-name* testsuite))
+			(apply #'run-tests-internal testsuite
+			       :result result :profile profile args))
+		      (setf *current-testsuite-name* testsuite))
 		 ;; cleanup
 		 (when dribble-stream 
 		   (close dribble-stream)))
@@ -1642,8 +1644,9 @@ nor configuration file options were specified."))))))
     (setf (start-time result) (get-internal-real-time)
 	  (start-time-universal result) (get-universal-time)))
   (unwind-protect
-       (let ((methods (testsuite-methods testsuite))
-	     (suite-name (class-name (class-of testsuite))))
+       (let* ((methods (testsuite-methods testsuite))
+	      (suite-name (class-name (class-of testsuite)))
+	      (*current-testsuite-name* suite-name))
 	 (loop for method in methods do
 	      (if (skip-test-case-p result suite-name method)
 		  (skip-test-case result suite-name method)
@@ -1853,12 +1856,12 @@ nor configuration file options were specified."))))))
 	`(:start-time ,(get-internal-real-time)
 	  :start-time-universal ,(get-universal-time))))
 
-(defmethod end-test ((result test-result) (testsuite test-mixin) name)
+(defmethod end-test ((result test-result) (suite test-mixin) name)
   (declare (ignore name))
-  (setf (current-step testsuite) :end-test
-	(getf (test-data testsuite) :end-time) (get-internal-real-time)
+  (setf (current-step suite) :end-test
+	(getf (test-data suite) :end-time) (get-internal-real-time)
 	(end-time result) (get-internal-real-time)
-	(getf (test-data testsuite) :end-time-universal) (get-universal-time)
+	(getf (test-data suite) :end-time-universal) (get-universal-time)
 	(end-time-universal result) (get-universal-time)))
 
 (defun make-test-result (for test-mode &rest args)
@@ -2261,13 +2264,13 @@ nor configuration file options were specified."))))))
 	 ,@(when options
 		 `((setf (getf (test-data testsuite) :options) ',options))) 
 	 (with-test-slots ,@body))
-       (setf *current-case-method-name* ',test-name)
+       (setf *current-test-case-name* ',test-name)
        (when (and *test-print-when-defined?*
                   (not (or *test-is-being-compiled?*
                            )))
          (format *debug-io* "~&;Test Created: ~(~S.~S~)." 
 		 ',test-class ',test-name))
-       *current-case-method-name*)))
+       *current-test-case-name*)))
 
 (defun build-dynamics ()
   (let ((result nil))
@@ -2282,7 +2285,7 @@ nor configuration file options were specified."))))))
         (body nil)
         (parsed-body nil)
         (documentation nil)
-        (test-number (1+ (testsuite-test-count *current-suite-class-name*)))
+        (test-number (1+ (testsuite-test-count *current-testsuite-name*)))
         (name-supplied? nil))
     ;; parse out any documentation
     (loop for form in test-body do
@@ -2298,10 +2301,10 @@ nor configuration file options were specified."))))))
 		 (intern (format nil "~A" test-name))
                  body (rest test-body)
                  name-supplied? t))
-          ((and (test-code->name-table *current-suite-class-name*)
+          ((and (test-code->name-table *current-testsuite-name*)
                 (setf test-name 
                  (gethash test-body
-			  (test-code->name-table *current-suite-class-name*))))
+			  (test-code->name-table *current-testsuite-name*))))
            (setf body test-body))
           (t
            (setf test-name 
@@ -2458,7 +2461,7 @@ nor configuration file options were specified."))))))
 				      (subtypep temp 'test-mixin)) collect
 			    temp))))
     (cond ((null possibilities) 
-	   (error 'test-class-not-defined :test-class-name suite-name))
+	   (error 'testsuite-not-defined :testsuite-name suite-name))
 	  ((= (length possibilities) 1)
 	   (first possibilities))
 	  (t 
@@ -2498,7 +2501,8 @@ nor configuration file options were specified."))))))
 				      (test-case-p suite-class temp)) collect
 			    temp))))
     (cond ((null possibilities) 
-	   (error 'test-class-not-defined :test-class-name name))
+	   (error 'test-case-not-defined 
+		  :testsuite-name suite-class :test-case-name name))
 	  ((= (length possibilities) 1)
 	   (first possibilities))
 	  (t 
