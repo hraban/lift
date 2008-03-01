@@ -1218,7 +1218,8 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 		     ',(def :slot-names)
 		     (testsuite-dynamic-variables ',(def :testsuite-name))
 		     ',(def :dynamic-variables)
-		     ;;?? issue 27: breaks 'encapsulation' of code-block mechanism
+		     ;;?? issue 27: breaks 'encapsulation' of code-block
+		     ;; mechanism
 		     (testsuite-function-specs ',(def :testsuite-name))
 		     ',(def :function-specs))
 	       ,@(when (def :export-p)
@@ -1407,6 +1408,8 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 		 (profile nil))
   "Run a single testcase in a test suite. Will run the most recently defined or run testcase unless the name and suite arguments are used to override them."
   (declare (ignore profile))
+  (when name-supplied-p
+    (setf test-case name))
   (assert suite nil "Test suite could not be determined.")
   (assert test-case nil "Test-case could not be determined.")
   (let* ((*test-break-on-errors?* break-on-errors?)
@@ -1524,87 +1527,6 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 	  (testsuite-run case result)))
     (setf *test-result* result)))
 
-#+Later
-(defmacro with-test (&body forms)
-  "Execute forms in the context of the current test class."
-  (let* ((test-class-name *current-suite-class-name*)
-         (test-case (make-instance test-class)))
-    `(eval-when (:execute)
-       (prog2
-        (setup-test ,test-case)
-        (progn
-          (with-test-slots ,@forms))
-        (teardown-test ,test-case)))))
-
-(defun liftpropos (name &key (include-cases? nil))
-  (declare (ignore include-cases?))
-  (let ((result nil)
-	(real-name (etypecase name
-		     (string name)
-		     (symbol (symbol-name name)))))
-    (map-testsuites
-     (lambda (suite level)
-       (declare (ignore level))
-       (let ((suite-name (symbol-name (class-name suite))))
-	 (when (search real-name suite-name :test #'char-equal)
-	   (push suite-name result))))
-     'test-mixin)
-    (sort result #'string-lessp)))
-
-(defun map-testsuites (fn start-at)
-  (let ((visited (make-hash-table)))
-    (labels ((do-it (suite level)
-	       (unless (gethash suite visited)
-		 (setf (gethash suite visited) t)
-		 (funcall fn suite level)
-		 (loop for subclass in (subclasses suite :proper? t) do
-		      (do-it subclass (1+ level))))))
-    (do-it (find-class (find-testsuite start-at) nil) 0))))
-
-(defun testsuites (&optional (start-at 'test-mixin))
-  "Returns a list of testsuite classes. The optional parameter provides
-control over where in the test hierarchy the search begins."
-  (let ((result nil))
-    (map-testsuites (lambda (suite level)
-		      (declare (ignore level))
-		      (push suite result))
-		    start-at)
-    (nreverse result)))
-
-(defun print-tests (&key (include-cases? t) (start-at 'test-mixin) (stream t))
-  "Prints all of the defined test classes from :start-at on down." 
-  (map-testsuites
-   (lambda (suite level)
-     (let ((indent (coerce (make-list (* level 3) :initial-element #\Space)
-			   'string))
-	   (name (class-name suite)))
-       (format stream "~&~a~s (~:d)" 
-	       indent
-	       name
-	       (length (testsuite-methods name)))
-       (when include-cases?
-	 (loop for method-name in (testsuite-tests name) do
-	      (format stream "~&~a  ~a" indent method-name)))))
-   start-at))
-     
-(defun list-tests (&key (include-cases? t) (start-at 'test-mixin) (stream t))
-  "Lists all of the defined test classes from :start-at on down." 
-  (mapc (lambda (subclass)
-	  (let ((subclass-name (class-name subclass)))
-	    (format stream "~&~s (~:d)" 
-		    subclass-name
-		    (length (testsuite-methods subclass-name)))
-	    (when include-cases?
-	      (loop for method-name in (testsuite-tests subclass-name) do
-		   (format stream "~&  ~a" method-name)))))
-        (testsuites start-at))
-  (values))
-
-(defun testsuite-test-count (testsuite)
-  (or (and *testsuite-test-count* 
-           (prog1 *testsuite-test-count* (incf *testsuite-test-count*))) 
-      (length (testsuite-methods testsuite))))
-
 (defun run-tests (&rest args &key 
 		  (suite nil)
 		  (break-on-errors? *test-break-on-errors?*)
@@ -1715,7 +1637,7 @@ nor configuration file options were specified."))))))
 		  (run-test-internal testsuite method result)))
 	 (when (and *test-do-children?*
 		    (not (skip-test-suite-children-p result testsuite)))
-	   (loop for subclass in (direct-subclasses (class-of testsuite))		
+	   (loop for subclass in (direct-subclasses (class-of testsuite))	
 	      when (and (testsuite-p subclass)
 			(not (member (class-name subclass) 
 				     (suites-run result)))) do
@@ -1930,10 +1852,10 @@ nor configuration file options were specified."))))))
   (let ((foo *test-print-level*))
     (if (eq foo :follow-print) *print-level* foo)))
 
-(defmethod start-test ((result test-result) (case test-mixin) name) 
-  (push (list (type-of case) name nil) (tests-run result))
-  (setf (current-step case) :start-test
-	(test-data case) 
+(defmethod start-test ((result test-result) (suite test-mixin) name) 
+  (declare (ignore name))
+  (setf (current-step suite) :start-test
+	(test-data suite) 
 	`(:start-time ,(get-internal-real-time)
 	  :start-time-universal ,(get-universal-time))))
 
@@ -2488,9 +2410,6 @@ nor configuration file options were specified."))))))
           (test-case-documentation test-name)
           (make-hash-table :test #'equal))))
 
-(defvar *test-maximum-time* 2
-  "Maximum number of seconds a process test is allowed to run before we give up.")
-
 (pushnew :timeout *deftest-clauses*)
 
 (add-code-block
@@ -2537,6 +2456,76 @@ nor configuration file options were specified."))))))
 		      :maximum-time (maximum-time testsuite))))))
 
 ;;;;;
+;; some introspection
+
+(defun liftpropos (name &key (include-cases? nil))
+  (declare (ignore include-cases?))
+  (let ((result nil)
+	(real-name (etypecase name
+		     (string name)
+		     (symbol (symbol-name name)))))
+    (map-testsuites
+     (lambda (suite level)
+       (declare (ignore level))
+       (let ((suite-name (symbol-name (class-name suite))))
+	 (when (search real-name suite-name :test #'char-equal)
+	   (push suite-name result))))
+     'test-mixin)
+    (sort result #'string-lessp)))
+
+(defun map-testsuites (fn start-at)
+  (let ((visited (make-hash-table)))
+    (labels ((do-it (suite level)
+	       (unless (gethash suite visited)
+		 (setf (gethash suite visited) t)
+		 (funcall fn suite level)
+		 (loop for subclass in (subclasses suite :proper? t) do
+		      (do-it subclass (1+ level))))))
+    (do-it (find-class (find-testsuite start-at) nil) 0))))
+
+(defun testsuites (&optional (start-at 'test-mixin))
+  "Returns a list of testsuite classes. The optional parameter provides
+control over where in the test hierarchy the search begins."
+  (let ((result nil))
+    (map-testsuites (lambda (suite level)
+		      (declare (ignore level))
+		      (push suite result))
+		    start-at)
+    (nreverse result)))
+
+(defun print-tests (&key (include-cases? t) (start-at 'test-mixin) (stream t))
+  "Prints all of the defined test classes from :start-at on down." 
+  (map-testsuites
+   (lambda (suite level)
+     (let ((indent (coerce (make-list (* level 3) :initial-element #\Space)
+			   'string))
+	   (name (class-name suite)))
+       (format stream "~&~a~s (~:d)" 
+	       indent
+	       name
+	       (length (testsuite-methods name)))
+       (when include-cases?
+	 (loop for method-name in (testsuite-tests name) do
+	      (format stream "~&~a  ~a" indent method-name)))))
+   start-at))
+     
+(defun list-tests (&key (include-cases? t) (start-at 'test-mixin) (stream t))
+  "Lists all of the defined test classes from :start-at on down." 
+  (mapc (lambda (subclass)
+	  (let ((subclass-name (class-name subclass)))
+	    (format stream "~&~s (~:d)" 
+		    subclass-name
+		    (length (testsuite-methods subclass-name)))
+	    (when include-cases?
+	      (loop for method-name in (testsuite-tests subclass-name) do
+		   (format stream "~&  ~a" method-name)))))
+        (testsuites start-at))
+  (values))
+
+(defun testsuite-test-count (testsuite)
+  (or (and *testsuite-test-count* 
+           (prog1 *testsuite-test-count* (incf *testsuite-test-count*))) 
+      (length (testsuite-methods testsuite))))
 
 (defmethod find-testsuite ((suite symbol))
   (or (testsuite-p suite)
@@ -2663,3 +2652,16 @@ nor configuration file options were specified."))))))
 (defun (setf lift-property) (value name)
   (when *current-test*
     (setf (getf (getf (test-data *current-test*) :properties) name) value)))
+
+
+#+Later
+(defmacro with-test (&body forms)
+  "Execute forms in the context of the current test class."
+  (let* ((testsuite-name *current-testsuite-name*)
+         (test-case (make-instance test-class)))
+    `(eval-when (:execute)
+       (prog2
+        (setup-test ,test-case)
+        (progn
+          (with-test-slots ,@forms))
+        (teardown-test ,test-case)))))
