@@ -28,6 +28,7 @@
 	    ;; Variables
 	    *test-ignore-warnings?*
 	    *test-break-on-errors?*
+	    *test-break-on-failures?*
 	    *test-print-length*
 	    *test-print-level*
 	    *test-print-when-defined?*
@@ -325,6 +326,7 @@ All other CLOS slot options are processed normally."
 to an output stream. It defaults to *debug-io*.")
 
 (defvar *test-break-on-errors?* nil)
+(defvar *test-break-on-failures?* nil)
 (defvar *test-do-children?* t)
 (defparameter *test-ignore-warnings?* nil
   "If true, LIFT will not cause a test to fail if a warning occurs while
@@ -1367,6 +1369,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 		 &key (name *current-case-method-name*)
 		 (suite *current-suite-class-name*) 
 		 (break-on-errors? *test-break-on-errors?*)
+		 (break-on-failures? *test-break-on-failures?*)
 		 (do-children? *test-do-children?*)
 		 (result nil)
 		 (profile nil))
@@ -1375,6 +1378,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
   (assert suite nil "Test suite could not be determined.")
   (assert name nil "Test name could not be determined.")
   (let* ((*test-break-on-errors?* break-on-errors?)
+	 (*test-break-on-failures?* break-on-failures?)
          (*test-do-children?* do-children?)
          (*current-test* (make-testsuite suite args)))
     (unless result
@@ -1541,6 +1545,7 @@ control over where in the test hierarchy the search begins."
 (defun run-tests (&rest args &key 
 		  (suite nil)
 		  (break-on-errors? *test-break-on-errors?*)
+		  (break-on-failures? *test-break-on-failures?*)
 		  (config nil)
 		  (dribble *lift-dribble-pathname*)
 		  (report-pathname t)
@@ -1553,6 +1558,7 @@ control over where in the test hierarchy the search begins."
   (let ((args-copy (copy-list args)))
     (remf args :suite)
     (remf args :break-on-errors?)
+    (remf args :break-on-failures?)
     (remf args :run-setup)
     (remf args :dribble)
     (remf args :config)
@@ -1578,6 +1584,7 @@ but not both."))
 	     (run-tests-from-file config))
 	    ((or suite (setf suite *current-suite-class-name*))
 	     (let* ((*test-break-on-errors?* break-on-errors?)
+		    (*test-break-on-failures?* break-on-failures?)
 		    (dribble-stream
 		     (when dribble
 		       (open dribble
