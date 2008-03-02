@@ -462,14 +462,6 @@ can be :supersede, :append, or :error.")
                      (testsuite-name c)
 		     (test-case-name c)))))
 
-(define-condition test-timeout-condition (test-condition) 
-                  ((maximum-time :initform *test-maximum-time* 
-                                 :accessor maximum-time
-                                 :initarg :maximum-time))
-  (:report (lambda (c s)
-             (format s "Test ran out of time (longer than ~S-second~:P)" 
-                     (maximum-time c)))))
-
 (define-condition test-condition (warning) 
                   ((message :initform ""
                             :initarg :message
@@ -477,6 +469,14 @@ can be :supersede, :append, or :error.")
   (:report (lambda (c s)
              (when (message c)
                (format s "~%~A" (message c))))))
+
+(define-condition test-timeout-condition (test-condition) 
+                  ((maximum-time :initform *test-maximum-time* 
+                                 :accessor maximum-time
+                                 :initarg :maximum-time))
+  (:report (lambda (c s)
+             (format s "Test ran out of time (longer than ~S-second~:P)" 
+                     (maximum-time c)))))
 
 (define-condition ensure-failed-error (test-condition) 
                   ((assertion :initform "" 
