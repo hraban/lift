@@ -317,6 +317,8 @@ when calling [run-test][] or [run-tests][] or when interactively defining new te
 {docs testsuite-p}
 {docs failures}
 {docs errors}
+{docs expected-failures}
+{docs expected-errors}
 
 ### Random testing
 

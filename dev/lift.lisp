@@ -310,7 +310,7 @@ All other CLOS slot options are processed normally."
 
 (defparameter *make-testsuite-arguments*
   '(:run-setup :test-slot-names :equality-test :log-file :timeout
-    :default-initargs :profile))
+    :default-initargs :profile :expected-failure :expected-error))
 
 (defvar *current-testsuite-name* nil)
 (defvar *current-test-case-name* nil)
@@ -872,6 +872,16 @@ error, then ensure-error will generate a test failure."
 	   (push (type-of testsuite) (suites-run result))
            (setf (current-step testsuite) :testsuite-setup)))
 
+(defgeneric testsuite-expects-error (testsuite)
+  (:documentation "Returns whether or not the testsuite as a whole expects an error.")
+  (:method ((testsuite test-mixin))
+    nil))
+
+(defgeneric testsuite-expects-failure (testsuite)
+  (:documentation "Returns whether or not the testsuite as a whole expects to fail.")
+  (:method ((testsuite test-mixin))
+    nil))
+
 (defgeneric testsuite-run (testsuite result)
   (:documentation "Run the cases in this suite and it's children."))
 
@@ -1108,6 +1118,18 @@ the thing being defined.")
  (lambda () (def :equality-test))
  '((setf (def :equality-test) (cleanup-parsed-parameter value)))
  'build-test-equality-test)
+
+(add-code-block
+ :expected-error 0 :methods
+ (lambda () (def :expected-error))
+ '((setf (def :expected-error) (cleanup-parsed-parameter value)))
+ 'build-testsuite-expected-error)
+
+(add-code-block
+ :expected-failure 0 :methods
+ (lambda () (def :expected-failure))
+ '((setf (def :expected-failure) (cleanup-parsed-parameter value)))
+ 'build-testsuite-expected-failure)
 
 (add-code-block
  :log-file 0 :class-def
@@ -1762,11 +1784,13 @@ nor configuration file options were specified."))))))
 
 (defun testcase-expects-error-p (&optional (test *current-test*))
   (let* ((options (getf (test-data test) :options)))
-    (second (member :expected-error options))))
+    (or (testsuite-expects-error test)
+	(second (member :expected-error options)))))
 
 (defun testcase-expects-failure-p (&optional (test *current-test*))
   (let* ((options (getf (test-data test) :options)))
-    (second (member :expected-failure options))))
+    (or (testsuite-expects-failure test)
+	(second (member :expected-failure options)))))
 
 (defun testcase-expects-problem-p (&optional (test *current-test*))
   (let* ((options (getf (test-data test) :options)))
@@ -2191,6 +2215,20 @@ nor configuration file options were specified."))))))
     `(progn
        (defmethod equality-test ((testsuite ,test-name))
 	 ,equality-test))))
+
+(defun build-testsuite-expected-error ()
+  (let ((test-name (def :testsuite-name))
+        (expected-error (def :expected-error)))
+    `(progn
+       (defmethod testsuite-expects-error ((testsuite ,test-name))
+	 ,expected-error))))
+
+(defun build-testsuite-expected-failure ()
+  (let ((test-name (def :testsuite-name))
+        (expected-failure (def :expected-failure)))
+    `(progn
+       (defmethod testsuite-expects-failure ((testsuite ,test-name))
+	 ,expected-failure))))
 
 (defun build-test-teardown-method ()
   (let ((test-name (def :testsuite-name))
