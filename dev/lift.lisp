@@ -2335,7 +2335,9 @@ nor configuration file options were specified."))))))
 	       (append (testsuite-tests ',test-class) (list ',test-name))))
        (defmethod lift-test ((testsuite ,test-class) (case (eql ',test-name)))
 	 ,@(when options
-		 `((setf (getf (test-data testsuite) :options) ',options))) 
+		 `((setf (getf (test-data testsuite) :options) 
+			 (list ,@(loop for (k v) on options by #'cddr append
+				      (list k v))))))
 	 (with-test-slots ,@body))
        (setf *current-test-case-name* ',test-name)
        (when (and *test-print-when-defined?*
