@@ -648,3 +648,30 @@ See file COPYING for license
 	(setf *test-scratchpad* t)))
     (ensure-null result)
     (ensure-same *test-scratchpad* t :test 'eq)))
+
+;;;;
+
+(deftestsuite ensure-no-warning (lift-test)
+  ())
+
+(deftestsuite ensure-no-warning-helper ()
+  ())
+
+(addtest (ensure-no-warning-helper)
+  test-1
+  (ensure-no-warning (ensure-same (+ 2 2) 4)))
+
+(addtest (ensure-no-warning-helper)
+  test-2
+  (ensure-no-warning (ensure-same (+ 2 2) 4)
+		     (warn "I like math")))
+
+(addtest (ensure-no-warning)
+  run-tests
+  (let ((result (run-tests :suite 'ensure-no-warning-helper
+			   :report-pathname nil)))
+    (ensure-same (length (tests-run result)) 2)
+    (ensure-same (length (failures result)) 1)
+    (ensure-same (length (errors result)) 0)))
+
+

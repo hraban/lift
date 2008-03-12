@@ -266,6 +266,7 @@ The following macros can be used outside of LIFT where they will function very m
 {docs ensure-condition macro}
 {docs ensure-warning macro}
 {docs ensure-error macro}
+{docs ensure-no-warning}
 {docs ensure-cases macro}
 
 ### Running tests 

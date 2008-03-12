@@ -56,6 +56,7 @@
 	    ensure-condition
 	    ensure-warning
 	    ensure-error
+	    ensure-no-warning
           
 	    ;;?? Not yet
 	    ;; with-test
@@ -511,6 +512,15 @@ can be :supersede, :append, or :error.")
                      (expected-condition-type c)
                      (the-condition c)))))
 
+(define-condition ensure-expected-no-warning-condition (test-condition) 
+                  ((the-condition
+                    :initform nil
+                    :accessor the-condition
+                    :initarg :the-condition))
+  (:report (lambda (c s)
+             (format s "Expected no warnings but got ~S" 
+                     (the-condition c)))))
+
 (define-condition ensure-not-same (test-condition) 
                   ((first-value :accessor first-value
                                 :initarg :first-value)
@@ -640,6 +650,25 @@ details."
 		 ,@(when report
 			 `(:message (format nil ,report ,arguments))))) 
                (warn "Ensure-condition didn't get the condition it expected."))))))))
+
+(defmacro ensure-no-warning (&body body)
+  "This macro is used to make sure that body produces no warning."
+  (let ((g (gensym))
+	(gcondition (gensym)))
+    `(let ((,g nil)
+	   (,gcondition nil))
+       (unwind-protect
+	    (handler-case 
+		(progn ,@body)
+	      (warning (c)
+		(setf ,gcondition c ,g t)))
+	 (when ,g
+	   (let ((c (make-condition 
+		    'ensure-expected-no-warning-condition
+		    :the-condition ,gcondition)))
+	    (if (find-restart 'ensure-failed)
+		(invoke-restart 'ensure-failed c) 
+		(warn c))))))))
 
 (defmacro ensure-warning (&body body)
   "Ensure-warning evaluates its body. If the body does *not* signal a 
