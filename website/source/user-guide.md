@@ -286,6 +286,7 @@ when calling [run-test][] or [run-tests][] or when interactively defining new te
 
 {docs *test-ignore-warnings?* variable}
 {docs *test-break-on-errors?* variable}
+{docs *test-break-on-failures?* variable}
 {docs *test-maximum-time* variable}
 {docs *test-print-testsuite-names* variable}
 {docs *test-print-test-case-names* variable}

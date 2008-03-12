@@ -635,7 +635,8 @@ details."
                                   :expected-condition-type ',condition
                                   :the-condition cond
                                   ,@(when report
-                                      `(:message (format nil ,report ,arguments))))))
+                                      `(:message 
+					(format nil ,report ,arguments))))))
                           (if (find-restart 'ensure-failed)
                             (invoke-restart 'ensure-failed c) 
                             (warn c)))))
