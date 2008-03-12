@@ -1917,7 +1917,7 @@ nor configuration file options were specified."))))))
 	   (expected-failures (- (length (expected-failures tr))
 				 non-failure-failures)))	     
       (print-unreadable-object (tr stream)
-        (cond ((null (tests-run tr))
+        (cond ((and (null (tests-run tr)) complete-success?)
                (format stream "~A: no tests defined" (results-for tr)))
               ((eq (test-mode tr) :single)
                (cond ((test-interactive? tr)
@@ -1985,35 +1985,49 @@ nor configuration file options were specified."))))))
 		     (subclasses 'unexpected-success-failure :proper? nil)))
 	   (expected-failures result)))
 	 (number-of-expected-failures (- (length (expected-failures result))
-					 non-failure-failures)))	     
+					 non-failure-failures))
+	 (*print-level* (get-test-print-level))
+	 (*print-length* (get-test-print-length)))
     (unless *test-is-being-defined?*
-      (format stream "~&Test Report for ~A: ~D test~:P run" 
-              (results-for result) (length (tests-run result))))
-    (flet ((show-details ()
-	     (when show-details-p
-	       (format stream "~%~%")             
-	       (print-test-result-details 
-		stream result show-expected-p show-code-p))))
-      (let* ((*print-level* (get-test-print-level))
-           (*print-length* (get-test-print-length)))
-      (cond ((or (failures result) (errors result)
-		 (expected-failures result) (expected-errors result))
-             (format stream "~[~:;, ~:*~A Failure~:P~]~[~:;, ~:*~A Expected failure~:P~]~[~:;, ~:*~A Successful Surprise~:P~]~[~:;, ~:*~A Error~:P~]~[~:;, ~:*~A Expected error~:P~]." 
-                     number-of-failures
+      (print-test-summary result stream)
+      (when (and show-details-p
+		 (or number-of-failures
                      number-of-expected-failures
-		     non-failure-failures
-                     number-of-errors
-                     number-of-expected-errors)
-	     (show-details))
-	    ((or (expected-failures result) (expected-errors result))
-             (format stream ", all passed *~[~:;, ~:*~A Expected failure~:P~]~[~:;, ~:*~A Expected error~:P~])." 
-                     number-of-expected-failures
-                     number-of-expected-errors)
-	     (show-details))
-	    (t
-             (unless *test-is-being-defined?*
-               (format stream ", all passed!")))))    
-    (values))))
+	             number-of-errors
+                     number-of-expected-errors))
+	(format stream "~%~%")             
+	(print-test-result-details
+	 stream result show-expected-p show-code-p)
+	(print-test-summary result stream)))))
+
+(defun print-test-summary (result stream)
+  (let* ((number-of-failures (length (failures result)))
+	 (number-of-errors (length (errors result)))
+	 (number-of-expected-errors (length (expected-errors result)))
+	 (non-failure-failures
+	  (count-if 
+	   (lambda (failure) 
+	     (member (class-of (test-condition failure))
+		     (subclasses 'unexpected-success-failure :proper? nil)))
+	   (expected-failures result)))
+	 (number-of-expected-failures (- (length (expected-failures result))
+					 non-failure-failures)))	     
+    (format stream "~&Test Report for ~A: ~D test~:P run" 
+	    (results-for result) (length (tests-run result)))
+    (cond ((or (failures result) (errors result)
+	       (expected-failures result) (expected-errors result))
+	   (format stream "~[~:;, ~:*~A Error~:P~]~[~:;, ~:*~A Failure~:P~]~[~:;, ~:*~A Expected error~:P~]~[~:;, ~:*~A Expected failure~:P~]~[~:;, ~:*~A Successful Surprise~:P~]." 
+		   number-of-errors
+		   number-of-failures
+		   number-of-expected-errors
+		   number-of-expected-failures
+		   non-failure-failures))
+	  ((or (expected-failures result) (expected-errors result))
+	   (format stream ", all passed *~[~:;, ~:*~A Expected error~:P~]~[~:;, ~:*~A Expected failure~:P~])." 
+		   number-of-expected-errors
+		   number-of-expected-failures))
+	  (t
+	   (format stream ", all passed!")))))
 
 (defun print-test-result-details (stream result show-expected-p show-code-p)
   (loop for report in (errors result) do
