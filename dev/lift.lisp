@@ -499,18 +499,21 @@ can be :supersede, :append, or :error.")
 		     (assertion c) (value c) (message c)))))
 
 (define-condition ensure-expected-condition (test-condition) 
-                  ((expected-condition-type
-                    :initform nil
-                    :accessor expected-condition-type
-                    :initarg :expected-condition-type)
-                   (the-condition
-                    :initform nil
-                    :accessor the-condition
-                    :initarg :the-condition))
+  ((expected-condition-type
+    :initform nil
+    :accessor expected-condition-type
+    :initarg :expected-condition-type)
+   (the-condition
+    :initform nil
+    :accessor the-condition
+    :initarg :the-condition))
   (:report (lambda (c s)
-             (format s "Expected ~A but got ~S" 
-                     (expected-condition-type c)
-                     (the-condition c)))))
+	     (let ((the-condition (the-condition c)))
+	       (format s "Expected ~S but got ~S~@[:~_   ~A~]" 
+		       (expected-condition-type c)
+		       (type-of the-condition)
+		       (and (typep the-condition 'condition)
+			    the-condition))))))
 
 (define-condition ensure-expected-no-warning-condition (test-condition) 
                   ((the-condition
