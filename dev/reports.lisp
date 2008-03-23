@@ -706,7 +706,12 @@ run-test
     (out :start-time-universal (start-time-universal result))
     (when (slot-boundp result 'end-time-universal)
       (out :end-time-universal (end-time-universal result)))
-    (out :testsuite-summary (collect-testsuite-summary result))
+    (out :errors (collect-testsuite-summary result :errors))
+    (out :failures (collect-testsuite-summary result :failures))
+    (out :expected-errors
+	 (collect-testsuite-summary result :expected-errors))
+    (out :expected-failures 
+	 (collect-testsuite-summary result :expected-failures))
     (loop for hook in *lift-report-footer-hook* do
 	 (funcall hook out result))
     (format out "~&\)~%")))
@@ -758,21 +763,17 @@ run-test
 
 ;;;;
 
-(defun collect-testsuite-summary (result)
-  (let ((seen (make-hash-table)))
-    (flet ((seenp (suite)
-	     (gethash suite seen))
-	   (see (suite)
-	     (setf (gethash suite seen) t)))
-      (declare (ignore (function see) (function seenp)))
-      (loop for suite in (suites-run result) collect
-	   (list suite
-		 :testcases (testsuite-tests suite) 
-		 :direct-subsuites (mapcar 
-				    (lambda (class)
-				      (class-name class))
-				    (direct-subclasses suite)))))))
+(defun collect-testsuite-summary (result kind)
+  (let ((list (slot-value result (intern (symbol-name kind) 
+					 (find-package :lift)))))
+    (flet ((encode-symbol (symbol)
+	     (cons (symbol-name symbol) 
+		   (package-name (symbol-package symbol)))))
+      (mapcar (lambda (glitch)
+		(list (encode-symbol (type-of (testsuite glitch)))
+		      (encode-symbol (test-method glitch))))
+	      list))))
 
 #+(or)
-(collect-testsuite-summary r)
+(collect-testsuite-summary lift:*test-result* :failures)
 

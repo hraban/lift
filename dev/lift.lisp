@@ -2239,14 +2239,16 @@ nor configuration file options were specified."))))))
         (expected-error (def :expected-error)))
     `(progn
        (defmethod testsuite-expects-error ((testsuite ,test-name))
-	 ,expected-error))))
+	 (with-test-slots
+	   ,expected-error)))))
 
 (defun build-testsuite-expected-failure ()
   (let ((test-name (def :testsuite-name))
         (expected-failure (def :expected-failure)))
     `(progn
        (defmethod testsuite-expects-failure ((testsuite ,test-name))
-	 ,expected-failure))))
+	 (with-test-slots
+	   ,expected-failure)))))
 
 (defun build-test-teardown-method ()
   (let ((test-name (def :testsuite-name))

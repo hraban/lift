@@ -649,7 +649,9 @@ See file COPYING for license
   ())
 
 (deftestsuite test-break-on-failure-helper ()
-  ())
+  ()
+  ;; :categories (foo bar)
+  )
 
 (addtest (test-break-on-failure-helper)
   failing-test
