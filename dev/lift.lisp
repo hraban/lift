@@ -1046,11 +1046,14 @@ the thing being defined.")
 				     (priority (cdr name.cb))))))
 
 (defmacro with-test-slots (&body body)
-  `(symbol-macrolet ((lift-result (getf (test-data *current-test*) :result)))   
+  `(symbol-macrolet ((lift-result (getf (test-data *current-test*) :result)))
+     ;; case111 - LW complains otherwise
+     (declare (ignorable lift-result))
      (symbol-macrolet
 	 ,(mapcar #'(lambda (local)
 		      `(,local (test-environment-value ',local)))
 		  (test-slots (def :testsuite-name)))
+       (declare (ignorable ,@(test-slots (def :testsuite-name))))
        (macrolet
 	   ,(mapcar (lambda (spec)
 		      (destructuring-bind (name arglist) spec
