@@ -84,7 +84,9 @@
 
 	    lift-result
 	    lift-property
-	    liftpropos)))
+	    liftpropos
+
+	    handle-config-preference)))
 
 ;;; ---------------------------------------------------------------------------
 ;;; shared stuff
