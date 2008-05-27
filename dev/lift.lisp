@@ -2650,6 +2650,9 @@ control over where in the test hierarchy the search begins."
 (defmethod find-test-case ((suite symbol) name)
   (find-test-case (find-class (find-testsuite suite)) name)) 
 
+(defmethod find-test-case ((suite null) name)
+  (find-test-cases name)) 
+
 (defmethod find-test-case ((suite test-mixin) name)
   (find-test-case (class-of suite) name))
 
@@ -2676,6 +2679,19 @@ control over where in the test hierarchy the search begins."
 	   (error "There are several test cases of ~s named ~s: they are ~{~s~^, ~}"
 		  suite-class name possibilities)))))
 			     
+(defmethod find-test-cases ((name symbol))
+  (find-test-cases (symbol-name name)))
+
+(defmethod find-test-cases ((name string))
+  (let ((result nil))
+    (dolist (testsuite (testsuites))
+      (let* ((suitename (class-name testsuite))
+	     (testname (find-symbol name (symbol-package suitename))))
+	(when (and testname 
+		   (test-case-p testsuite testname))
+	  (push (cons suitename testname) result))))
+    result))
+
 (defun last-test-status ()
   (cond ((typep *test-result* 'test-result)
 	 (cond ((and (null (errors *test-result*))
