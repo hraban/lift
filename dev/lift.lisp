@@ -1477,25 +1477,39 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
     (setf test-case name))
   (assert suite nil "Test suite could not be determined.")
   (assert test-case nil "Test-case could not be determined.")
-  (let* ((*test-break-on-errors?* break-on-errors?)
-	 (*test-break-on-failures?* break-on-failures?)
-         (*test-do-children?* do-children?)
-         (*current-test* (make-testsuite suite args)))
-    (unless result
-      (setf result (make-test-result suite :single)))
-    (prog1
-	(let ((*current-test-case-name* (find-test-case suite test-case))
-	      (*current-testsuite-name* suite))
-      	  (do-testing-in-environment
-	      *current-test* result 
-	      (lambda () 
-		(run-test-internal
-		 *current-test* *current-test-case-name* result)))
-	  (setf *test-result* result))
-      (setf *current-test-case-name* (find-test-case suite test-case)
-	    *current-testsuite-name* suite))))
+  (let ((args-copy (copy-list args)))
+    (declare (ignore args-copy))
+    (remf args :suite)
+    (remf args :break-on-errors?)
+    (remf args :break-on-failures?)
+    (remf args :run-setup)
+    (remf args :dribble)
+    (remf args :config)
+    (remf args :report-pathname)
+    (remf args :do-children?)
+    (remf args :tests-to-skip)
+    (remf args :testsuite-initargs)
+    (let* ((*test-break-on-errors?* break-on-errors?)
+	   (*test-break-on-failures?* break-on-failures?)
+	   (*test-do-children?* do-children?)
+	   (*current-test* (make-testsuite suite args)))
+      (unless result
+	(setf result (make-test-result suite :single)))
+      (prog1
+	  (let ((*current-test-case-name* (find-test-case suite test-case))
+		(*current-testsuite-name* suite))
+	    (do-testing-in-environment
+		*current-test* result 
+		(lambda () 
+		  (run-test-internal
+		   *current-test* *current-test-case-name* result)))
+	    (setf *test-result* result))
+	(setf *current-test-case-name* (find-test-case suite test-case)
+	      *current-testsuite-name* suite)))))
 
 (defun make-testsuite (suite args)
+  (apply #'make-instance (find-testsuite suite) args)
+  #+(or)
   (let ((make-instance-args nil))
     (loop for keyword in *make-testsuite-arguments* do
        (when (member keyword args)
@@ -1581,10 +1595,15 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
   (funcall fn)
   (values result))
 
-(defmethod run-tests-internal ((suite symbol) &rest args &key &allow-other-keys)
-  (let ((*current-test* (make-testsuite suite args)))
-    (remf args :profile)
-    (apply #'run-tests-internal *current-test* args)))
+(defmethod run-tests-internal ((suite symbol) &rest args
+			       &key &allow-other-keys)
+  (let ((*current-test* (make-testsuite suite args))
+	(passthrough-arguments nil))
+    (loop for arg in '(:result :do-children?) 
+       when (getf args arg) do
+	 (push (getf args arg) passthrough-arguments)
+	 (push arg passthrough-arguments))
+    (apply #'run-tests-internal *current-test* passthrough-arguments)))
 
 (defmethod run-tests-internal 
     ((case test-mixin) &key 
@@ -1606,6 +1625,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 		  (report-pathname t)
 		  (profile nil)
 		  (do-children? *test-do-children?*)
+		  (testsuite-initargs nil) 
 		  result
 		  &allow-other-keys)
   "Run all of the tests in a suite. Arguments are :suite, :result,
@@ -1620,6 +1640,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
     (remf args :report-pathname)
     (remf args :do-children?)
     (remf args :tests-to-skip)
+    (remf args :testsuite-initargs)
     (let* ((result (or result
 		       (apply #'make-test-result
 			      (or suite config) :multiple args)))
@@ -1656,7 +1677,8 @@ but not both."))
 		    (dolist (testsuite (if (consp suite) suite (list suite)))
 		      (let ((*current-testsuite-name* testsuite))
 			(apply #'run-tests-internal testsuite
-			       :result result :profile profile args))
+			       :result result :profile profile 
+			       testsuite-initargs))
 		      (setf *current-testsuite-name* testsuite))
 		 ;; cleanup
 		 (when dribble-stream 
