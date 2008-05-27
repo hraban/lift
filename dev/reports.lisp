@@ -51,6 +51,7 @@ use property-list format
 :testing
 
 run-tests-internal
+  make-testsuite
   do-testing with testsuite-run
 
 do-testing (suite)
@@ -61,7 +62,7 @@ do-testing (suite)
   testsuite-teardown *
 
 run-tests
-  run-test-internal
+  run-tests-internal
 
 run-test-internal
   start-test - push, name, value onto test-placeholder *
