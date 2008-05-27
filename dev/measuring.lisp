@@ -75,8 +75,8 @@
      &body body)
   `(with-profile-report-fn 
        ,name ,style 
-       (lambda ()
-	 (progn ,@body))
+       (compile nil 
+		(lambda () (progn ,@body)))
        ,@(when ccp-supplied? 
 	       `(:count-calls-p ,count-calls-p))
        ,@(when ln-supplied?
