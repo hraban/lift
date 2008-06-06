@@ -8,7 +8,7 @@
        #+allegro #:mop
        #+clisp #:clos
        #+lispworks #:clos
-       #+mcl #:ccl
+       #+(or mcl ccl) #:ccl
        #+cmu #:clos-mop
        #+sbcl #:sb-mop
        #+scl #:clos

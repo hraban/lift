@@ -2360,7 +2360,7 @@ nor configuration file options were specified."))))))
        ,(when documentation
           `(setf (gethash ',test-name (test-case-documentation ',test-class))
                  ,documentation))
-       #+MCL
+       #+(or mcl ccl)
        ,@(when name-supplied?
            `((ccl:record-source-file ',test-name 'test-case)))
        (unless (find ',test-name (testsuite-tests ',test-class))

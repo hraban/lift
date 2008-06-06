@@ -1,11 +1,11 @@
-;;;-*- Mode: Lisp; Package: LIFT-INTERFACE -*-
+;;;-*- Mode: Lisp; Package: lift-interface -*-
 
-(defpackage "LIFT-INTERFACE"
+(defpackage #:lift-interface
   (:use 
-   "LIFT"
-   "COMMON-LISP"
-   #+MCL       "CCL")
-  (:import-from "LIFT"
+   #:common-lisp
+   #:lift
+   #+(or mcl ccl) #:ccl)
+  (:import-from #:lift
                 #:number-of-failures
                 #:number-of-errors
                 #:errors
