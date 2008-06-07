@@ -113,6 +113,7 @@ run-test
 (defmethod test-result-report (result output format
 			       &rest args
 			       &key (package *package*) &allow-other-keys)
+  (declare (ignore args))
   (let ((*report-environment* (make-report-environment))
 	(*package* (or (find-package package) *package*)))
     (cond ((or (stringp output)
