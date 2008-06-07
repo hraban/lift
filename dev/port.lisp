@@ -169,25 +169,25 @@ returns a string with the corresponding backtrace.")
 		  (sb-ext::timeout (c)
 		    (cerror "Timeout" 'timeout-error)))
 		#+(or digitool openmcl ccl)
-		(let ((checker-process (format nil "Checker ~S" (gensym)))
-		      (waiting-process (format nil "Waiter ~S" (gensym)))
-		      (result (gensym))
-		      (process (gensym)))
-		  (let* ((,result nil)
-			 (,process (ccl:process-run-function 
-				    ,checker-process
-				    (lambda ()
-				      (setf ,result (progn (doit))))))) 
-		    (ccl:process-wait-with-timeout
-		     ,waiting-process
-		     (* ,gseconds #+(or openmcl ccl)
-			ccl:*ticks-per-second* #+digitool 60)
-		     (lambda ()
-		       (not (ccl::process-active-p ,process)))) 
-		    (when (ccl::process-active-p ,process)
-		      (ccl:process-kill ,process)
-		      (cerror "Timeout" 'timeout-error))
-		    (values ,result)))
+		,(let ((checker-process (format nil "Checker ~S" (gensym)))
+		       (waiting-process (format nil "Waiter ~S" (gensym)))
+		       (result (gensym))
+		       (process (gensym)))
+		      `(let* ((,result nil)
+			      (,process (ccl:process-run-function 
+					 ,checker-process
+					 (lambda ()
+					   (setf ,result (progn (doit))))))) 
+			 (ccl:process-wait-with-timeout
+			  ,waiting-process
+			  (* ,gseconds #+(or openmcl ccl)
+			     ccl:*ticks-per-second* #+digitool 60)
+			  (lambda ()
+			    (not (ccl::process-active-p ,process)))) 
+			 (when (ccl::process-active-p ,process)
+			   (ccl:process-kill ,process)
+			   (cerror "Timeout" 'timeout-error))
+			 (values ,result)))
 		#-(or allegro cmu sb-thread openmcl ccl mcl digitool)
 		(progn (doit)))
 	       (t
