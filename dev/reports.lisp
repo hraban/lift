@@ -311,7 +311,7 @@ run-test
 
 (defmethod summarize-test-problems-of-type 
     (problems stream id heading)
-  (format stream "~&<div id=\"id\">" id)
+  (format stream "~&<div id=\"~a\">" id)
   (format stream "~&<h3>~a</h3>" heading)
   (report-tests-by-suite 
    (mapcar (lambda (problem)

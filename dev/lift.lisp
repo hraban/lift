@@ -2035,10 +2035,10 @@ nor configuration file options were specified."))))))
     (unless *test-is-being-defined?*
       (print-test-summary result stream)
       (when (and show-details-p
-		 (or number-of-failures
-                     number-of-expected-failures
-	             number-of-errors
-                     number-of-expected-errors))
+		 (or (plusp number-of-failures)
+                     (plusp number-of-expected-failures)
+	             (plusp number-of-errors)
+                     (plusp number-of-expected-errors)))
 	(format stream "~%~%")             
 	(print-test-result-details
 	 stream result show-expected-p show-code-p)
