@@ -6,7 +6,7 @@
 (defgeneric find-test-case (suite name)
   )
 
-(defmethod find-test-cases (name)
+(defgeneric find-test-cases (name)
   )
 
 ;;;;;
