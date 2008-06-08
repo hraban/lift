@@ -14,8 +14,10 @@
 		((:static-file "notes.text")
              
 		 (:file "packages")
+		 (:file "utilities" 
+			:depends-on ("packages"))
 		 (:file "lift"
-			:depends-on ("packages" "measuring" "port"))
+			:depends-on ("packages" "measuring" "port" "utilities"))
 		 (:file "copy-file"
 			:depends-on ("packages"))
 		 (:file "random-testing" 
@@ -28,7 +30,9 @@
 			:depends-on ("port" "lift"))
 		 (:file "reports" 
 			:depends-on ("port" "lift"))
-		 #+Ignore
+		 (:file "introspection" 
+			:depends-on ("lift"))
+		  #+Ignore
 		 (:file "prototypes"
 			:depends-on ("lift"))))
                
