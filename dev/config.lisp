@@ -1,5 +1,12 @@
 (in-package #:lift)
 
+(defgeneric generate-report-summary-pathname ()
+  )
+
+(defgeneric handle-config-preference (name args)
+  )
+
+
 (defvar *current-configuration-stream* nil)
 
 (defvar *current-asdf-system-name* nil)

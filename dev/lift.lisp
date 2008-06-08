@@ -802,9 +802,6 @@ error, then ensure-error will generate a test failure."
   (:default-initargs
     :run-setup :once-per-test-case))
 
-(defmethod equality-test ((suite test-mixin))
-  #'equal)
-
 (defclass test-result ()
   ((results-for :initform nil 
 		:initarg :results-for 
@@ -958,6 +955,21 @@ the methods that should be run to do the tests for this test."))
 
 (defgeneric flet-test-function (testsuite function-name &rest args)
   (:documentation ""))
+
+(defgeneric equality-test (testsuite)
+  (:documentation ""))
+
+(defgeneric do-testing-in-environment (testsuite result function)
+  (:documentation ""))  
+
+(defgeneric skip-test-case (result suite-name test-case-name)
+  )
+
+(defgeneric describe-test-result (result stream &key &allow-other-keys)
+  )
+
+(defmethod equality-test ((suite test-mixin))
+  #'equal)
 
 (defmethod setup-test :before ((test test-mixin))
   (setf *test-scratchpad* nil

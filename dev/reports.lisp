@@ -80,6 +80,32 @@ run-test
   do-testing with run-test-internal
 |#
 
+
+
+(defgeneric start-report-output (result stream format)
+  )
+
+(defgeneric summarize-test-result (result stream format)
+  )
+
+(defgeneric summarize-test-environment (result stream format)
+  )
+
+(defgeneric summarize-test-problems (result stream format)
+  )
+
+(defgeneric generate-detailed-reports (result stream format)
+  )
+
+(defgeneric summarize-tests-run (result stream format)
+ )
+
+(defgeneric end-report-output (result stream format)
+ )
+
+(defgeneric html-header (stream title style-sheet)
+ )
+
 ;; when it doubt, add a special
 (defvar *report-environment* nil
   "Used internally by LIFT reports.")
