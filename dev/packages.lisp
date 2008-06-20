@@ -24,7 +24,10 @@
        #:describe-test-result
        #:count-repetitions
        #:while-counting-repetitions
-       #:with-timeout))))
+       #:with-timeout
+
+       #:testsuite-ambiguous
+       #:testsuite-not-defined))))
 
 (unless (and (find-package :asdf)
 	     (find-symbol (symbol-name 'system-relative-pathname) :asdf)

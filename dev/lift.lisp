@@ -465,6 +465,20 @@ can be :supersede, :append, or :error.")
                      (testsuite-name c)
 		     (test-case-name c)))))
 
+(define-condition test-case-ambiguous (lift-compile-error)
+                  ((testsuite-name :reader testsuite-name
+				   :initarg :testsuite-name)
+		   (test-case-name :reader test-case-name
+				   :initarg :test-case-name)
+		   (possible-matches :reader possible-matches
+				     :initarg possible-matches))
+  (:report 
+   (lambda (c s)
+     (format s "There are several test cases named ~s.~s: they are ~{~s~^, ~}"
+                     (testsuite-name c)
+		     (test-case-name c)
+		     (possible-matches c)))))00
+
 (define-condition test-condition (warning) 
                   ((message :initform ""
                             :initarg :message

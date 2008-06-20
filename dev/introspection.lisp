@@ -1,12 +1,40 @@
 (in-package #:lift)
 
-(defgeneric find-testsuite (suite)
-  )
+(defgeneric find-testsuite (suite &key errorp)
+  (:documentation "Search for a testsuite named `suite`. 
 
-(defgeneric find-test-case (suite name)
-  )
+The search is conducted across all packages so `suite` can be 
+a symbol in any package. I.e., find-testsuite looks for testsuite 
+classes whose symbol-name is string= to `suite`. If `errorp` is 
+true, then find-testsuite can raise two possible errors:
 
-(defgeneric find-test-cases (name)
+ * If more than one matching testsuite is found, 
+then an error of type `testsuite-ambiguous` will be raised. 
+ * If no matching testsuites are found, then an error of type 
+`testsuite-not-defined` will be raised. 
+
+The default for `errorp` is nil."))
+
+(defgeneric find-test-case (suite name &key errorp)
+  (:documentation "Search for a test-case named `name` in a 
+testsuite named `suite`. 
+
+The search is conducted across all packages so `suite` and `name` 
+can be symbols in any package. I.e., find-test-case looks for a
+testsuites and test-cases whose symbol-names are string= to
+`suite` and `name`. If `errorp` is 
+true, then find-test-case can raise two possible errors:
+
+ * If more than one matching test-case is found, 
+then an error of type `test-case-ambiguous` will be raised. 
+ * If no matching test-cases are found, then an error of type 
+`test-case-not-defined` will be raised. 
+
+The default for `errorp` is nil. If `suite` is nil, then
+find-test-case will search for matching test-cases across 
+all suites. This is equivalent to the behavior of [find-test-cases][]."))
+
+(defgeneric find-test-cases (name &key errorp)
   )
 
 ;;;;;
@@ -81,11 +109,11 @@ control over where in the test hierarchy the search begins."
            (prog1 *testsuite-test-count* (incf *testsuite-test-count*))) 
       (length (testsuite-methods testsuite))))
 
-(defmethod find-testsuite ((suite symbol))
+(defmethod find-testsuite ((suite symbol) &key (errorp nil))
   (or (testsuite-p suite)
-      (find-testsuite (symbol-name suite))))
+      (find-testsuite (symbol-name suite) :errorp errorp)))
 
-(defmethod find-testsuite ((suite-name string))
+(defmethod find-testsuite ((suite-name string) &key (errorp nil))
   (let* ((temp nil)
 	 (possibilities (remove-duplicates 
 			 (loop for p in (list-all-packages) 
@@ -94,12 +122,15 @@ control over where in the test hierarchy the search begins."
 				      (subtypep temp 'test-mixin)) collect
 			    temp))))
     (cond ((null possibilities) 
-	   (error 'testsuite-not-defined :testsuite-name suite-name))
+	   (when errorp
+	     (error 'testsuite-not-defined :testsuite-name suite-name)))
 	  ((= (length possibilities) 1)
 	   (first possibilities))
 	  (t 
-	   (error "There are several test suites named ~s: they are ~{~s~^, ~}"
-		  suite-name possibilities)))))
+	   (when errorp
+	     (error 'testsuite-ambiguous
+		    :testsuite-name suite-name 
+		    :possible-matches possibilities))))))
 			     
 (defun test-case-p (suite-class name)
   (find-method #'lift-test nil `(,suite-class (eql ,name)) nil)) 
@@ -113,23 +144,26 @@ control over where in the test hierarchy the search begins."
 (find-test-case (find-class (find-testsuite 'test-cluster-indexing-locally))
 		'index-themxx)
 
-(defmethod find-test-case ((suite symbol) name)
-  (find-test-case (find-class (find-testsuite suite)) name)) 
+(defmethod find-test-case ((suite symbol) name &key (errorp nil))
+  (find-test-case (find-class (find-testsuite suite)) name :errorp errorp)) 
 
-(defmethod find-test-case ((suite null) name)
-  (find-test-cases name)) 
+(defmethod find-test-case ((suite null) name &key (errorp nil))
+  (find-test-cases name :errorp errorp)) 
 
-(defmethod find-test-case ((suite test-mixin) name)
-  (find-test-case (class-of suite) name))
+(defmethod find-test-case ((suite test-mixin) name &key (errorp nil))
+  (find-test-case (class-of suite) name :errorp errorp))
 
-(defmethod find-test-case ((suite-class standard-class) (name symbol))
+(defmethod find-test-case ((suite-class standard-class) (name symbol)
+			    &key (errorp nil))
   (or (and (test-case-p suite-class name) name)
-      (find-test-case suite-class (symbol-name name))))
+      (find-test-case suite-class (symbol-name name) :errorp errorp)))
 
-(defmethod find-test-case ((suite test-mixin) (name string))
-  (find-test-case (class-of suite) name))
+(defmethod find-test-case ((suite test-mixin) (name string)
+			   &key (errorp nil))
+  (find-test-case (class-of suite) name :errorp errorp))
 
-(defmethod find-test-case ((suite-class standard-class) (name string))
+(defmethod find-test-case ((suite-class standard-class) (name string)
+			    &key (errorp nil))
   (let* ((temp nil)
 	 (possibilities (remove-duplicates 
 			 (loop for p in (list-all-packages) 
@@ -137,18 +171,22 @@ control over where in the test hierarchy the search begins."
 				      (test-case-p suite-class temp)) collect
 			    temp))))
     (cond ((null possibilities) 
-	   (error 'test-case-not-defined 
-		  :testsuite-name suite-class :test-case-name name))
+	   (when errorp
+	     (error 'test-case-not-defined 
+		    :testsuite-name suite-class :test-case-name name)))
 	  ((= (length possibilities) 1)
 	   (first possibilities))
 	  (t 
-	   (error "There are several test cases of ~s named ~s: they are ~{~s~^, ~}"
-		  suite-class name possibilities)))))
+	   (when errorp
+	     (error 'test-case-ambiguous
+		    :testsuite-name suite-class
+		    :test-case-name name
+		    :possible-matches possibilities))))))
 			     
-(defmethod find-test-cases ((name symbol))
-  (find-test-cases (symbol-name name)))
+(defmethod find-test-cases ((name symbol) &key (errorp nil))
+  (find-test-cases (symbol-name name) :errorp errorp))
 
-(defmethod find-test-cases ((name string))
+(defmethod find-test-cases ((name string) &key (errorp nil))
   (let ((result nil))
     (dolist (testsuite (testsuites))
       (let* ((suitename (class-name testsuite))
@@ -156,6 +194,9 @@ control over where in the test hierarchy the search begins."
 	(when (and testname 
 		   (test-case-p testsuite testname))
 	  (push (cons suitename testname) result))))
+    (unless result
+      (when errorp
+	(error "not test-cases found")))
     result))
 
 (defun last-test-status ()
