@@ -86,7 +86,8 @@
 	    lift-property
 	    liftpropos
 
-	    handle-config-preference)))
+	    handle-config-preference
+	    )))
 
 ;;; ---------------------------------------------------------------------------
 ;;; shared stuff
@@ -454,6 +455,17 @@ can be :supersede, :append, or :error.")
   (:report (lambda (c s)
              (format s "Test class ~A not defined before it was used."
                      (testsuite-name c)))))
+
+(define-condition testsuite-ambiguous (lift-compile-error)
+                  ((testsuite-name :reader testsuite-name
+                                    :initarg :testsuite-name)
+		   (possible-matches :reader possible-matches
+				     :initarg possible-matches))
+  (:report 
+   (lambda (c s)
+     (format s "There are several test suites named ~s: they are ~{~s~^, ~}"
+	     (testsuite-name c)
+	     (possible-matches c)))))
 
 (define-condition test-case-not-defined (lift-compile-error)
                   ((testsuite-name :reader testsuite-name
