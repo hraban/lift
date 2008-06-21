@@ -460,7 +460,7 @@ can be :supersede, :append, or :error.")
                   ((testsuite-name :reader testsuite-name
                                     :initarg :testsuite-name)
 		   (possible-matches :reader possible-matches
-				     :initarg possible-matches))
+				     :initarg :possible-matches))
   (:report 
    (lambda (c s)
      (format s "There are several test suites named ~s: they are ~{~s~^, ~}"

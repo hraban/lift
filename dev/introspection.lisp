@@ -127,10 +127,11 @@ control over where in the test hierarchy the search begins."
 	  ((= (length possibilities) 1)
 	   (first possibilities))
 	  (t 
-	   (when errorp
+	   (if errorp
 	     (error 'testsuite-ambiguous
 		    :testsuite-name suite-name 
-		    :possible-matches possibilities))))))
+		    :possible-matches possibilities))
+	   possibilities))))
 			     
 (defun test-case-p (suite-class name)
   (find-method #'lift-test nil `(,suite-class (eql ,name)) nil)) 

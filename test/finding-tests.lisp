@@ -24,9 +24,9 @@
 (addtest (test-find-test-suite)
   not-such-suite
   (ensure-condition lift::testsuite-not-defined
-    (lift::find-testsuite (gensym))))
+    (lift::find-testsuite (gensym) :errorp t)))
 
 (addtest (test-find-test-suite)
   two-many-tests
-  (ensure-error (lift::find-testsuite "test-finding")))
+  (ensure-error (lift:find-testsuite 'test-finding :errorp t)))
 
