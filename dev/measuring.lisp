@@ -175,29 +175,49 @@ different reports
 		       (prof:disassemble-profile thing)))))))))
     (values-list results)))
 
-(defmacro while-counting-repetitions ((period) &body body)
-  "Returns the count of the number of times `body` was executed during 
-`period` seconds."
-  (let ((gevent-count (gensym "count")))
-    `(let ((,gevent-count 0))
-       (declare (type fixnum ,gevent-count))
-       (handler-case
-	   (with-timeout (,period) 
-	     (loop  
-		(progn ,@body)
-		(incf ,gevent-count)))
-	 (timeout-error (c)
-	   (declare (ignore c))
-	   ,gevent-count)))))
+(defmacro while-counting-repetitions ((&optional (delay 1.0)) &body body)
+  "Execute `body` repeatedly for `delay` seconds. Returns the number
+of times `body` is executed per second. Warning: assumes that `body` will not
+be executed more than a fixnum number of times. The `delay` defaults to
+1.0."
+  (let ((gevent-count (gensym "count-"))
+	(gdelay (gensym "delay-"))
+	(gignore (gensym "ignore-"))
+	(gfn (gensym "fn-")))
+    `(let ((,gfn
+	    (compile
+	     nil
+	     (lambda () 
+	       (let ((,gevent-count 0)
+		     (,gdelay ,delay))
+		 (declare (type fixnum ,gevent-count))
+		 (handler-case
+		     (lift::with-timeout (,gdelay)
+		       (loop
+			  (progn ,@body)
+			  (setf ,gevent-count (the fixnum (1+ ,gevent-count)))))
+		   (lift::timeout-error (,gignore)
+		     (declare (ignore ,gignore))
+		     (if (plusp ,gevent-count)
+			 (float (/ ,gevent-count ,gdelay))
+			 ,gevent-count))))))))
+	   (funcall ,gfn))))
   
-(defun count-repetitions (fn period &rest args)
-  (declare (dynamic-extent args))
-  (let ((event-count 0))
+(defun count-repetitions (fn delay)
+  "Funcalls `fn` repeatedly for `delay` seconds. Returns the number
+of times `fn` was called. Warning: the code assumes that `fn` will 
+not be called more than a fixnum number of times."
+  (let ((event-count 0)
+	(compiled-fn (compile nil fn)))
+    (declare (type fixnum event-count))
     (handler-case
-	(with-timeout (period) 
-	  (loop  
-	     (apply #'funcall fn args)
-	     (incf event-count)))
-      (timeout-error (c)
+	(lift::with-timeout (delay) 
+	  (loop 
+	     (funcall compiled-fn)
+	     (setf event-count (the fixnum (1+ event-count)))))
+      (lift::timeout-error (c)
 	(declare (ignore c))
-	event-count))))
+	(if (plusp event-count)
+	    (/ event-count delay)
+	    event-count)))))
+
