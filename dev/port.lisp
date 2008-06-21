@@ -153,7 +153,11 @@ returns a string with the corresponding backtrace.")
 	     (format s "Process timeout"))))
 
 (defmacro with-timeout ((seconds) &body body)
-  (let ((gseconds (gensym)))
+  (let ((gseconds (gensym "seconds-"))
+	#+(and sbcl (not sb-thread))
+	(glabel (gensym "label-"))
+	#+(and sbcl (not sb-thread))
+	(gused-timer? (gensym "used-timer-")))
     `(let ((,gseconds ,seconds))
        (flet ((doit ()
 		(progn ,@body)))
@@ -163,11 +167,22 @@ returns a string with the corresponding backtrace.")
 		  (doit))
 		#+cmu
 		(mp:with-timeout (,gseconds) (doit))
-		#+sb-thread
+		#+(and sbcl sb-thread)
 		(handler-case 
 		    (sb-ext:with-timeout ,gseconds (doit))
 		  (sb-ext::timeout (c)
-		    (cerror "Timeout" 'timeout-error)))
+		    (error "Timeout" 'timeout-error)))
+		#+(and sbcl (not sb-thread))
+		(let ((,gused-timer? nil))
+		  (catch ',glabel
+		    (sb-ext:schedule-timer
+		     (sb-ext:make-timer (lambda ()
+					  (setf ,gused-timer? t)
+					  (throw ',glabel nil)))
+		     ,gseconds)
+		    (doit))
+		  (when ,gused-timer?
+		    (error 'timeout-error)))
 		#+(or digitool openmcl ccl)
 		,(let ((checker-process (format nil "Checker ~S" (gensym)))
 		       (waiting-process (format nil "Waiter ~S" (gensym)))
