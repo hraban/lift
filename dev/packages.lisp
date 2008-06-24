@@ -3,7 +3,7 @@
 (eval-when (:compile-toplevel :load-toplevel :execute)
   (unless (find-package '#:lift)
     (defpackage #:lift
-      (:use #:common-lisp)
+      (:use #:common-lisp #:com.metabang.trivial-timeout)
       (:import-from		     
        #+allegro #:mop
        #+clisp #:clos
