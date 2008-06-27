@@ -1,5 +1,5 @@
-(defpackage #:asdf-lift (:use #:asdf #:cl))
-(in-package #:asdf-lift)
+(defpackage #:lift-system (:use #:common-lisp #:asdf))
+(in-package #:lift-system)
 
 (defsystem lift
   :version "1.5.1"
