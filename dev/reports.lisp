@@ -94,6 +94,14 @@ run-test
 (defgeneric summarize-test-problems (result stream format)
   )
 
+(defgeneric summarize-test-problems-of-type 
+    (problems stream id heading)
+  )
+
+(defgeneric summarize-single-test 
+    (format suite-name test-case-name data &key stream)
+  )
+
 (defgeneric generate-detailed-reports (result stream format)
   )
 
