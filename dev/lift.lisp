@@ -53,6 +53,8 @@ the class itself is not included in the mapping. Proper? defaults to nil."
   (let ((result (class-precedence-list (get-class thing))))
     (if proper? (rest result) result)))
 
+#+(or)
+;;?? remove
 (defun direct-superclasses (thing)
   "Returns the immediate superclasses of thing. Thing can be a class, object or symbol naming a class."
   (class-direct-superclasses (get-class thing)))
@@ -73,126 +75,17 @@ the class itself is not included in the mapping. Proper? defaults to nil."
        (defmethod (setf ,property) (value (class-name symbol))
          (setf (get class-name ,real-name) value)))))
 
-(defvar *automatic-slot-accessors?* nil)
-(defvar *automatic-slot-initargs?* nil)
-(defvar *clos-slot-options* 
-  '(:initform :initarg :reader :writer 
-    :accessor :documentation :type
-    :allocation))
-
-(defun parse-brief-slot
-       (slot &optional
-	     (automatic-accessors? *automatic-slot-accessors?*)
-	     (automatic-initargs? *automatic-slot-initargs?*)
-	     conc-name
-             (conc-separator "-"))
-  "Returns a verbose-style slot specification given a brief style, consisting of
-a single symbol, the name of the slot, or a list of the slot name, optional
-initform, optional symbol specifying whether there is an initarg, reader, or
-accessor, and optional documentation string.  The specification of initarg,
-reader and accessor is done by the letters I, R and A, respectively; to specify
-none of those, give a symbol containing none of those letters, such as the
-symbol *.  This function is used in the macro `defclass-brief,' but has been
-broken out as a function in its own right for those writing variants on the
-`defclass' macro.  If a verbose-style slot specification is given, it is
-returned unchanged.
-
-If `automatic-accessors?  is true, an accessor is defined, whether A is
-specified or not _unless_ R is specified.  If `automatic-initargs?  is true, 
-an initarg is defined whether I is specified or not.  If `conc-name' is
-specified, the accessor name has that prepended, with conc-separator, and then 
-the slot name. 
-
-All other CLOS slot options are processed normally."
-  
-  ;; check types
-  (etypecase slot
-    (symbol (setf slot (list slot)))
-    (list nil))
-  
-  (let* ((name (pop slot))
-	 (new-slot (list name))
-         (done-initform? nil)
-         (done-spec? nil)
-         (done-documentation? nil)
-         (reader-added? nil)
-         (accessor-added? nil)
-         (initargs-added? nil))
-    (flet ((make-conc-name ()
-             (if conc-name
-               (intern (format nil "~@:(~A~A~A~)"
-			       conc-name conc-separator name))
-               name))
-           
-           (add-option (option argument)
-             (push option new-slot)
-             (push argument new-slot))
-           
-           ;; Remove duplicate options before returning the slot spec.
-           (finish-new-slot (slot)
-             ;; XXX This code is overly loopy and opaque ---L
-             (destructuring-bind (slot-name &rest options) slot
-               (let ((opts (make-hash-table)))
-                 (loop for (key val . d) = options then d
-                       while key
-                       doing (pushnew val (gethash key opts nil) :test #'equal))
-                 (loop for key being each hash-key of opts using (hash-value vals)
-                       nconc (mapcan #'(lambda (x) (list key x)) vals) into spec
-                       finally (return (cons slot-name spec)))))))
-      
-      (do* ((items slot (rest items))
-            (item (first items) (first items))
-            (process-item? t t)
-            (clos-item? (member item *clos-slot-options*) 
-                        (member item *clos-slot-options*)))
-           ((null items) nil)
-        
-        (unless done-initform?
-          (setf done-initform? t)
-          (unless clos-item?
-            (setf  process-item? nil)
-            (unless (eq item :UNBOUND)
-              (push :initform new-slot)
-              (push item new-slot))))
-        
-        (when process-item?
-          (unless (or done-spec? (not (symbolp item)) clos-item?)
-            (setf done-spec? t)
-            (setf process-item? nil)
-            ;; If you've got an A, who cares about R
-            (when (find #\A (string item))
-              (setf accessor-added? t)
-              (add-option :accessor (make-conc-name)))
-            (when (and (not accessor-added?) (find #\R (string item)))
-              (setf reader-added? t)
-              (add-option :reader (make-conc-name)))
-            (when (find #\I (string item))
-              (setf initargs-added? t)
-              (add-option :initarg (intern (string name) 
-					   (find-package :keyword))))))
-        
-        (when process-item?
-          (unless (or done-documentation? (not (stringp item)))
-            (setf done-documentation? t)
-            (push :documentation new-slot)
-            (push item new-slot)
-            ))
-        
-        (when process-item?
-          (when clos-item?
-            (push item new-slot)
-            (pop items)
-            (push (first items) new-slot))))
-      
-      (when (and automatic-initargs? (not initargs-added?))
-        (add-option :initarg (intern (string name) (find-package :keyword))))
-      
-      (when (and automatic-accessors? 
-		 (and (not accessor-added?) (not reader-added?)))
-        (add-option :accessor (make-conc-name)))
-      
-      ;; finish-new-slot cleans up duplicates
-      (finish-new-slot (nreverse new-slot)))))
+(defun parse-brief-slot (slot)
+  (let* ((slot-spec 
+	  (typecase slot
+	    (symbol (list slot))
+	    (list slot)
+	    (t (error "Slot-spec must be a symbol or a list. `~s` is not." 
+		      slot)))))
+    (unless (null (cddr slot-spec))
+      (error "Slot-spec must be a symbol or a list of length one or two. `~s` has too many elements." slot)) 
+    `(,(first slot-spec) ,@(when (second slot-spec) 
+				 `(:initform ,(second slot-spec))))))
 
 (defun convert-clauses-into-lists (clauses-and-options clauses-to-convert)
   ;; This is useful (for me at least!) for writing macros
