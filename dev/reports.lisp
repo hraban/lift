@@ -23,8 +23,23 @@ lift::(progn
   (setf (test-result-property *test-result* :style-sheet) "test-style.css")
   (setf (test-result-property *test-result* :title) "Merge LUBM 8000")
   (setf (test-result-property *test-result* :if-exists) :error)
-  (test-result-report *test-result*  #p"/tmp/report.sav" :save))
+  (test-result-report *test-result* #p "/fi/internal/people/gwking/agraph/testing/report/" :html))
 
+lift::(progn
+  (setf (test-result-property *test-result* :style-sheet) "test-style.css")
+  (setf (test-result-property *test-result* :title) "lubm-50")
+  (setf (test-result-property *test-result* :unique-name) t)
+  (test-result-report *test-result* #p "/fi/internal/people/gwking/agraph/testing/report/2008-08-21-lubm-50-prolog" :html))
+
+lift::(progn
+	(setf (test-result-property *test-result* :style-sheet) 
+	      "test-style.css")
+	(setf (test-result-property *test-result* :title)
+	      "Ugh")
+	(setf (test-result-property *test-result* :if-exists)
+	      :error)
+	(test-result-report *test-result*  #p"report-20080813a.sav" :save))
+	
 (run-tests :suite '(lift-test test-cursors))
 
 (run-tests :suite 'lift-test-ensure)

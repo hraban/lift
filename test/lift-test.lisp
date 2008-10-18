@@ -63,7 +63,11 @@ See file COPYING for license
 
 (addtest (lift-test-ensure-helper)
   simple-ensure-test-3
-  (ensure (let ((x 0)) (/ x))))
+  (handler-case 
+      (ensure (let ((x 0)) (/ x)))
+    (error (c)
+      (print c)
+      (error c))))
 
 (addtest (lift-test-ensure)
   simple-ensure-test-3
@@ -318,7 +322,7 @@ See file COPYING for license
   ((slot (progn (push :slot *test-notepad*) :slot)))
   :dynamic-variables (*dynamics-before-setup* 
 		      (progn (push :dynamics *test-notepad*) :dynamics))
-  :setup (push :setup *test-notepad*))
+  (:setup (push :setup *test-notepad*) (print (list :tn *test-notepad*))))
 
 (addtest (dynamics-before-setup-helper)
   test-1
@@ -409,8 +413,8 @@ See file COPYING for license
   helper-slot-init
   (let ((result (run-test :suite 'test-error-catching-helper-slot-init
 			  :name 'slot-init)))
-    (ensure-same 1 (length (lift::suites-run result)))
-    (ensure-same 1 (length (errors result)))))
+    (ensure-same 1 (length (lift::suites-run result)) :report "tests run")
+    (ensure-same 1 (length (errors result)) :report "errors counted")))
 
 ;;;
 
