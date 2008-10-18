@@ -2,36 +2,43 @@
 (in-package #:lift-system)
 
 (defsystem lift
-  :version "1.5.1"
+  :version "1.5.2"
   :author "Gary Warren King <gwking@metabang.com>"
   :maintainer "Gary Warren King <gwking@metabang.com>"
   :licence "MIT Style License; see file COPYING for details"
   :description "LIsp Framework for Testing"
   :long-description "LIFT is an SUnit variant and much much more."  
-  :components ((:module 
+  :components ((:module
 		"timeout"
+		:pathname "timeout/"
+		:components 
+		((:file "package")
+		 (:file "with-timeout" :depends-on ("package"))))
+	       (:module 
+		"setup"
 		:pathname "dev/"
-		:components 
-		((:file "with-timeout")))
-	       (:module
-		"dev" 
 		:depends-on ("timeout")
-		:components 
-		((:static-file "notes.text")
-             
-		 (:file "packages")
+		:components
+		((:file "packages")
 		 (:file "utilities" 
 			:depends-on ("packages"))
+		 (:file "macros"
+			:depends-on ("packages"))))
+	       (:module
+		"dev" 
+		:depends-on ("setup")
+		:components 
+		((:static-file "notes.text")
 		 (:file "lift"
-			:depends-on ("packages" "measuring" "port" "utilities"))
+			:depends-on ("measuring" "port"))
 		 (:file "copy-file"
-			:depends-on ("packages"))
+			:depends-on ())
 		 (:file "random-testing" 
-			:depends-on ("packages" "lift"))
+			:depends-on ("lift"))
 		 (:file "port" 
-			:depends-on ("packages"))
+			:depends-on ())
 		 (:file "measuring" 
-			:depends-on ("packages" "port"))
+			:depends-on ("port"))
 		 (:file "config" 
 			:depends-on ("port" "lift"))
 		 (:file "reports" 
@@ -59,7 +66,6 @@
 (defmethod operation-done-p 
            ((o test-op) (c (eql (find-system 'lift))))
   (values nil))
-
 
 (when (find-system 'asdf-system-connections nil)
   (asdf:operate 'asdf:load-op 'asdf-system-connections))
