@@ -2082,6 +2082,8 @@ nor configuration file options were specified.")))))
 				 slot-names)))))))))))
 
 (defun (setf test-environment-value) (value name)
+  (push (cons name value) *test-environment*)
+  #+old ;; 2008-09-23
   (pushnew (cons name value) *test-environment* :test #'equal)
   (values value))
 
@@ -2090,7 +2092,7 @@ nor configuration file options were specified.")))))
 
 (defun remove-from-test-environment (name)
   (setf *test-environment* 
-        (remove name *test-environment* :key #'car)))
+        (remove name *test-environment* :key #'car :count 1)))
 
 (defun build-test-local-functions ()
   `(progn
