@@ -636,9 +636,6 @@ error, then ensure-error will generate a test failure."
    (run-setup :reader run-setup :initarg :run-setup)
    (done-setup? :initform nil :reader done-setup?)
    (done-dynamics? :initform nil :reader done-dynamics?)
-   (prototypes :initform (list (list)) :accessor prototypes)
-   (prototypes-initialized? :initform nil :reader prototypes-initialized?)
-   (current-values :initform nil :accessor current-values)
    (test-slot-names :initform nil :initarg :test-slot-names 
 		    :reader test-slot-names)
    (current-step :initform :created :accessor current-step)
@@ -758,17 +755,6 @@ error, then ensure-error will generate a test failure."
 	  (real-end-time result) (get-internal-real-time)
 	  (real-end-time-universal result) (get-universal-time))))
 
-(defgeneric more-prototypes-p (testsuite)
-  (:documentation "Returns true if another prototype set exists for the case."))
-
-(defgeneric initialize-prototypes (testsuite)
-  (:documentation "Creates lists of all prototype sets."))
-
-(defgeneric next-prototype (testsuite)
-  (:documentation "Ensures that the test environment has the values of the next prototype set."))
-
-(defgeneric make-single-prototype (testsuite))
-
 (defgeneric setup-test (testsuite)
   (:documentation "Setup for a test-case. By default it does nothing."))
 
@@ -847,11 +833,6 @@ the methods that should be run to do the tests for this test."))
 
 (defmethod initialize-test ((test test-mixin))
   (values))
-
-(defmethod initialize-test :before ((test test-mixin))
-  ;; only happens once
-  (initialize-prototypes test) 
-  (next-prototype test))
 
 (defmethod initialize-instance :after ((testsuite test-mixin) &rest initargs 
 				       &key &allow-other-keys)
@@ -1444,10 +1425,9 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 	   (unwind-protect
 		(let ((*lift-equality-test* (equality-test suite)))
 		  (testsuite-setup suite result)
-		  (do ()
-		      ((not (more-prototypes-p suite)) result)
-		    (initialize-test suite) 
-		    (call-next-method)))
+		  ;(initialize-test suite) 
+		  (call-next-method)
+		  result)
 	     ;; cleanup
 	     (testsuite-teardown suite result)))
        (ensure-failed (condition) 
@@ -1609,26 +1589,16 @@ nor configuration file options were specified."))))))
 				  :result result))))
     (setf (end-time result) (get-universal-time))))
 
-(defmethod more-prototypes-p ((testsuite test-mixin))
-  (not (null (prototypes testsuite))))
-
-(defmethod initialize-prototypes ((testsuite test-mixin))
-  (setf (prototypes testsuite)
-	(list (make-single-prototype testsuite))))
-	
-(defmethod make-single-prototype ((testsuite test-mixin))
-  nil)
-
-(defmethod initialize-prototypes :around ((suite test-mixin))
-  (unless (prototypes-initialized? suite)
-    (setf (slot-value suite 'prototypes-initialized?) t)
-    (call-next-method)))
-
-(defmethod next-prototype ((testsuite test-mixin))
-  (setf (current-values testsuite) (first (prototypes testsuite)) 
-        (prototypes testsuite) (rest (prototypes testsuite)))
-    (dolist (key.value (current-values testsuite))
-      (setf (test-environment-value (car key.value)) (cdr key.value))))
+(defmethod run-test-internal ((suite symbol) (name symbol) result
+			       &rest args &key &allow-other-keys)
+  (let ((*current-test* (make-testsuite suite args))
+	(passthrough-arguments nil))
+    (loop for arg in '(:result :do-children?) 
+       when (getf args arg) do
+	 (push (getf args arg) passthrough-arguments)
+	 (push arg passthrough-arguments))
+    (apply #'run-test-internal 
+	   *current-test* name result passthrough-arguments)))
 
 (defmethod run-test-internal ((suite test-mixin) (name symbol) result) 
   (when (and *test-print-test-case-names*
@@ -2084,7 +2054,7 @@ nor configuration file options were specified."))))))
     (setf slot-names (nreverse slot-names)
           initforms (nreverse initforms))    
     (when initforms
-      `((defmethod make-single-prototype ((testsuite ,(def :testsuite-name)))
+      `((defmethod initialize-test ((testsuite ,(def :testsuite-name)))
 	  (let ((initargs (suite-initargs testsuite)))
 	    (with-test-slots
 	      (append 
@@ -2355,7 +2325,6 @@ nor configuration file options were specified."))))))
 (defclass-property test-code->name-table)
 (defclass-property test-name->code-table)
 (defclass-property test-case-documentation)
-(defclass-property testsuite-prototype)
 (defclass-property testsuite-tests)
 (defclass-property testsuite-dynamic-variables)
 
