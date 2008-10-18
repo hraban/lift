@@ -2162,17 +2162,45 @@ nor configuration file options were specified.")))))
 (defun build-setup-test-method ()
   (let ((test-name (def :testsuite-name))
         (setup (def :setup)))
+    ;;?? ewww, this smells bad
     (when setup
       (unless (consp setup)
         (setf setup (list setup)))
       (when (length-1-list-p setup)
         (setf setup (list setup)))
       (when (symbolp (first setup))
-        (setf setup (list setup)))
-      (let ((code `((with-test-slots ,@setup))))
-	`(progn
-	   (defmethod setup-test :after ((testsuite ,test-name))
-	     ,@code))))))
+        (setf setup (list setup))))
+    (let ((ginitargs (gensym "initargs-")))
+      (multiple-value-bind (slots initforms)
+	  (%gather-up-initforms)
+	(when (or setup slots)
+	  `(progn
+	     (defmethod setup-test :after ((testsuite ,test-name))
+	       (with-test-slots
+		 ,@(when slots
+			 `((let ((,ginitargs (suite-initargs testsuite)))
+			     ,@(loop for slot-name in slots
+				  for initform in initforms
+				  for keyword = (intern (symbol-name slot-name)
+							:keyword) 
+				  collect
+				  `(push (cons ',slot-name
+					       (or (getf ,ginitargs ,keyword)
+						   ,initform))
+					 *test-environment*)))))
+		 ,@setup))))))))
+
+(defun %gather-up-initforms ()
+  (let ((initforms nil)
+        (slot-names nil)
+        (slot-specs (def :slot-specs)))
+    (loop for slot in (def :direct-slot-names)
+       for spec = (assoc slot slot-specs) do
+	 (when (and (member :initform (rest spec))
+		    (not (eq :unbound (getf (rest spec) :initform))))
+	   (push (getf (rest spec) :initform) initforms)
+	   (push (first spec) slot-names)))
+    (values (nreverse slot-names) (nreverse initforms))))    
 
 (defmethod setup-test :around ((test test-mixin))
   (when (run-setup-p test)

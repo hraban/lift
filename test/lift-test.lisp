@@ -330,7 +330,7 @@ See file COPYING for license
   (run-test :suite 'dynamics-before-setup-helper
 	    :name 'test-1)
   (ensure-same (reverse *test-notepad*)
-	       '(:slot :dynamics :setup :test)))
+	       '(:dynamics :slot :setup :test)))
 
 
 ;;;;;

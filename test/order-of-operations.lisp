@@ -46,8 +46,8 @@
   (ensure-same 
    (reverse *test-notepad*)
    (list :slot-init-parent
-	 :slot-init-child 
 	 :setup-parent
+	 :slot-init-child 
 	 :setup-child 
 	 :run-test-child
 	 :teardown-child

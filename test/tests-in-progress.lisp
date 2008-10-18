@@ -123,37 +123,7 @@ the methods that should be run to do the tests for this test."))
 
 ;;;;;;;;;;;;;;;;;;;;;
 
-
-
-(defvar *dynamics-before-setup* :dbs)
-
-(deftestsuite dynamics-before-setup ()
-  ()
-  :setup (setf *test-notepad* nil))
-
-(deftestsuite dynamics-before-setup-helper ()
-  ((slot (progn (push :slot *test-notepad*) :slot)))
-  :dynamic-variables (*dynamics-before-setup* 
-		      (progn (push :dynamics *test-notepad*) :dynamics))
-  :setup (push :setup *test-notepad*))
-
-(addtest (dynamics-before-setup-helper)
-  test-1
-  (push :test *test-notepad*)
-  (ensure-same *dynamics-before-setup* :dynamics))
-
-(addtest (dynamics-before-setup)
-  test-1
-  (run-test :suite 'dynamics-before-setup-helper
-	    :name 'test-1)
-  (ensure-same (reverse *test-notepad*)
-	       '(:dynamics :slot :setup :test)))
-
 (run-test :break-on-errors? t)
-
-  
-
-
 
 (deftestsuite warnings-and-errors ()
   ())
