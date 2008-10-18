@@ -942,7 +942,8 @@ the thing being defined.")
 
 (add-code-block
  :setup 1 :methods
- (lambda () (or (def :setup) (def :direct-slot-names))) 
+ (lambda () 
+   (or (def :setup) (def :direct-slot-names))) 
  '((setf (def :setup) (cleanup-parsed-parameter value)))
  'build-setup-test-method)
 
@@ -1093,20 +1094,20 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
     (setf (def :deftestsuite) t)
     ;; parse clauses into defs
     (loop for clause in clauses-and-options do
-          (typecase clause
-            (symbol (pushnew clause options))
-            (cons (destructuring-bind (kind &rest spec) clause
-                    (case kind
-                      (:test (push (first spec) test-list))
-                      (:tests 
-                       (loop for test in spec do
-                             (push test test-list)))
-                      (t (block-handler kind spec)))))
-            (t (error "When parsing ~S" clause))))
+	 (typecase clause
+	   (symbol (pushnew clause options))
+	   (cons (destructuring-bind (kind &rest spec) clause
+		   (case kind
+		     (:test (push (first spec) test-list))
+		     (:tests 
+		      (loop for test in spec do
+			   (push test test-list)))
+		     (t (block-handler kind spec)))))
+	   (t (error "When parsing ~S" clause))))
     (let ((slot-names nil) (slot-specs nil))
       (loop for slot in (if (listp slots) slots (list slots)) do 
-            (push (if (consp slot) (first slot) slot) slot-names)
-            (push (parse-brief-slot slot nil nil nil nil) slot-specs))
+	   (push (if (consp slot) (first slot) slot) slot-names)
+	   (push (parse-brief-slot slot) slot-specs))
       (setf (def :slot-specs) (nreverse slot-specs)
             (def :direct-slot-names) (nreverse slot-names)
             (def :slots-parsed) t))
@@ -1120,81 +1121,81 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
     (empty-test-tables testsuite-name)
     (compute-superclass-inheritence)
     (prog2
-     (setf *testsuite-test-count* 0)
-     `(eval-when (:compile-toplevel :load-toplevel :execute)
-        (eval-when (:compile-toplevel)
-          (push ',return *test-is-being-compiled?*))
-        (eval-when (:load-toplevel)
-          (push ',return *test-is-being-loaded?*))
-        (eval-when (:execute)
-          (push ',return *test-is-being-executed?*))
-	;; remove previous methods (do this _before_ we define the class)
-	(unless (or *test-is-being-compiled?*
-		    *test-is-being-loaded?*)
-	  #+(or)
-	  (print (list :cle *test-is-being-compiled?* 
-		       *test-is-being-loaded?*
-		       *test-is-being-loaded?*))
-	  (remove-previous-definitions ',(def :testsuite-name)))
-	,(build-test-class)
-	(unwind-protect
-	     (let ((*test-is-being-defined?* t))
-	       (setf *current-test-case-name* nil)
-	       (setf *current-testsuite-name* ',(def :testsuite-name)
-		     (test-slots ',(def :testsuite-name)) 
-		     ',(def :slot-names)
-		     (testsuite-dynamic-variables ',(def :testsuite-name))
-		     ',(def :dynamic-variables)
-		     ;;?? issue 27: breaks 'encapsulation' of code-block
-		     ;; mechanism
-		     (testsuite-function-specs ',(def :testsuite-name))
-		     ',(def :function-specs))
-	       ,@(when (def :export-p)
-		       `((export '(,(def :testsuite-name)))))
-	       ,@(when (def :export-slots?)
-		       `((export ',(def :direct-slot-names))))
-	       ;; make a place to save test-case information
-	       (empty-test-tables ',(def :testsuite-name))
-	       ;; create methods
-	       ;; setup :before
-	       ,@(build-initialize-test-method) 
-	       ,@(loop for (nil . block) in *code-blocks* 
-		    when (and block 
-			      (code block)
-			      (eq (operate-when block) :methods)
-			      (or (not (filter block))
-				  (funcall (filter block)))) collect
-		    (funcall (code block)))
-	       ,@(when (def :dynamic-variables)
-		       `((defmethod do-testing :around
-			     ((suite ,(def :testsuite-name)) result fn) 
-			   (declare (ignore result fn))
-			   (cond ((done-dynamics? suite)
-				  (call-next-method))
-				 (t
-				  (setf (slot-value suite 'done-dynamics?) t)
-				  (let* (,@(build-dynamics))
-				    (call-next-method)))))))
-	       ;; tests
-	       ,@(when test-list
-		       `((let ((*test-evaluate-when-defined?* nil))
-			   ,@(loop for test in (nreverse test-list) collect
-				  `(addtest (,(def :testsuite-name)) 
-				     ,@test))
-			   (setf *testsuite-test-count* nil))))
-	       ,(if (and test-list *test-evaluate-when-defined?*)
-		    `(unless (or *test-is-being-compiled?*
-				 *test-is-being-loaded?*)
-		       (let ((*test-break-on-errors?* *test-break-on-errors?*))
-			 (run-tests :suite ',testsuite-name)))
-		    `(find-class ',testsuite-name)))
-	  ;; cleanup
-	  (setf *test-is-being-compiled?* 
-		(remove ',return *test-is-being-compiled?*))
-	  (setf *test-is-being-loaded?* 
-		(remove ',return *test-is-being-loaded?*))
-	  (setf *test-is-being-executed?* 
-		(remove ',return *test-is-being-executed?*)))))))
+	(setf *testsuite-test-count* 0)
+	`(eval-when (:compile-toplevel :load-toplevel :execute)
+	   (eval-when (:compile-toplevel)
+	     (push ',return *test-is-being-compiled?*))
+	   (eval-when (:load-toplevel)
+	     (push ',return *test-is-being-loaded?*))
+	   (eval-when (:execute)
+	     (push ',return *test-is-being-executed?*))
+	   ;; remove previous methods (do this _before_ we define the class)
+	   (unless (or *test-is-being-compiled?*
+		       *test-is-being-loaded?*)
+	     #+(or)
+	     (print (list :cle *test-is-being-compiled?* 
+			  *test-is-being-loaded?*
+			  *test-is-being-loaded?*))
+	     (remove-previous-definitions ',(def :testsuite-name)))
+	   ,(build-test-class)
+	   (unwind-protect
+		(let ((*test-is-being-defined?* t))
+		  (setf *current-test-case-name* nil)
+		  (setf *current-testsuite-name* ',(def :testsuite-name)
+			(test-slots ',(def :testsuite-name)) 
+			',(def :slot-names)
+			(testsuite-dynamic-variables ',(def :testsuite-name))
+			',(def :dynamic-variables)
+			;;?? issue 27: breaks 'encapsulation' of code-block
+			;; mechanism
+			(testsuite-function-specs ',(def :testsuite-name))
+			',(def :function-specs))
+		  ,@(when (def :export-p)
+			  `((export '(,(def :testsuite-name)))))
+		  ,@(when (def :export-slots?)
+			  `((export ',(def :direct-slot-names))))
+		  ;; make a place to save test-case information
+		  (empty-test-tables ',(def :testsuite-name))
+		  ;; create methods
+		  ;; setup :before
+		  ;,@(build-initialize-test-method) 
+		  ,@(loop for (nil . block) in *code-blocks* 
+		       when (and block 
+				 (code block)
+				 (eq (operate-when block) :methods)
+				 (or (not (filter block))
+				     (funcall (filter block)))) collect
+		       (funcall (code block)))
+		  ,@(when (def :dynamic-variables)
+			  `((defmethod do-testing :around
+				((suite ,(def :testsuite-name)) result fn) 
+			      (declare (ignore result fn))
+			      (cond ((done-dynamics? suite)
+				     (call-next-method))
+				    (t
+				     (setf (slot-value suite 'done-dynamics?) t)
+				     (let* (,@(build-dynamics))
+				       (call-next-method)))))))
+		  ;; tests
+		  ,@(when test-list
+			  `((let ((*test-evaluate-when-defined?* nil))
+			      ,@(loop for test in (nreverse test-list) collect
+				     `(addtest (,(def :testsuite-name)) 
+					,@test))
+			      (setf *testsuite-test-count* nil))))
+		  ,(if (and test-list *test-evaluate-when-defined?*)
+		       `(unless (or *test-is-being-compiled?*
+				    *test-is-being-loaded?*)
+			  (let ((*test-break-on-errors?* *test-break-on-errors?*))
+			    (run-tests :suite ',testsuite-name)))
+		       `(find-class ',testsuite-name)))
+	     ;; cleanup
+	     (setf *test-is-being-compiled?* 
+		   (remove ',return *test-is-being-compiled?*))
+	     (setf *test-is-being-loaded?* 
+		   (remove ',return *test-is-being-loaded?*))
+	     (setf *test-is-being-executed?* 
+		   (remove ',return *test-is-being-executed?*)))))))
  
 (defun compute-superclass-inheritence ()
   ;;?? issue 27: break encapsulation of code blocks
@@ -1268,7 +1269,8 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 	 (push ',return *test-is-being-executed?*))
        (unwind-protect
 	    (let ((*test-is-being-defined?* t))
-	      ,(build-test-test-method (def :testsuite-name) body options)
+	      (muffle-redefinition-warnings
+		,(build-test-test-method (def :testsuite-name) body options))
 	      (setf *current-testsuite-name* ',(def :testsuite-name))
 	      (if *test-evaluate-when-defined?*
 		  (unless (or *test-is-being-compiled?*
@@ -1276,13 +1278,13 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 		    (let ((*test-break-on-errors?* (testing-interactively-p)))
 		      (run-test)))
 		  (values)))
-	 ;; cleanup
-	 (setf *test-is-being-compiled?* 
-	       (remove ',return *test-is-being-compiled?*)
-	       *test-is-being-loaded?*
-	       (remove ',return *test-is-being-loaded?*)
-	       *test-is-being-executed?*
-	       (remove ',return *test-is-being-executed?*))))))
+	   ;; cleanup
+	   (setf *test-is-being-compiled?* 
+		 (remove ',return *test-is-being-compiled?*)
+		 *test-is-being-loaded?*
+		 (remove ',return *test-is-being-loaded?*)
+		 *test-is-being-executed?*
+		 (remove ',return *test-is-being-executed?*))))))
 
 (defun looks-like-suite-name-p (form)
   (and (consp form)
