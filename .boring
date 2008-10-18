@@ -37,3 +37,6 @@
 (^|/)two words($|/)
 (^|/)test-results($|/)
 \.dribble
+(^|/)make($|/)
+(^|/)benchmark-data($|/)
+(^|/)timeout($|/)
