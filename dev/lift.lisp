@@ -624,7 +624,9 @@ error, then ensure-error will generate a test failure."
 			   :problems ,problems)))
 	   (if (find-restart 'ensure-failed)
 	       (invoke-restart 'ensure-failed condition) 
-	       (warn condition)))))))
+	       (warn condition)))
+	 ;; return true if we're happy
+	 t))))
 
 
 ;;; ---------------------------------------------------------------------------
