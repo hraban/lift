@@ -47,6 +47,12 @@
        #:run-test
        #:run-tests
 
+       #:defmeasure
+       #:undefmeasure
+       #:measure-space
+       #:measure-seconds
+       #:while-measuring
+
        #:measure-time
        #:measure-conses
        #:with-profile-report

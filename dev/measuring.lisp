@@ -134,116 +134,15 @@
 		results (current-profile-sample-count)
 		error)))))
 
-#+allegro
-(defun with-profile-report-fn 
-    (name style fn &key (log-name *benchmark-log-path*)
-			       (count-calls-p *count-calls-p*)
-			       (timeout nil))
-  (assert (member style '(:time :space :count-only)))
-  (cancel-current-profile :force? t)
-  (let* ((seconds 0.0) (conses 0)
-	 results)
-    (unwind-protect
-	 (handler-case
-	     (with-timeout (timeout)
-	       (setf results
-		     (multiple-value-list
-		      (prof:with-profiling (:type style :count count-calls-p)
-			(measure seconds conses (funcall fn))))))
-	   (timeout-error 
-	       (c)
-	     (declare (ignore c))))
-      ;; cleanup / ensure we get report
-      (ensure-directories-exist log-name)
-      ;;log 
-      (with-open-file (output log-name
-			      :direction :output
-			      :if-does-not-exist :create
-			      :if-exists :append)
-	(with-standard-io-syntax
-	  (let ((*print-readably* nil))
-	    (terpri output)
-	    (format output "\(~11,d ~20,s ~10,s ~10,s ~{~s~^ ~} ~s ~s\)"
-		    (date-stamp :include-time? t) name 
-		    seconds conses *additional-markers*
-		    results (current-profile-sample-count)))))
-      (when (> (current-profile-sample-count) 0)
-	(let ((pathname (unique-filename
-			 (merge-pathnames
-			  (make-pathname 
-			   :type "prof"
-			   :name (format nil "~a-~a-" name style))
-			  log-name))))
-	  (let ((prof:*significance-threshold* 
-		 (or *profiling-threshold* 0.01)))
-	    (format t "~&Profiling output being sent to ~a" pathname)
-	    (with-open-file (output pathname
-				    :direction :output
-				    :if-does-not-exist :create
-				    :if-exists :append)
-	      (format output "~&Profile data for ~a" name)
-	      (format output "~&Date: ~a" 
-		      (excl:locale-print-time (get-universal-time)
-					      :fmt "%B %d, %Y %T" :stream nil))
-	      (format output "~&  Total time: ~,2F; Total space: ~:d \(~:*~d\)"
-		      seconds conses)
-	      (format output "~%~%")
-	      (when (or (eq :time style)
-			(eq :space style))
-		(prof:show-flat-profile :stream output)
-		(prof:show-call-graph :stream output)
-		(when count-calls-p
-		  (format output "~%~%Call counts~%")
-		  (let ((*standard-output* output))
-		    (prof:show-call-counts))))
-	      (when *profile-extra*
-		(loop for thing in *profile-extra* do
-		     (format output "~%~%")
-		     (let ((*standard-output* output))
-		       (prof:disassemble-profile thing)))))))))
-    (values-list results)))
-
-(defmacro while-counting-repetitions ((&optional (delay 1.0)) &body body)
-  "Execute `body` repeatedly for `delay` seconds. Returns the number
-of times `body` is executed per second. Warning: assumes that `body` will not
-be executed more than a fixnum number of times. The `delay` defaults to
-1.0."
-  (let ((gevent-count (gensym "count-"))
-	(gdelay (gensym "delay-"))
-	(gignore (gensym "ignore-"))
-	(gfn (gensym "fn-")))
-    `(let ((,gfn
-	    (compile
-	     nil
-	     (lambda () 
-	       (let ((,gevent-count 0)
-		     (,gdelay ,delay))
-		 (declare (type fixnum ,gevent-count))
-		 (handler-case
-		     (lift::with-timeout (,gdelay)
-		       (loop
-			  (progn ,@body)
-			  (setf ,gevent-count (the fixnum (1+ ,gevent-count)))))
-		   (lift::timeout-error (,gignore)
-		     (declare (ignore ,gignore))
-		     (if (plusp ,gevent-count)
-			 (float (/ ,gevent-count ,gdelay))
-			 ,gevent-count))))))))
-	   (funcall ,gfn))))
-  
-(defun count-repetitions (fn delay)
-  "Funcalls `fn` repeatedly for `delay` seconds. Returns the number
-of times `fn` was called. Warning: the code assumes that `fn` will 
-not be called more than a fixnum number of times."
-  (let ((event-count 0)
-	(compiled-fn (compile nil fn)))
-    (declare (type fixnum event-count))
+(defun count-repetitions (fn delay &rest args)
+  (declare (dynamic-extent args))
+  (let ((event-count 0))
     (handler-case
-	(lift::with-timeout (delay) 
-	  (loop 
-	     (funcall compiled-fn)
-	     (setf event-count (the fixnum (1+ event-count)))))
-      (lift::timeout-error (c)
+	(with-timeout (delay) 
+	  (loop  
+	     (apply #'funcall fn args)
+	     (incf event-count)))
+      (timeout-error (c)
 	(declare (ignore c))
 	(if (plusp event-count)
 	    (/ event-count delay)
