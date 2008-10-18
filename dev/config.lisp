@@ -92,7 +92,7 @@
 				  *error-output* 
 				  "Error while running ~a from ~a: ~a"
 				  form path c)
-			     (print (get-backtrace c))
+			     (pprint (get-backtrace c))
 			     (invoke-debugger c))))
 	   (destructuring-bind
 		 (name &rest args)
@@ -106,12 +106,12 @@
 		    (symbol-package :keyword))
 		;; must be a preference
 		(handle-config-preference name args))
-	       ((subtypep (find-testsuite name)
-			  'lift:test-mixin)
-		(apply #'run-tests :suite name 
-		       :result *test-result* args))
+	       ((find-testsuite name :errorp nil)
+		(run-tests :suite name 
+			   :result *test-result* 
+			   :testsuite-initargs args))
 	       (t
-		(error "Don't understand '~s' while reading from ~s" 
+		(warn "Don't understand '~s' while reading from ~s" 
 		       form path))))))))
   (values *test-result*))
 
@@ -123,7 +123,7 @@
 	     (t arg))))
 
 (defmethod handle-config-preference ((name t) args)
-  (error "Unknown preference ~s (with arguments ~s)" 
+  (warn "Unknown preference ~s (with arguments ~s)" 
 	 name args))
 
 (defmethod handle-config-preference ((name (eql :include)) args)
