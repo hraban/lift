@@ -97,7 +97,8 @@ lift::(progn
 
 (defmethod html-report-pathname (pathname)
   (merge-pathnames 
-   (make-pathname :name (pathname-name pathname)
+   (make-pathname :name (if (eql (length (pathname-name pathname)) 0)
+			    "index" (pathname-name pathname))
 		  :type "html"
 		  :defaults (namestring (unique-directory pathname)))
    pathname))
