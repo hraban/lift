@@ -217,3 +217,8 @@
 	     (format *debug-io* "~&Unable to write report (format ~s) to ~a" 
 		     format dest))))))))
   
+(defmethod handle-config-preference ((name (eql :trace)) args)
+  (eval `(trace ,@args)))
+
+(defmethod handle-config-preference ((name (eql :untrace)) args)
+  (eval `(untrace ,@args)))
