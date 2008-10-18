@@ -764,3 +764,153 @@ lift::(progn
 #+(or)
 (collect-testsuite-summary lift:*test-result* :failures)
 
+;;;;;
+
+
+
+#+allegro
+(defun cancel-current-profile (&key force?)
+  (when (prof::current-profile-actual prof::*current-profile*)
+    (unless force?
+      (assert (member (prof:profiler-status) '(:inactive))))
+    (prof:stop-profiler)
+    (setf prof::*current-profile* (prof::make-current-profile))))
+
+#+allegro
+(defun current-profile-sample-count ()
+   (ecase (prof::profiler-status :verbose nil)
+    ((:inactive :analyzed) 0)
+    ((:suspended :saved)
+     (slot-value (prof::current-profile-actual prof::*current-profile*) 
+		 'prof::samples))
+    (:sampling (warn "Can't determine count while sampling"))))
+
+#+allegro
+(defun show-flat-profile (output)
+  (let ((prof:*significance-threshold* 
+	 (or *profiling-threshold* 0.01)))
+    (prof:show-flat-profile :stream output)))
+
+#+allegro
+(defun show-call-graph (output)
+  (let ((prof:*significance-threshold* 
+	 (or *profiling-threshold* 0.01)))
+    (prof:show-call-graph :stream output)))
+
+#+allegro
+(defun show-call-counts (output)
+  (format output "~%~%Call counts~%")
+  (let ((*standard-output* output))
+    (prof:show-call-counts)))
+
+
+#-allegro
+(defun show-flat-profile (output)
+  (format output "~%~%Flat profile: unavailable for this Lisp~%"))
+
+#-allegro
+(defun show-call-graph (output)
+  (format output "~%~%Call graph: unavailable for this Lisp~%"))
+
+#-allegro
+(defun show-call-counts (output)
+  (format output "~%~%Call counts: unavailable for this Lisp~%"))
+
+#+allegro
+(defun with-profile-report-fn 
+    (name style fn body &key
+     (log-name *benchmark-log-path*)
+     (count-calls-p *count-calls-p*)
+     (timeout nil))
+  (assert (member style '(:time :space :count-only)))
+  (cancel-current-profile :force? t)
+  (let* ((seconds 0.0) (conses 0) 
+	 error
+	 results
+	 (profile-fn (make-profiled-function fn)))
+    (unwind-protect
+	 (multiple-value-bind (result measures errorp)
+	     (while-measuring (t measure-seconds measure-space)
+	       (handler-case
+		   (with-timeout (timeout)
+		     (funcall profile-fn style count-calls-p))
+		 (timeout-error 
+		     (c)
+		   (declare (ignore c)))))
+	   (setf seconds (first measures) conses (second measures) 
+		 results result error errorp))
+      ;; cleanup / ensure we get report
+      (generate-profile-log-entry log-name name seconds conses results error)
+      (when (> (current-profile-sample-count) 0)
+	(let ((pathname (unique-filename
+			 (merge-pathnames
+			  (make-pathname 
+			   :type "prof"
+			   :name (format nil "~a-~a-" name style))
+			  log-name))))
+	  (write-profile-report pathname name style body
+				seconds conses error count-calls-p))))
+    (values-list (if (atom results) (list results) results))))
+
+(defun write-profile-report (pathname name style body seconds conses
+			     error count-calls-p)
+  (format t "~&Profiling output being sent to ~a" pathname)
+  (with-open-file (output pathname
+			  :direction :output
+			  :if-does-not-exist :create
+			  :if-exists :append)
+    (format output "~&Profile data for ~a" name)
+    (format output "~&Date: ~a" (date-stamp :include-time? t))
+    (format output "~&  Total time: ~,2F; Total space: ~:d \(~:*~d\)"
+	    seconds conses)
+    (format output "~%~%")
+    (when error
+      (format output "~&Error occured during profiling: ~a~%~%" error))
+    (let ((*standard-output* output))
+      (when *current-test* 
+	(write-profile-information *current-test*)))
+    (when body
+      (format output "~&Profiling: ~%")
+      (let ((*print-length* 10)
+	    (*print-level* 10))
+	(dolist (form body)
+	  (pprint form output)))
+      (format output "~%~%"))
+    (when (or (eq :time style)
+	      (eq :space style))
+      (show-flat-profile output)
+      (show-call-graph output)
+      (when count-calls-p
+	(show-call-counts output)))
+    #+allegro
+    (when *functions-to-profile*
+      (loop for thing in *functions-to-profile* do
+	   (let ((*standard-output* output)
+		 (*print-readably* nil))
+	     (handler-case 
+		 (cond ((thing-names-generic-function-p thing)
+			(format output "~%~%Disassemble generic-function ~s:~%"
+				thing)
+			(prof:disassemble-profile thing)
+			(mapc 
+			 (lambda (m)
+			   (format t "~2%~a~%"
+				   (make-string 60 :initial-element #\-))
+			   (format t "~&Method: ~a~2%" m)
+			   (prof:disassemble-profile (clos:method-function m)))
+			 (clos:generic-function-methods 
+			  (symbol-function thing))))
+		       (t
+			(format output "~%~%Disassemble function ~s:~%"
+				thing)
+			(prof:disassemble-profile thing)))
+	       (error (c)
+		 (format 
+		  output "~2%Error ~a while trying to disassemble-profile ~s~2%"
+		  c thing))))))))
+
+;; stolen from cl-markdown and modified
+(defun thing-names-generic-function-p (thing)
+  (and (symbolp thing)
+       (fboundp thing)
+       (typep (symbol-function thing) 'standard-generic-function)))

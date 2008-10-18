@@ -3,12 +3,55 @@
 (eval-when (:compile-toplevel)
   (declaim (optimize (speed 3) (safety 1))))
 
-(defmacro with-measuring ((var measure-fn) &body body)
-  (let ((initial (gensym)))
-    `(let ((,initial (,measure-fn)))
-       ,@body
-       (setf ,var (- (,measure-fn) ,initial)))))
+(eval-when (:compile-toplevel :load-toplevel :execute)
 
+(defmeasure measure-seconds 
+    :value 'get-internal-real-time
+    :finally '(coerce (/ it internal-time-units-per-second) 
+			'double-float)
+    :type integer)
+
+(defmeasure measure-space
+    :value 'total-bytes-allocated
+    :type integer)
+
+)
+
+#+(or)
+(while-measuring-1 (conses measure-space)
+  (while-measuring-1 (time measure-seconds)
+    blay))
+
+#+(or)
+(let ((time 0))
+  (while-measuring-1 (time measure-seconds)
+    (sleep 1))
+  time)
+
+#+(or)
+(let ((conses 0))
+  (while-measuring-1 (conses measure-space)
+    (sleep 1))
+  conses)
+
+#+(or)
+(while-measuring (measure-seconds)
+  (sleep 1))
+
+(defmacro with-measuring ((var measure-fn) &body body)
+  (let ((ginitial (gensym "value-"))
+	(gcondition (gensym "condition-")))
+    `(let ((,ginitial (,measure-fn))
+	   (,gcondition nil))
+       (prog1
+	   (handler-case 
+	       (progn ,@body)
+	     (error (c) (setf ,gcondition c)))
+	 (setf ,var (- (,measure-fn) ,ginitial))
+	 (when ,gcondition (error ,gcondition))))))
+
+#+(or)
+;; remove
 (defmacro measure-time ((var) &body body)
   `(prog1
        (with-measuring (,var get-internal-real-time)
@@ -16,9 +59,23 @@
      (setf ,var (coerce (/ ,var internal-time-units-per-second) 
 			'double-float))))
 
+(defmacro measure-time ((var) &body body)
+  `(while-measuring-1 (,var measure-seconds) ,@body))
+
+#+(or)
+(let ((time 0))
+  (while-measuring-1 (time measure-seconds)
+    (sleep 1))
+  time)
+
+#+(or)
+;; remove
 (defmacro measure-conses ((var) &body body)
   `(with-measuring (,var total-bytes-allocated)
      ,@body))
+
+(defmacro measure-conses ((var) &body body)
+  `(while-measuring-1 (,var measure-space) ,@body))
 
 (defun measure-fn (fn &rest args)
   (declare (dynamic-extent args))
@@ -46,65 +103,36 @@
        (values-list (nconc (list ,seconds ,conses)
 			   ,results)))))
 
-#+(or)
-;; tries to handle multiple values (but fails since measure doesn't)
-(defmacro measure-time-and-conses (&body body)
-  (let ((seconds (gensym))
-	(conses (gensym)))
-    `(let ((,seconds 0) (,conses 0)) 
-       (values-list (nconc (multiple-value-list 
-			    (measure ,seconds ,conses ,@body))
-			   (list ,seconds ,conses))))))
-
-(defvar *profile-extra* nil)
-
-(defparameter *benchmark-log-path*
-  (asdf:system-relative-pathname 
-   'lift "benchmark-data/benchmarks.log"))
-
-(defvar *count-calls-p* nil)
+(defvar *functions-to-profile* nil)
 
 (defvar *additional-markers* nil)
 
 (defvar *profiling-threshold* nil)
 
-(defmacro with-profile-report 
-    ((name style &key (log-name *benchmark-log-path* ln-supplied?)
-	   (count-calls-p *count-calls-p* ccp-supplied?)
-	   (timeout nil timeout-supplied?))
-     &body body)
-  `(with-profile-report-fn 
-       ,name ,style 
-       (compile nil 
-		(lambda () (progn ,@body)))
-       ,@(when ccp-supplied? 
-	       `(:count-calls-p ,count-calls-p))
-       ,@(when ln-supplied?
-	       `(:log-name ,log-name))
-       ,@(when timeout-supplied?
-	       `(:timeout ,timeout))))
+(defun make-profiled-function (fn)
+  (lambda (style count-calls-p)
+    (declare (ignorable style count-calls-p))
+    #+allegro
+    (prof:with-profiling (:type style :count count-calls-p)
+      (funcall fn))
+    #-allegro
+    (funcall fn)))
 
-#+allegro
-(defun cancel-current-profile (&key force?)
-  (when (prof::current-profile-actual prof::*current-profile*)
-    (unless force?
-      (assert (member (prof:profiler-status) '(:inactive))))
-    (prof:stop-profiler)
-    (setf prof::*current-profile* (prof::make-current-profile))))
-
-#+allegro
-(defun current-profile-sample-count ()
-   (ecase (prof::profiler-status :verbose nil)
-    ((:inactive :analyzed) 0)
-    ((:suspended :saved)
-     (slot-value (prof::current-profile-actual prof::*current-profile*) 
-		 'prof::samples))
-    (:sampling (warn "Can't determine count while sampling"))))
-
-#|
-(prof:with-profiling ...
-different reports
-|#
+(defun generate-profile-log-entry (log-name name seconds conses results error)
+  (ensure-directories-exist log-name)
+  ;;log 
+  (with-open-file (output log-name
+			  :direction :output
+			  :if-does-not-exist :create
+			  :if-exists :append)
+    (with-standard-io-syntax
+      (let ((*print-readably* nil))
+	(terpri output)
+	(format output "\(~11,d ~20,s ~10,s ~10,s ~{~s~^ ~} ~s ~s ~a\)"
+		(date-stamp :include-time? t) name 
+		seconds conses *additional-markers*
+		results (current-profile-sample-count)
+		error)))))
 
 #+allegro
 (defun with-profile-report-fn 
@@ -220,4 +248,18 @@ not be called more than a fixnum number of times."
 	(if (plusp event-count)
 	    (/ event-count delay)
 	    event-count)))))
+
+#+test
+(defun fibo (n)
+  (cond ((< n 2)
+	 1)
+	(t
+	 (+ (fibo (- n 1)) (fibo (- n 2))))))
+
+#+test
+(with-profile-report ('test :time) 
+  (loop for i from 1 to 10 do
+       (fibo i))
+  (loop for i from 10 downto 1 do
+       (fibo i)))
 

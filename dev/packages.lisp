@@ -50,6 +50,7 @@
        #:measure-time
        #:measure-conses
        #:with-profile-report
+       #:write-profile-information
 
        ;; Variables
        #:*test-ignore-warnings?*

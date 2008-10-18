@@ -654,6 +654,7 @@ error, then ensure-error will generate a test failure."
     :accessor suite-initargs)
    (profile 
     :initform nil
+    :initarg :profile
     :accessor profile))
   (:documentation "A test suite")
   (:default-initargs
@@ -813,6 +814,11 @@ the methods that should be run to do the tests for this test."))
   )
 
 (defgeneric describe-test-result (result stream &key &allow-other-keys)
+  )
+
+(defgeneric write-profile-information (testsuite))
+
+(defmethod write-profile-information ((suite t))
   )
 
 (defmethod equality-test ((suite test-mixin))
@@ -1324,7 +1330,8 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 		 (break-on-failures? *test-break-on-failures?*)
 		 (do-children? *test-do-children?*)
 		 (result nil)
-		 (profile nil))
+		 (profile nil)
+                 (testsuite-initargs nil))
   "Run a single testcase in a test suite. Will run the most recently defined or run testcase unless the name and suite arguments are used to override them."
   (when name-supplied-p
     (setf test-case name))
@@ -1345,7 +1352,13 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
     (let* ((*test-break-on-errors?* break-on-errors?)
 	   (*test-break-on-failures?* break-on-failures?)
 	   (*test-do-children?* do-children?)
-	   (*current-test* (make-testsuite suite args)))
+	   (*current-test*
+	    (make-testsuite 
+	     suite 
+	     (if (find :profile testsuite-initargs)
+		 testsuite-initargs
+		 (setf testsuite-initargs
+		       `(:profile ,profile ,@testsuite-initargs))))))
       (unless result
 	(setf result (make-test-result suite :single)))
       (prog1
