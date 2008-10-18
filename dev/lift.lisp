@@ -295,7 +295,7 @@ can be :supersede, :append, or :error.")
      (format s "There are several test cases named ~s.~s: they are ~{~s~^, ~}"
                      (testsuite-name c)
 		     (test-case-name c)
-		     (possible-matches c)))))00
+		     (possible-matches c)))))
 
 (define-condition test-condition (warning) 
                   ((message :initform ""
@@ -617,7 +617,7 @@ error, then ensure-error will generate a test failure."
 		  (progn ,@body)
 		(ensure-failed (cond)
 		  (push (list ,case cond) ,problems)))))
-       (when ,problems
+       (if ,problems
 	 (let ((condition (make-condition 
 			   'ensure-cases-failure
 			   :total ,total
@@ -758,7 +758,7 @@ error, then ensure-error will generate a test failure."
 (defgeneric setup-test (testsuite)
   (:documentation "Setup for a test-case. By default it does nothing."))
 
-(defgeneric teardown-test (testsuite)
+(defgeneric test-case-teardown (testsuite result)
   (:documentation "Tear-down a test-case. By default it does nothing.")
   (:method-combination progn :most-specific-first))
 
@@ -824,10 +824,10 @@ the methods that should be run to do the tests for this test."))
 (defmethod setup-test ((test test-mixin))
   (values))
 
-(defmethod teardown-test progn ((test test-mixin))
+(defmethod test-case-teardown progn ((test test-mixin) (result test-result))
   (values))
 
-(defmethod teardown-test :around ((test test-mixin))
+(defmethod test-case-teardown :around ((test test-mixin) (result test-result))
   (setf (current-step test) :test-teardown)
   (call-next-method))
 
@@ -1325,7 +1325,6 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 		 (result nil)
 		 (profile nil))
   "Run a single testcase in a test suite. Will run the most recently defined or run testcase unless the name and suite arguments are used to override them."
-  (declare (ignore profile))
   (when name-supplied-p
     (setf test-case name))
   (assert suite nil "Test suite could not be determined.")
@@ -1476,6 +1475,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 		  (dribble *lift-dribble-pathname*)
 		  (report-pathname t)
 		  (profile nil)
+		  ;(timeout nil)
 		  (do-children? *test-do-children?*)
 		  (testsuite-initargs nil) 
 		  result
@@ -1707,8 +1707,7 @@ nor configuration file options were specified."))))))
   ;; ick
   (let ((docs nil)
 	(option nil))
-    (declare (ignore docs))
-    (declare (ignorable option))
+    (declare (ignorable docs option))
     (cond ((and (eq problem-type 'test-failure)
 		(not (typep condition 'unexpected-success-failure))
 		(testcase-expects-failure-p suite))
@@ -2139,7 +2138,8 @@ nor configuration file options were specified."))))))
                                   slot-names))))
       `(progn
          ,@(when teardown-code
-             `((defmethod teardown-test progn ((testsuite ,test-name))
+             `((defmethod test-case-teardown progn ((testsuite ,test-name)
+						    (result test-result))
 		 (when (run-teardown-p testsuite :test-case)
 		   ,@test-code))))
          ,@(when teardown-code
@@ -2409,4 +2409,4 @@ nor configuration file options were specified."))))))
         (setup-test ,test-case)
         (progn
           (with-test-slots ,@forms))
-        (teardown-test ,test-case)))))
+        (test-case-teardown ,test-case result)))))
