@@ -40,20 +40,32 @@ all suites. This is equivalent to the behavior of [find-test-cases][]."))
 ;;;;;
 ;; some introspection
 
-(defun liftpropos (name &key (include-cases? nil))
-  (declare (ignore include-cases?))
-  (let ((result nil)
-	(real-name (etypecase name
-		     (string name)
-		     (symbol (symbol-name name)))))
-    (map-testsuites
-     (lambda (suite level)
-       (declare (ignore level))
-       (let ((suite-name (symbol-name (class-name suite))))
-	 (when (search real-name suite-name :test #'char-equal)
-	   (push suite-name result))))
-     'test-mixin)
-    (sort result #'string-lessp)))
+(defun liftpropos (string &key (include-cases? nil))
+  "Returns a list of testsuites whose name contains `string`."
+  (flet ((ensure-string (it)
+	   (etypecase it
+	     (string it)
+	     (symbol (symbol-name it)))))
+    (let ((result nil)
+	  (name-as-string (ensure-string string)))
+      (flet ((add-if-match (suite-name &optional (to-add suite-name))
+	       (when (search name-as-string (ensure-string suite-name)
+			     :test #'char-equal)
+		 (push to-add result))))
+	(map-testsuites
+	 (lambda (suite level)
+	   (declare (ignore level))
+	   (let ((suite-name (class-name suite)))
+	     (add-if-match suite-name)
+	     (when include-cases?
+	       (loop for method-name in (testsuite-tests suite-name) do
+		    (add-if-match 
+		     method-name (cons suite-name method-name))))))
+	 'test-mixin))
+      (sort result #'string-lessp :key (lambda (it)
+					 (typecase it
+					   (atom it)
+					   (cons (cdr it))))))))
 
 (defun map-testsuites (fn start-at)
   (let ((visited (make-hash-table)))
