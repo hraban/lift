@@ -21,6 +21,7 @@
 			     (:file "testsuite-expects")
 			     (:file "finding-tests")
 			     (:file "order-of-operations")
+			     (:file "test-config-files")
 				     #+(or)
 			     (:file "test-prototypes"))))  
   :depends-on (:lift))
