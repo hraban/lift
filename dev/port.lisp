@@ -6,8 +6,10 @@ show or log backtraces.  It accepts a condition object ERROR and
 returns a string with the corresponding backtrace.")
 
 (defun ensure-directory (pathname)
-  (merge-pathnames (make-pathname :name :unspecific
-				  :type :unspecific)
+  (merge-pathnames #+clisp
+		   (make-pathname :name "" :type "")
+		   #-clisp
+		   (make-pathname :name :unspecific :type :unspecific)
 		   pathname))
 
 (defun writable-directory-p (directory)
