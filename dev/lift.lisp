@@ -384,9 +384,14 @@ can be :supersede, :append, or :error.")
   ((total :initarg :total :initform 0)
    (problems :initarg :problems :initform nil))
   (:report (lambda (condition stream)
-	     (format stream "Ensure-cases: ~d out of ~d cases failed. Failing cases are: ~{~%  ~{~s (~a)~}~^, ~}" 
-		     (length (slot-value condition 'problems))
-		     (slot-value condition 'total)
+	     (format 
+	      stream 
+	      "Ensure-cases: ~d out of ~d cases failed. Failing cases are:"
+	      (length (slot-value condition 'problems))
+	      (slot-value condition 'total))
+	     (format 
+	      stream 
+	      "~&~@<  ~@;~{~%  ~{~20s ~3,8@t~a~}~^, ~}~:>" 
 		     (slot-value condition 'problems)))))
 
 (define-condition unexpected-success-failure (test-condition)
