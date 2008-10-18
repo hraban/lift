@@ -350,23 +350,33 @@ can be :supersede, :append, or :error.")
 			    the-condition))))))
 
 (define-condition ensure-expected-no-warning-condition (test-condition) 
-                  ((the-condition
-                    :initform nil
-                    :accessor the-condition
-                    :initarg :the-condition))
+  ((the-condition
+    :initform nil
+    :accessor the-condition
+    :initarg :the-condition))
   (:report (lambda (c s)
              (format s "Expected no warnings but got ~S" 
                      (the-condition c)))))
 
-(define-condition ensure-not-same (test-condition) 
-                  ((first-value :accessor first-value
-                                :initarg :first-value)
-                   (second-value :accessor second-value
-                                 :initarg :second-value)
-                   (test :accessor test
-                         :initarg :test))
+(define-condition failed-comparison-condition (test-condition) 
+  ((first-value :accessor first-value
+		:initarg :first-value)
+   (second-value :accessor second-value
+		 :initarg :second-value)
+   (test :accessor test
+	 :initarg :test)))
+
+(define-condition ensure-not-same (failed-comparison-condition) 
+  ()
   (:report (lambda (c s)
              (format s "Ensure-same: ~S is not ~S to ~S~@[ (~a)~]"
+                     (first-value c) (test c) (second-value c)
+		     (message c)))))
+
+(define-condition ensure-same (failed-comparison-condition) 
+  ()
+  (:report (lambda (c s)
+             (format s "Ensure-different: ~S is ~S to ~S~@[ (~a)~]"
                      (first-value c) (test c) (second-value c)
 		     (message c)))))
 
@@ -557,7 +567,7 @@ error, then ensure-error will generate a test failure."
 				 (list 'quote test)
 				 '*lift-equality-test*)
                             value other-value)
-             (maybe-raise-not-same-condition 
+             (maybe-raise-ensure-same-condition 
               value other-value
               ,(if test-specified-p
 		   (list 'quote test)
@@ -567,6 +577,19 @@ error, then ensure-error will generate a test failure."
 (defun maybe-raise-not-same-condition (value-1 value-2 test 
 				       report &rest arguments)
   (let ((condition (make-condition 'ensure-not-same 
+                                   :first-value value-1
+                                   :second-value value-2
+                                   :test test
+                                   :message (when report
+                                              (apply #'format nil 
+						     report arguments)))))
+    (if (find-restart 'ensure-failed)
+      (invoke-restart 'ensure-failed condition) 
+      (warn condition))))
+
+(defun maybe-raise-ensure-same-condition (value-1 value-2 test 
+				       report &rest arguments)
+  (let ((condition (make-condition 'ensure-same 
                                    :first-value value-1
                                    :second-value value-2
                                    :test test
