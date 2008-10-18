@@ -1,5 +1,22 @@
 (in-package #:lift)
 
+;; stolen from metatilities
+(defun form-symbol-in-package (package &rest names)
+    "Finds or interns a symbol in package whose name is formed by concatenating the pretty printed representation of the names together."
+    (with-standard-io-syntax 
+      (let ((*package* package))
+	(intern (format nil "~{~a~}" names)
+		package))))
+     
+(defun form-symbol (&rest names)
+    "Finds or interns a symbol in the current package whose name is formed by concatenating the pretty printed representation of the names together."
+    (apply #'form-symbol-in-package *package* names))
+
+(defun form-keyword (&rest names)
+    "Finds or interns a symbol in the current package whose name is formed by concatenating the pretty printed representation of the names together."
+    (apply #'form-symbol-in-package 
+	   (load-time-value (find-package :keyword)) names))
+
 ;; borrowed from asdf
 (defun pathname-sans-name+type (pathname)
   "Returns a new pathname with same HOST, DEVICE, DIRECTORY as PATHNAME,
@@ -62,6 +79,7 @@ and NIL NAME and TYPE components"
 			  (list (format nil "-~2,'0d-~2,'0d-~2,'0d"
 					hour minute second)))))
       (apply 'concatenate 'string date-part time-part))))
+
 
 #+(or)
 (date-stamp :include-time? t)	
