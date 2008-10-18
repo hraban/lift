@@ -1945,8 +1945,8 @@ nor configuration file options were specified.")))))
 	  (setf code nil))
       (format stream "~&~<  ~@;~
                     ~@[Condition: ~<~@;~A~:>~]~
-                    ~@[~&Code     : ~S~]~
-                    ~&~:>" (list (list condition) code))))
+                    ~@[~&Code     : ~a~]~
+                    ~&~:>" (list (list condition) code)))))
 
 
 ;;; ---------------------------------------------------------------------------
