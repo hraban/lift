@@ -1,4 +1,4 @@
-# who calls what
+# who calls what / who does what
 
 run-tests-internal
   make-testsuite
@@ -17,6 +17,7 @@ run-tests
 run-test-internal
   start-test - push, name, value onto test-placeholder *
   setup-test *
+    (initialize slots)
   lift-test *
   teardown-test *
   end-test - setf :end-time *

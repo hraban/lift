@@ -915,7 +915,9 @@ the thing being defined.")
 (defmacro with-test-slots (&body body)
   `(symbol-macrolet ((lift-result (getf (test-data *current-test*) :result)))   
      ;; case111 - LW complains otherwise
-     (declare (ignorable lift-result))
+     (declare (ignorable lift-result)
+	      ,@(when (def :dynamic-variables)
+		      `((special ,@(mapcar #'car (def :dynamic-variables))))))
      (symbol-macrolet
 	 ,(mapcar #'(lambda (local)
 		      `(,local (test-environment-value ',local)))
@@ -1182,12 +1184,18 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 		  ,@(when (def :dynamic-variables)
 			  `((defmethod do-testing :around
 				((suite ,(def :testsuite-name)) result fn) 
-			      (declare (ignore result fn))
+			      (declare (ignore result fn)
+				       (special 
+					,@(mapcar 
+					   #'car (def :dynamic-variables))))
 			      (cond ((done-dynamics? suite)
 				     (call-next-method))
 				    (t
 				     (setf (slot-value suite 'done-dynamics?) t)
-				     (let* (,@(build-dynamics))
+				     (let* (,@(def :dynamic-variables))
+				       (declare (special 
+						 ,@(mapcar 
+						    #'car (def :dynamic-variables))))
 				       (call-next-method)))))))
 		  ;; tests
 		  ,@(when test-list
@@ -1232,7 +1240,9 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 	  (remove-duplicates (append (def :direct-slot-names) slots))
 	  (def :dynamic-variables)
 	  (remove-duplicates 
-	   (append (def :direct-dynamic-variables) dynamic-variables))
+	   (append (%build-pairs (def :direct-dynamic-variables))
+		   dynamic-variables)
+	   :key #'car)
 	  (def :function-specs)
 	  (remove-duplicates 
 	   (append (def :function-specs) function-specs)))
@@ -1243,6 +1253,14 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 				 (member class (superclasses oter))))
 			  (def :superclasses)) collect
 	     class))))
+
+(defun %build-pairs (putative-pairs)
+  (let ((result nil))
+    (dolist (putative-pair putative-pairs)
+      (if (atom putative-pair)
+        (push (list putative-pair nil) result)
+        (push putative-pair result)))
+    (nreverse result)))
 
 (defmacro addtest (name &body test)
   "Adds a single new test-case to the most recently defined testsuite."
@@ -2276,14 +2294,6 @@ nor configuration file options were specified.")))))
          (format *debug-io* "~&;Test Created: ~(~S.~S~)." 
 		 ',test-class ',test-name))
        *current-test-case-name*)))
-
-(defun build-dynamics ()
-  (let ((result nil))
-    (dolist (putative-pair (def :dynamic-variables))
-      (if (atom putative-pair)
-        (push (list putative-pair nil) result)
-        (push putative-pair result)))
-    (nreverse result)))
 
 (defun parse-test-body (test-body)
   (let ((test-name nil)
