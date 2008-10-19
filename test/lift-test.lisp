@@ -146,14 +146,70 @@ See file COPYING for license
 ;;; test ensure same
 ;;; ---------------------------------------------------------------------------
 
-(deftestsuite lift-test-ensure-same (lift-test)
+(deftestsuite lift-test-ensure-comparisons (lift-test)
   ())
 
 ;;?? Gary King 2004-06-21: not really a test yet, more of a syntax works check
-(addtest (lift-test-ensure-same)
+(addtest (lift-test-ensure-comparisons)
+  same-basic
+  (ensure-same 2 2)
   (ensure-same 2 2 :test =)
   (ensure-same 2 2 :test '=)
   (ensure-same 2 2 :test #'=))
+
+(addtest (lift-test-ensure-comparisons)
+  same-test-flet
+  (flet ((check (a b)
+	   (= (abs a) (abs b))))
+    (ensure-same 2 -2 :test #'check)
+    (ensure-same 2 -2 :test 'check)
+    (ensure-same 2 -2 :test check)))
+
+(addtest (lift-test-ensure-comparisons)
+  same-test-labels
+  (labels ((check (a b)
+	     (= (abs a) (abs b))))
+    (ensure-same 2 -2 :test #'check)
+    (ensure-same 2 -2 :test 'check)
+    (ensure-same 2 -2 :test check)))
+
+(defun %make-test-ensure-same-test (fn)
+  (lambda (a b)
+    (funcall fn a b)))
+
+(addtest (lift-test-ensure-comparisons)
+  same-test-with-test-maker
+  (ensure-same 2 2 :test (%make-test-ensure-same-test #'=)))
+
+;;?? Gary King 2004-06-21: not really a test yet, more of a syntax works check
+(addtest (lift-test-ensure-comparisons)
+  different-basic
+  (ensure-different 2 -12)
+  (ensure-different -2 2 :test =)
+  (ensure-different 20 2 :test '=)
+  (ensure-different 2 2.1 :test #'=))
+
+(addtest (lift-test-ensure-comparisons)
+  different-test-flet
+  (flet ((check (a b)
+	   (= (abs a) (abs b))))
+    (ensure-different 2 -2.1 :test #'check)
+    (ensure-different 1.9 -2 :test 'check)
+    (ensure-different 20 -2 :test check)))
+
+(addtest (lift-test-ensure-comparisons)
+  different-test-labels
+  (labels ((check (a b)
+	     (= (abs a) (abs b))))
+    (ensure-different 2 -2.1 :test #'check)
+    (ensure-different 1.9 -2 :test 'check)
+    (ensure-different 20 -2 :test check)))
+
+(addtest (lift-test-ensure-comparisons)
+  different-test-with-test-maker
+  (ensure-different 20 2 :test (%make-test-ensure-same-test #'=)))
+
+
 
 ;;; ---------------------------------------------------------------------------
 ;;; test single setup

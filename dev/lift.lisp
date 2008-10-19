@@ -536,48 +536,51 @@ error, then ensure-error will generate a test failure."
 (defmacro ensure-same
     (form values &key (test nil test-specified-p) 
      (report nil) (arguments nil))
-  "Ensure same compares value-or-values-1 value-or-values-2 or each value of value-or-values-1 value-or-values-2 (if they are multiple values) using test. If a problem is encountered ensure-same raises a warning which uses report as a format string and arguments as arguments to that string (if report and arguments are supplied). If ensure-same is used within a test, a test failure is generated instead of a warning"
-  (setf test (remove-leading-quote test))
-  (when (and (consp test)
-             (eq (first test) 'function))
-    (setf test (second test)))
-  (let ((block (gensym)))
-    `(block ,block
-       (loop for value in (multiple-value-list ,form)
-	  for other-value in (multiple-value-list ,values) do
-	  (unless (funcall ,(if test-specified-p (list 'quote test) 
-				'*lift-equality-test*)
-			   value other-value)
-	    (maybe-raise-not-same-condition 
-	     value other-value
-	     ,(if test-specified-p (list 'quote test) '*lift-equality-test*)
-	     ,report ,@arguments)
-	    (return-from ,block nil)))
-       (values t))))
+  "Ensure same compares value-or-values-1 value-or-values-2 or 
+each value of value-or-values-1 value-or-values-2 (if they are 
+multiple values) using test. If a problem is encountered 
+ensure-same raises a warning which uses report as a format string
+and arguments as arguments to that string (if report and arguments 
+are supplied). If ensure-same is used within a test, a test failure 
+is generated instead of a warning"
+  (%build-ensure-comparison form values 'unless 
+			    test test-specified-p report arguments))
 
 (defmacro ensure-different
     (form values &key (test nil test-specified-p) 
      (report nil) (arguments nil))
   "Ensure-different compares value-or-values-1 value-or-values-2 or each value of value-or-values-1 and value-or-values-2 (if they are multiple values) using test. If any comparison returns true, then ensure-different raises a warning which uses report as a format string and `arguments` as arguments to that string (if report and `arguments` are supplied). If ensure-different is used within a test, a test failure is generated instead of a warning"
-  ;; FIXME -- share code with ensure-same
+  (%build-ensure-comparison form values 'when
+			    test test-specified-p report arguments))
+
+(defun %build-ensure-comparison
+    (form values guard-fn test test-specified-p report arguments)
   (setf test (remove-leading-quote test))
   (when (and (consp test)
              (eq (first test) 'function))
     (setf test (second test)))
-  `(progn
-     (loop for value in (multiple-value-list ,form)
-           for other-value in (multiple-value-list ,values) do
-	  ;; WHEN instead of UNLESS
-           (when (funcall ,(if test-specified-p
-				 (list 'quote test)
-				 '*lift-equality-test*)
-                            value other-value)
-             (maybe-raise-ensure-same-condition 
-              value other-value
-              ,(if test-specified-p
-		   (list 'quote test)
-		   '*lift-equality-test*) ,report ,@arguments)))
-     (values t)))
+  (let ((gblock (gensym "block-"))
+	(ga (gensym "a-"))
+	(gb (gensym "b-"))
+	(gtest (gensym "test-")))
+    `(block ,gblock
+       (flet ((,gtest (,ga ,gb)
+		(,@(cond (test-specified-p
+			  (if (atom test) 
+			      (list test)
+			      `(funcall ,test)))
+			 (t
+			  `(funcall *lift-equality-test*)))
+		   ,ga ,gb)))
+	 (loop for value in (multiple-value-list ,form)
+	    for other-value in (multiple-value-list ,values) do
+	    (,guard-fn (,gtest value other-value)
+	      (maybe-raise-not-same-condition 
+	       value other-value
+	       ,(if test-specified-p (list 'quote test) '*lift-equality-test*)
+	       ,report ,@arguments)
+	      (return-from ,gblock nil))))
+       (values t))))
 
 (defun maybe-raise-not-same-condition (value-1 value-2 test 
 				       report &rest arguments)
@@ -983,8 +986,18 @@ the thing being defined.")
  '((push (first value) (def :default-initargs))
    (push :run-setup (def :default-initargs))
    (setf (def :run-setup) (first value)))
- nil)
+ 'check-run-setup-value)
 
+(defun %valid-run-setup-values ()
+  '(:once-per-session :once-per-suite
+    :once-per-test-case :never))
+
+(defun check-run-setup-value ()
+  (when (def :run-setup)
+    (unless (member (def :run-setup) (%valid-run-setup-values))
+      (error "The :run-setup option must be one of ~{~a~^, ~}." 
+	     (%valid-run-setup-values)))))
+    
 (add-code-block
  :equality-test 0 :methods
  (lambda () (def :equality-test))
