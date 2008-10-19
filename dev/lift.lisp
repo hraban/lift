@@ -781,9 +781,6 @@ the methods that should be run to do the tests for this test."))
 (defgeneric end-test (result case method-name)
   (:documentation ""))
 
-(defgeneric initialize-test (test)
-  (:documentation ""))
-
 (defgeneric run-test-internal (suite name result &rest args)
   (:documentation ""))
 
@@ -842,9 +839,6 @@ the methods that should be run to do the tests for this test."))
 (defmethod test-case-teardown :around ((test test-mixin) (result test-result))
   (setf (current-step test) :test-teardown)
   (call-next-method))
-
-(defmethod initialize-test ((test test-mixin))
-  (values))
 
 (defmethod initialize-instance :after ((testsuite test-mixin) &rest initargs 
 				       &key &allow-other-keys)
@@ -1173,7 +1167,6 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 		  (empty-test-tables ',(def :testsuite-name))
 		  ;; create methods
 		  ;; setup :before
-		  ;,@(build-initialize-test-method) 
 		  ,@(loop for (nil . block) in *code-blocks* 
 		       when (and block 
 				 (code block)
@@ -1434,7 +1427,6 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 	   (unwind-protect
 		(let ((*lift-equality-test* (equality-test suite)))
 		  (testsuite-setup suite result)
-		  ;(initialize-test suite) 
 		  (call-next-method)
 		  result)
 	     ;; cleanup
@@ -2082,35 +2074,6 @@ nor configuration file options were specified.")))))
                 "~&;;; Removed ~D methods from test suite ~(~A~)~@[ and its subclasses~]."
                 removed-count classname 
 		(not (length-1-list-p classes-removed)))))))
-
-(defun build-initialize-test-method ()
-  (let ((initforms nil)
-        (slot-names nil)
-        (slot-specs (def :slot-specs)))
-    (loop for slot in slot-specs do
-	 (when (and (member :initform (rest slot))
-		    (not (eq :unbound (getf (rest slot) :initform))))
-	   (push (getf (rest slot) :initform) initforms)
-	   (push (first slot) slot-names)))
-    (setf slot-names (nreverse slot-names)
-          initforms (nreverse initforms))    
-    (when initforms
-      `((defmethod initialize-test ((testsuite ,(def :testsuite-name)))
-	  (let ((initargs (suite-initargs testsuite)))
-	    (with-test-slots
-	      (append 
-	       (when (next-method-p) (call-next-method))
-	       (let* (,@(mapcar 
-			 (lambda (slot-name initform)
-			   `(,slot-name
-			     (or (getf initargs 
-				       ,(intern (symbol-name slot-name)
-						:keyword))
-				 ,initform)))
-			 slot-names initforms))
-		 (list ,@(mapcar (lambda (slot-name)
-				   `(cons ',slot-name ,slot-name))
-				 slot-names)))))))))))
 
 (defun (setf test-environment-value) (value name)
   (push (cons name value) *test-environment*)
