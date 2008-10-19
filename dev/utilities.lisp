@@ -84,3 +84,113 @@ and NIL NAME and TYPE components"
 #+(or)
 (date-stamp :include-time? t)	
 
+;;; ---------------------------------------------------------------------------
+;;; shared stuff
+;;; ---------------------------------------------------------------------------	
+
+(defgeneric get-class (thing &key error?)
+  (:documentation "Returns the class of thing or nil if the class cannot be found. Thing can be a class, an object representing a class or a symbol naming a class. Get-class is like find-class only not as particular.")
+  (:method ((thing symbol) &key error?)
+           (find-class thing error?))
+  (:method ((thing standard-object) &key error?)
+           (declare (ignore error?))
+           (class-of thing))
+  (:method ((thing t) &key error?) 
+           (declare (ignore error?))
+           (class-of thing))
+  (:method ((thing class) &key error?)
+           (declare (ignore error?))
+           thing))
+
+(defun direct-subclasses (thing)
+  "Returns the immediate subclasses of thing. Thing can be a class, object or symbol naming a class."
+  (class-direct-subclasses (get-class thing)))
+
+(defun map-subclasses (class fn &key proper?)
+  "Applies fn to each subclass of class. If proper? is true, then
+the class itself is not included in the mapping. Proper? defaults to nil."
+  (let ((mapped (make-hash-table :test #'eq)))
+    (labels ((mapped-p (class)
+               (gethash class mapped))
+             (do-it (class root)
+               (unless (mapped-p class)
+                 (setf (gethash class mapped) t)
+                 (unless (and proper? root)
+                   (funcall fn class))
+                 (mapc (lambda (class)
+                         (do-it class nil))
+                       (direct-subclasses class)))))
+      (do-it (get-class class) t))))
+
+(defun subclasses (class &key (proper? t))
+  "Returns all of the subclasses of the class including the class itself."
+  (let ((result nil))
+    (map-subclasses class (lambda (class)
+                            (push class result))
+                    :proper? proper?)
+    (nreverse result)))
+
+(defun superclasses (thing &key (proper? t))
+  "Returns a list of superclasses of thing. Thing can be a class, object or symbol naming a class. The list of classes returned is 'proper'; it does not include the class itself."
+  (let ((result (class-precedence-list (get-class thing))))
+    (if proper? (rest result) result)))
+
+#+(or)
+;;?? remove
+(defun direct-superclasses (thing)
+  "Returns the immediate superclasses of thing. Thing can be a class, object or symbol naming a class."
+  (class-direct-superclasses (get-class thing)))
+
+(declaim (inline length-1-list-p)) 
+(defun length-1-list-p (x) 
+  "Is x a list of length 1?"
+  (and (consp x) (null (cdr x))))
+
+(defmacro defclass-property (property &optional (default nil default-supplied?))
+  "Create getter and setter methods for 'property' on symbol's property lists." 
+  (let ((real-name (intern (format nil "~:@(~A~)" property) :keyword)))
+    `(progn
+       (defgeneric ,property (symbol))
+       (defgeneric (setf ,property) (value symbol))
+       (defmethod ,property ((class-name symbol))
+          (get class-name ,real-name ,@(when default-supplied? (list default))))
+       (defmethod (setf ,property) (value (class-name symbol))
+         (setf (get class-name ,real-name) value)))))
+
+(defun parse-brief-slot (slot)
+  (let* ((slot-spec 
+	  (typecase slot
+	    (symbol (list slot))
+	    (list slot)
+	    (t (error "Slot-spec must be a symbol or a list. `~s` is not." 
+		      slot)))))
+    (unless (null (cddr slot-spec))
+      (error "Slot-spec must be a symbol or a list of length one or two. `~s` has too many elements." slot)) 
+    `(,(first slot-spec) ,@(when (second slot-spec) 
+				 `(:initform ,(second slot-spec))))))
+
+(defun convert-clauses-into-lists (clauses-and-options clauses-to-convert)
+  ;; This is useful (for me at least!) for writing macros
+  (let ((parsed-clauses nil))
+    (do* ((clauses clauses-and-options (rest clauses))
+          (clause (first clauses) (first clauses)))
+         ((null clauses))
+      (if (and (keywordp clause)
+               (or (null clauses-to-convert) (member clause clauses-to-convert))
+               (not (length-1-list-p clauses)))
+        (progn
+          (setf clauses (rest clauses))
+          (push (list clause (first clauses)) parsed-clauses))
+        (push clause parsed-clauses)))
+    (nreverse parsed-clauses)))
+
+(defun remove-leading-quote (list)
+  "Removes the first quote from a list if one is there."
+  (if (and (consp list) (eql (first list) 'quote))
+    (first (rest list))
+    list))
+
+(defun cleanup-parsed-parameter (parameter)
+  (if (length-1-list-p parameter)
+    (first parameter)
+    parameter))
