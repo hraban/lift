@@ -768,4 +768,16 @@ See file COPYING for license
     (ensure-same (length (failures result)) 1)
     (ensure-same (length (errors result)) 0)))
 
+;;;;;
 
+(deftestsuite test-suite-with-no-tests ()
+  ())
+
+(deftestsuite test-test-suite-with-no-tests (lift-test)
+  ()
+  (:documentation "Case 168"))
+
+(addtest (test-test-suite-with-no-tests)
+  test-1
+  (let ((r (run-tests :suite 'no-tests)))
+    (ensure-same (length (tests-run r)) 0)))
