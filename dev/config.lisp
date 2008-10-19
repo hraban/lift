@@ -80,39 +80,41 @@
 	    (%run-tests-from-file path)))))
 
 (defun %run-tests-from-file (path)
-  (with-open-file (*current-configuration-stream* path
-		      :direction :input
-		      :if-does-not-exist :error)
-    (let ((form nil))
-      (loop while (not (eq (setf form (read *current-configuration-stream* 
-					    nil :eof nil)) :eof)) 
-	 collect
-	 (handler-bind 
-	     ((error (lambda (c) (format 
-				  *error-output* 
-				  "Error while running ~a from ~a: ~a"
-				  form path c)
-			     (pprint (get-backtrace c))
-			     (invoke-debugger c))))
-	   (destructuring-bind
-		 (name &rest args)
-	       form
-	     (assert (typep name 'symbol) nil
-		     "Each command must be a symbol and ~s is not." name)
-	     (setf args (massage-arguments args))
-	     (cond 
-	       ;; check for preferences first (i.e., keywords)
-	       ((eq (symbol-package name) 
-		    (symbol-package :keyword))
-		;; must be a preference
-		(handle-config-preference name args))
-	       ((find-testsuite name :errorp nil)
-		(run-tests :suite name 
-			   :result *test-result* 
-			   :testsuite-initargs args))
-	       (t
-		(warn "Don't understand '~s' while reading from ~s" 
-		       form path))))))))
+  (with-simple-restart (cancel-testing-from-configuration
+			"Cancel testing from file ~a" path)
+    (with-open-file (*current-configuration-stream* path
+						    :direction :input
+						    :if-does-not-exist :error)
+      (let ((form nil))
+	(loop while (not (eq (setf form (read *current-configuration-stream* 
+					      nil :eof nil)) :eof)) 
+	   collect
+	   (handler-bind 
+	       ((error (lambda (c) (format 
+				    *error-output* 
+				    "Error while running ~a from ~a: ~a"
+				    form path c)
+			       (pprint (get-backtrace c))
+			       (invoke-debugger c))))
+	     (destructuring-bind
+		   (name &rest args)
+		 form
+	       (assert (typep name 'symbol) nil
+		       "Each command must be a symbol and ~s is not." name)
+	       (setf args (massage-arguments args))
+	       (cond 
+		 ;; check for preferences first (i.e., keywords)
+		 ((eq (symbol-package name) 
+		      (symbol-package :keyword))
+		  ;; must be a preference
+		  (handle-config-preference name args))
+		 ((find-testsuite name :errorp nil)
+		  (run-tests :suite name 
+			     :result *test-result* 
+			     :testsuite-initargs args))
+		 (t
+		  (warn "Don't understand '~s' while reading from ~s" 
+			form path)))))))))
   (values *test-result*))
 
 (defun massage-arguments (args)
@@ -130,55 +132,41 @@
   (%run-tests-from-file (merge-pathnames (first args) 
 					 *current-configuration-stream*)))
 
-(defmethod handle-config-preference ((name (eql :dribble)) args)
-  (setf *lift-dribble-pathname* (first args)))
+(defconfig-variable :dribble *lift-dribble-pathname*)
 
-(defmethod handle-config-preference ((name (eql :debug-output)) args)
-  (setf *lift-debug-output* (first args)))
+(defconfig-variable :debug-output *lift-debug-output*)
 
-(defmethod handle-config-preference ((name (eql :standard-output)) args)
-  (setf *lift-standard-output* (first args)))
+(defconfig-variable :standard-output *lift-standard-output*)
 
-(defmethod handle-config-preference ((name (eql :break-on-errors?)) args)
-  (setf *test-break-on-errors?* (first args)))
+(defconfig-variable :break-on-errors? *test-break-on-errors?*)
 
-(defmethod handle-config-preference ((name (eql :do-children?)) args)
-  (setf *test-do-children?* (first args)))
+(defconfig-variable :do-children? *test-do-children?*)
 
-(defmethod handle-config-preference ((name (eql :equality-test)) args)
-  (setf *lift-equality-test* (first args)))
+(defconfig-variable :equality-test *lift-equality-test*)
 
-(defmethod handle-config-preference ((name (eql :print-length)) args)
-  (setf *test-print-length* (first args)))
+(defconfig-variable :print-length *test-print-length*)
 
-(defmethod handle-config-preference ((name (eql :print-level)) args)
-  (setf *test-print-level* (first args)))
+(defconfig-variable :print-level *test-print-level*)
 
-(defmethod handle-config-preference ((name (eql :print-suite-names)) args)
-  (setf *test-print-testsuite-names* (first args)))
+(defconfig-variable :print-suite-names *test-print-testsuite-names*)
 
-(defmethod handle-config-preference ((name (eql :print-test-case-names)) args)
-  (setf *test-print-test-case-names* (first args)))
+(defconfig-variable :print-test-case-names *test-print-test-case-names*)
 
-(defmethod handle-config-preference ((name (eql :if-dribble-exists))
-				     args)
-  (setf *lift-if-dribble-exists* (first args)))
+(defconfig-variable :if-dribble-exists *lift-if-dribble-exists*)
 
 (defmethod handle-config-preference ((name (eql :report-property))
 				     args)
   (setf (test-result-property *test-result* (first args)) (second args)))
 
-(defmethod handle-config-preference ((name (eql :profiling-threshold))
-				     args)
-  (setf *profiling-threshold* (first args)))
+(defconfig-variable :profiling-threshold *profiling-threshold*)
 
-(defmethod handle-config-preference ((name (eql :count-calls-p))
-				     args)
-  (setf *count-calls-p* (first args)))
+(defconfig-variable :count-calls-p *count-calls-p*)
 
-(defmethod handle-config-preference ((name (eql :log-pathname))
-				     args)
-  (setf *lift-report-pathname* (first args)))
+(defconfig-variable :log-pathname *lift-report-pathname*)
+
+(defconfig-variable :maximum-failures *test-maximum-failure-count*)
+
+(defconfig-variable :maximum-errors *test-maximum-error-count*)
 
 (defmethod handle-config-preference ((name (eql :build-report))
 				     args)
@@ -217,8 +205,10 @@
 	     (format *debug-io* "~&Unable to write report (format ~s) to ~a" 
 		     format dest))))))))
   
-(defmethod handle-config-preference ((name (eql :trace)) args)
+
+(defconfig :trace 
+  "Start tracing each of the arguments to :trace."
   (eval `(trace ,@args)))
 
-(defmethod handle-config-preference ((name (eql :untrace)) args)
+(defconfig :untrace
   (eval `(untrace ,@args)))

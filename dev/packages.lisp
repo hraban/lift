@@ -70,6 +70,8 @@
        #:*test-maximum-time*
        #:*test-print-testsuite-names*
        #:*test-print-test-case-names*
+       #:*test-maximum-error-count*
+       #:*test-maximum-failure-count*
        #:*lift-dribble-pathname*
        #:*lift-report-pathname*
 	    

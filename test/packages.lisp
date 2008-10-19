@@ -10,4 +10,8 @@
                 #:test-interactive?
                 #:make-test-result
                 #:testsuite-test-count
-		#:*test-environment*))
+		#:*test-environment*
+		#:*test-maximum-error-count*
+		#:*test-maximum-failure-count*
+		#:failures
+		#:errors))

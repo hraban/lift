@@ -210,3 +210,18 @@ signaled. (suppored in Allegro, Clozure CL, CLisp, and Lispworks)"
     ,@body)
   #-(or allegro ccl clisp mcl sbcl)
   `(progn ,@body))
+
+
+(defmacro defconfig-variable (name var &optional docstring)
+  (declare (ignore docstring))
+  `(defmethod handle-config-preference ((name (eql ,name)) args)
+     (setf ,var (first args))))
+
+(defmacro defconfig (name &body body)
+  (let ((docstring nil))
+    (declare (ignorable docstring))
+    (when (stringp (first body))
+      (setf docstring (first body)
+	    body (rest body)))
+    `(defmethod handle-config-preference ((name (eql ,name)) args)
+       ,@body)))

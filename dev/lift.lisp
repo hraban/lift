@@ -129,8 +129,26 @@ the class itself is not included in the mapping. Proper? defaults to nil."
 (defvar *test-is-being-loaded?* nil)
 (defvar *test-is-being-executed?* nil)
 
-(defvar *testsuite-test-count* nil
-  "Temporary variable used to 'communicate' between deftestsuite and addtest.")
+(defvar *test-maximum-error-count* nil
+  "The maximum numbers of errors to allow during a [run-tests][].
+
+If `*test-maximum-error-count*` is nil, then a call to run-tests 
+will continue regardless of the number of errors. If it a positive
+integer, then run-tests will stop as soon as the number of test-errors
+if greater than or equal to its value. Setting this to some small 
+value can help prevent running lengthly test-suites when there are many
+errors. See also [*test-maximum-failure-count*][].")
+
+(defvar *test-maximum-failure-count* nil
+  "The maximum numbers of failures to allow during a [run-tests][].
+
+If `*test-maximum-failure-count*` is nil, then a call to run-tests 
+will continue regardless of the number of failures. If it a positive
+integer, then run-tests will stop as soon as the number of test-failures
+if greater than or equal to its value. Setting this to some small 
+value can help prevent running lengthly test-suites when there are many
+failures. See also [*test-maximum-error-count*][].")
+
 (defvar *lift-debug-output* *debug-io*
   "Messages from LIFT will be sent to this stream. It can set to nil or 
 to an output stream. It defaults to *debug-io*.")
@@ -1538,13 +1556,16 @@ but not both."))
 			(*debug-io* (maybe-add-dribble 
 				     *debug-io* dribble-stream)))
 		   (unwind-protect
-			(dolist (testsuite (if (consp suite) 
-					       suite (list suite)))
-			  (let ((*current-testsuite-name* testsuite))
-			    (apply #'run-tests-internal testsuite
-				   :result result
-				   testsuite-initargs))
-			  (setf *current-testsuite-name* testsuite))
+			(with-simple-restart (cancel-testing 
+					      "Cancel testing of ~a"
+					      *current-testsuite-name*)
+			  (dolist (testsuite (if (consp suite) 
+						 suite (list suite)))
+			    (let ((*current-testsuite-name* testsuite))
+			      (apply #'run-tests-internal testsuite
+				     :result result
+				     testsuite-initargs))
+			    (setf *current-testsuite-name* testsuite)))
 		     ;; cleanup
 		     (when dribble-stream 
 		       (close dribble-stream)))
@@ -1766,7 +1787,25 @@ nor configuration file options were specified.")))))
 	(test-expected-failure (push problem (expected-failures result)))
 	((or test-error testsuite-error) (push problem (errors result)))
 	(test-expected-error (push problem (expected-errors result))))
+      (when (and *test-maximum-failure-count*
+		 (numberp *test-maximum-failure-count*)
+		 (>= (length (failures result)) *test-maximum-failure-count*))
+	(cancel-testing :failures))
+      (when (and *test-maximum-error-count*
+		 (numberp *test-maximum-error-count*)
+		 (>= (length (errors result)) *test-maximum-error-count*))
+	(cancel-testing :errors))
       problem)))
+
+(defun cancel-testing (why)
+  (declare (ignore why))
+  (flet ((do-it (name)
+	   (let ((it (find-restart name)))
+	     (when it 
+	       ;(print (list :ct it))
+	       (invoke-restart it)))))
+    (do-it 'cancel-testing-from-configuration)
+    (do-it 'cancel-testing)))
 
 ;;; ---------------------------------------------------------------------------
 ;;; test-result and printing
