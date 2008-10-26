@@ -770,7 +770,7 @@ See file COPYING for license
 
 ;;;;;
 
-(deftestsuite test-suite-with-no-tests ()
+(deftestsuite test-suite-with-no-tests-helper ()
   ())
 
 (deftestsuite test-test-suite-with-no-tests (lift-test)
@@ -779,5 +779,5 @@ See file COPYING for license
 
 (addtest (test-test-suite-with-no-tests)
   test-1
-  (let ((r (run-tests :suite 'no-tests)))
+  (let ((r (run-tests :suite 'test-suite-with-no-tests-helper)))
     (ensure-same (length (tests-run r)) 0)))
