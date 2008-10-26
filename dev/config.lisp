@@ -90,41 +90,47 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
 	    (%run-tests-from-file path)))))
 
 (defun %run-tests-from-file (path)
-  (with-simple-restart (cancel-testing-from-configuration
-			"Cancel testing from file ~a" path)
-    (with-open-file (*current-configuration-stream* path
-						    :direction :input
-						    :if-does-not-exist :error)
-      (let ((form nil))
-	(loop while (not (eq (setf form (read *current-configuration-stream* 
-					      nil :eof nil)) :eof)) 
-	   collect
-	   (handler-bind 
-	       ((error (lambda (c) (format 
-				    *error-output* 
-				    "Error while running ~a from ~a: ~a"
-				    form path c)
-			       (pprint (get-backtrace c))
-			       (invoke-debugger c))))
-	     (destructuring-bind
-		   (name &rest args)
-		 form
-	       (assert (typep name 'symbol) nil
-		       "Each command must be a symbol and ~s is not." name)
-	       (setf args (massage-arguments args))
-	       (cond 
-		 ;; check for preferences first (i.e., keywords)
-		 ((eq (symbol-package name) 
-		      (symbol-package :keyword))
-		  ;; must be a preference
-		  (handle-config-preference name args))
-		 ((find-testsuite name :errorp nil)
-		  (run-tests :suite name 
-			     :result *test-result* 
-			     :testsuite-initargs args))
-		 (t
-		  (warn "Don't understand '~s' while reading from ~s" 
-			form path)))))))))
+  (with-open-file (*current-configuration-stream* path
+						  :direction :input
+						  :if-does-not-exist :error)
+    (let ((form nil)
+	  (run-tests-p t))
+      (loop while (not (eq (setf form (read *current-configuration-stream* 
+					    nil :eof nil)) :eof)) 
+	 collect
+	 (handler-bind 
+	     ((error (lambda (c) (format 
+				  *error-output* 
+				  "Error while running ~a from ~a: ~a"
+				  form path c)
+			     (pprint (get-backtrace c))
+			     (invoke-debugger c))))
+	   (destructuring-bind
+		 (name &rest args)
+	       form
+	     (assert (typep name 'symbol) nil
+		     "Each command must be a symbol and ~s is not." name)
+	     (setf args (massage-arguments args))
+	     (cond 
+	       ;; check for preferences first (i.e., keywords)
+	       ((eq (symbol-package name) 
+		    (symbol-package :keyword))
+		;; must be a preference
+		(handle-config-preference name args))
+	       ((and run-tests-p (find-testsuite name :errorp nil))
+		(multiple-value-bind (_ restartedp)
+		    (with-simple-restart (cancel-testing-from-configuration
+					  "Cancel testing from file ~a" path)
+		      (run-tests :suite name 
+				 :result *test-result* 
+				 :testsuite-initargs args))
+		  (declare (ignore _))
+		  ;; no more testing; continue to process commands
+		  (when restartedp 
+		    (setf run-tests-p nil))))
+	       (t
+		(warn "Don't understand '~s' while reading from ~s" 
+		      form path))))))))
   (values *test-result*))
 
 (defun massage-arguments (args)

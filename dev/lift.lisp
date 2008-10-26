@@ -1695,9 +1695,10 @@ nor configuration file options were specified.")))))
 (defun cancel-testing (why)
   (declare (ignore why))
   (flet ((do-it (name)
-	   (let ((it (find-restart name)))
+	   ;; should just use find-restart but I was experimenting
+	   (let* ((restarts (compute-restarts))
+		  (it (find name restarts :key #'restart-name :from-end nil)))
 	     (when it 
-	       ;(print (list :ct it))
 	       (invoke-restart it)))))
     (do-it 'cancel-testing-from-configuration)
     (do-it 'cancel-testing)))
