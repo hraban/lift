@@ -1,5 +1,17 @@
 # who calls what / who does what
 
+run-tests
+  run-tests-internal
+  or run-tests-from-file
+
+run-test 
+  do-testing with run-test-internal
+
+------
+
+run-tests-from-file
+  run-tests
+
 run-tests-internal
   make-testsuite
   do-testing with testsuite-run
@@ -10,9 +22,6 @@ do-testing (suite)
     initialize-test
     <fn> (= testsuite-run)
   testsuite-teardown *
-
-run-tests
-  run-tests-internal
 
 run-test-internal
   start-test - push, name, value onto test-placeholder *
@@ -26,9 +35,6 @@ run-test-internal
 testsuite-run
   foreach method in suite, run-test-internal
   if children, foreach direct-subclass, run-tests-internal
-
-run-test 
-  do-testing with run-test-internal
 
 
 # Stuff
