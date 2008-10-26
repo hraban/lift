@@ -26,7 +26,7 @@ will continue regardless of the number of errors. If it a positive
 integer, then run-tests will stop as soon as the number of test-errors
 if greater than or equal to its value. Setting this to some small 
 value can help prevent running lengthly test-suites when there are many
-errors. See also [*test-maximum-failure-count*][].")
+errors. See also [\\*test-maximum-failure-count\\*][].")
 
 (defvar *test-maximum-failure-count* nil
   "The maximum numbers of failures to allow during a [run-tests][].
@@ -36,7 +36,7 @@ will continue regardless of the number of failures. If it a positive
 integer, then run-tests will stop as soon as the number of test-failures
 if greater than or equal to its value. Setting this to some small 
 value can help prevent running lengthly test-suites when there are many
-failures. See also [*test-maximum-error-count*][].")
+failures. See also [\\*test-maximum-error-count\\*][].")
 
 (defvar *lift-debug-output* *debug-io*
   "Messages from LIFT will be sent to this stream. It can set to nil or 
@@ -602,6 +602,9 @@ is generated instead of a warning"
 		  :initarg :tests-to-skip
 		  :reader tests-to-skip
 		  :writer %set-tests-to-skip))
+  (:documentation 
+"A `test-result` instance contains all of the information collectd by 
+LIFT during a test run.")
   (:default-initargs
     :test-interactive? *test-is-being-defined?*
     :real-start-time (get-internal-real-time)

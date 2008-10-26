@@ -9,11 +9,17 @@
     :value 'get-internal-real-time
     :finally '(coerce (/ it internal-time-units-per-second) 
 			'double-float)
-    :type integer)
+    :type integer
+    :documentation 
+    "Measure how long something takes using {hs get-internal-real-time}.
+
+The accuracy can be no greater than {hs internal-time-units-per-second}.")
 
 (defmeasure measure-space
     :value 'total-bytes-allocated
-    :type integer)
+    :type integer
+    :documentation 
+    "Measure how many conses cells a computation generates.")
 
 )
 
