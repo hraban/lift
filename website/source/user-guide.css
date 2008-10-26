@@ -126,10 +126,15 @@ h3, h4 {
 .documentation.header {
 	display: block;
 	position: relative;
+	border: none white 0px;
+	border-top: thin;
 	border-top-style: solid;
 	border-top-width: 1pt;
 	padding-top: 4px;
-	margin-top: 2em;
+	margin-top: 2em; 
+	font-size: inherit;
+	background-color: transparent;
+	color: black;
 }
 
 .documentation.contents {

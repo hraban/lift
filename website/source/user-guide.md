@@ -11,11 +11,13 @@
 
 ## Introduction
 
-The LIsp Framework for Testing (LIFT) is a unit and system test tool for LISP. 
-Though inspired by [SUnit][] and [JUnit][], it's built with Lisp in mind. 
-In LIFT, [testcases][] are organized into hierarchical [testsuites][] each of 
-which can have its own [fixture][]. When run, a testcase can succeed, fail, 
-or error. LIFT supports randomized testing, benchmarking, profiling, and reporting.
+The LIsp Framework for Testing (LIFT) is a unit and system
+test tool for LISP. Though inspired by [SUnit][] and
+[JUnit][], it's built with Lisp in mind. In LIFT,
+[testcases][] are organized into hierarchical [testsuites][]
+each of which can have its own [fixture][]. When run, a
+testcase can succeed, fail, or error. LIFT supports
+randomized testing, benchmarking, profiling, and reporting.
 
  [testcases]> glossary A test-case is the smallest unit of testing.
  [testsuites]> glossary A testsuite is a group of tests plus their environment plus local variables and configuration settings. 
@@ -23,35 +25,46 @@ or error. LIFT supports randomized testing, benchmarking, profiling, and reporti
  
 ## Overview : our first testsuite
 
-LIFT supports interactive testing so imagine that we type each of the following forms into a file and evaluate them as we go. 
+LIFT supports interactive testing so imagine that we type
+each of the following forms into a file and evaluate them as
+we go.
 
     (in-package #:common-lisp-user)
     (use-package :lift)
 
-First, we define an empty testsuite. [deftestsuite][] is like defclass
-so here we define a testsuite with no super-testsuites and
-no slots.
-    
-    > (deftestsuite lift-examples-1 () ())
+First, we define an empty testsuite. [deftestsuite][] is
+similar to defclass so here we define a testsuite with no
+super-testsuites and no slots.
+
+    > (deftestsuite lift-examples-1 () ()) 
     ==> #<lift-examples-1: no tests defined>
 
-Add a test-case to our new suite. Since we don't specify a testsuite or a test name, 
-LIFT will add this to the most recently defined testsuite 
-and name it for us.
+Now, we add a test-case to our new suite. Since we don't
+specify a testsuite or a test name, LIFT will add the
+test-case to the most recently defined testsuite and name it
+for us.
 
     > (addtest (ensure-same (+ 1 1) 2))
     ==> #<Test passed>
 
-Add another test using ensure-error
-Here we specify the testsuite and the name.
+Because it ran the test interactively, it assume that you know the suite and name of the test and so only prints whether the test-case passed or failed. You can use [run-test][] to run individual test-cases. If you don't specify which case to run, LIFT will use the it ran most recently:
+
+    > (run-test)
+    ==> #<lift-examples-1.lift-examples-1 passed>
+    
+Now LIFT provides more details. 
+
+Next, let's add another test using ensure-error
+Here we specify the testsuite and the name in the addtest form. 
 
     > (addtest (lift-examples-1)  ; the testsuite name
          div-by-zero              ; the testcase name
        (ensure-error (let ((x 0)) (/ x))))
     ==> #<Test passed>
 
-Though it works, [ensure-error][] is a bit heavy-handed in this case. We can use
-[ensure-condition][] to check that we get exactly the right _kind_ of error.
+Though it works, [ensure-error][] is a bit heavy-handed in
+this case. We can use [ensure-condition][] to check that we
+get exactly the right _kind_ of error.
 
     > (addtest (lift-examples-1)
         div-by-zero
@@ -61,10 +74,11 @@ Though it works, [ensure-error][] is a bit heavy-handed in this case. We can use
 
 Notice that because we named the testcase `div-by-zero`, LIFT will replace the previous definition with this one. If you don't name your tests, LIFT cannot distinguish between correcting an already defined test and creating a new one.
 
-Now, let's us [run-tests][] to run all our tests.
-Unless you tell it otherwise, [run-tests][] runs all the test-cases
-of the most recently touched testsuite{footnote "By 'touched', I mean the last testsuite in which a testcase was run."}. Here, thats
-lift-example-1.
+Now, let's us [run-tests][] to run all our tests. Unless you
+tell it otherwise, [run-tests][] runs all the test-cases of
+the most recently touched testsuite{footnote "By 'touched', I
+mean the last testsuite in which a test-case was run."}.
+Here, thats `lift-example-1`.
 
     > (run-tests)
     ==> #<Results for lift-examples-1 [2 Successful tests]>
@@ -78,7 +92,9 @@ Here is a test-case that fails because floating point math isn't exact.
        (ensure-same (+ 1.23 1.456) 2.686))
     ==> #<Test failed>
 
-Hmmm, what happened? Lift returns a [test-result][] object so we can look at it to understand what went wrong. Let's [describe][] it:
+Hmmm, what happened? Lift returns a [test-result][] object so
+we can look at it to understand what went wrong. Let's {hs
+describe} it:
 
     > (describe *)
     Test Report for lift-examples-1: 1 test run, 1 Failure.
@@ -203,7 +219,14 @@ It is often the case that you'll want some dynamic variable bound around the bod
 
 ##### Equality-test
 
-This is used to specify the default equality-test used by [ensure-same][] for test-cases in this suite and any suites that inherit from it. Though you can use the special variable [*lift-equality-test*][] to set test, it usually better to exercise control at the testsuite level. This is especially handy when, for example, you are testing numeric functions and want to avoid having to specify the test for every `ensure-same`.
+This is used to specify the default equality-test used by
+[ensure-same][] for test-cases in this suite and any suites
+that inherit from it. Though you can use the special variable
+[\*lift-equality-test\*][] to set test, it usually better to
+exercise control at the testsuite level. This is especially
+handy when, for example, you are testing numeric functions
+and want to avoid having to specify the test for every
+`ensure-same`.
 
 ##### Function
 
@@ -276,6 +299,7 @@ The following macros can be used outside of LIFT where they will function very m
 {docs lift-result}
 {docs lift-property}
 {docs *test-result* variable}
+{docs test-result class}
 
 ### Configuring LIFT
 
@@ -287,6 +311,8 @@ when calling [run-test][] or [run-tests][] or when interactively defining new te
 {docs *test-ignore-warnings?* variable}
 {docs *test-break-on-errors?* variable}
 {docs *test-break-on-failures?* variable}
+{docs *test-maximum-error-count* variable}
+{docs *test-maximum-failure-count* variable}
 {docs *test-maximum-time* variable}
 {docs *test-print-testsuite-names* variable}
 {docs *test-print-test-case-names* variable}
@@ -338,6 +364,28 @@ when calling [run-test][] or [run-tests][] or when interactively defining new te
 {docs a-symbol}
 
 ### Benchmarking and Profiling
+
+#### Defining Measures
+
+{docs defmeasure}
+{docs undefmeasure}
+{docs while-measuring}
+{docs measure-seconds measure}
+{docs measure-space measure}
+
+#### Profiling
+
+{docs with-profile-report}
+{docs write-profile-information}
+{docs *profiling-threshold*}
+
+#### Timing 
+
+{docs count-repetitions}
+{docs while-counting-events}
+{docs while-counting-repetitions}
+
+#### Deprecated functions
 
 {docs measure-time}
 {docs measure-conses}
