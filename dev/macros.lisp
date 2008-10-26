@@ -17,7 +17,9 @@
 	   (error "Measure ~a not found." ,gname))
        ,gname)))
   
-(defmacro defmeasure (name &key (value nil) (finally nil) (type nil))
+(defmacro defmeasure (name &key (value nil) (finally nil) (type nil)
+		      (documentation nil))
+  (declare (ignore documentation))
   (unless value
     (error "A value must be specified to define a measure."))
   (cond ((atom name)
