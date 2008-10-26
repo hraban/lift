@@ -1415,7 +1415,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 		       (report-summary-pathname))))
 	       (*test-do-children?* do-children?)
 	       (report-pathname *lift-report-pathname*))
-	  (when report-pathname
+	  (when *lift-report-pathname*
 	    (ensure-directories-exist report-pathname))
 	  (cond ((and suite config)
 		 (error "Specify either configuration file or test suite 
