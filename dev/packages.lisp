@@ -16,20 +16,17 @@
        #:class-direct-superclasses
        #:class-precedence-list)
       (:export
-       #:*benchmark-log-path*
        #:*lift-report-detail-hook*
        #:*lift-report-header-hook*
        #:*lift-report-footer-hook*
-       #:with-profile-report
        #:describe-test-result
-       #:count-repetitions
-       #:while-counting-repetitions
        #:with-timeout
 
        #:testsuite-ambiguous
        #:testsuite-not-defined)
       (:export
        #:test-mixin
+       #:test-result
        #:testsuite-p
        #:*test-result*
        #:*current-test*
@@ -55,8 +52,14 @@
 
        #:measure-time
        #:measure-conses
+
        #:with-profile-report
        #:write-profile-information
+       #:profiling-threshold*
+       #:*benchmark-log-path*
+       #:count-repetitions
+       #:while-counting-repetitions
+       #:while-counting-events
 
        ;; Variables
        #:*test-ignore-warnings?*
