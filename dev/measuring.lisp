@@ -56,14 +56,6 @@ The accuracy can be no greater than {hs internal-time-units-per-second}.")
 	 (setf ,var (- (,measure-fn) ,ginitial))
 	 (when ,gcondition (error ,gcondition))))))
 
-#+(or)
-;; remove
-(defmacro measure-time ((var) &body body)
-  `(prog1
-       (with-measuring (,var get-internal-real-time)
-	 ,@body)
-     (setf ,var (coerce (/ ,var internal-time-units-per-second) 
-			'double-float))))
 
 (defmacro measure-time ((var) &body body)
   `(while-measuring-1 (,var measure-seconds) ,@body))
@@ -73,12 +65,6 @@ The accuracy can be no greater than {hs internal-time-units-per-second}.")
   (while-measuring-1 (time measure-seconds)
     (sleep 1))
   time)
-
-#+(or)
-;; remove
-(defmacro measure-conses ((var) &body body)
-  `(with-measuring (,var total-bytes-allocated)
-     ,@body))
 
 (defmacro measure-conses ((var) &body body)
   `(while-measuring-1 (,var measure-space) ,@body))
