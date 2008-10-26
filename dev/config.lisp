@@ -165,8 +165,10 @@
 (defconfig-variable :log-pathname *lift-report-pathname*)
 
 (defconfig-variable :maximum-failures *test-maximum-failure-count*)
+(defconfig-variable :maximum-failure-count *test-maximum-failure-count*)
 
 (defconfig-variable :maximum-errors *test-maximum-error-count*)
+(defconfig-variable :maximum-error-count *test-maximum-error-count*)
 
 (defmethod handle-config-preference ((name (eql :build-report))
 				     args)
