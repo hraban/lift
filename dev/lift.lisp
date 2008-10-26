@@ -2112,10 +2112,9 @@ nor configuration file options were specified.")))))
 				  for keyword = (intern (symbol-name slot-name)
 							:keyword) 
 				  collect
-				  `(push (cons ',slot-name
-					       (or (getf ,ginitargs ,keyword)
-						   ,initform))
-					 *test-environment*)))))
+				    `(setf (test-environment-value ',slot-name)
+					   (or (getf ,ginitargs ,keyword)
+					       ,initform))))))
 		 ,@setup))))))))
 
 (defun %gather-up-initforms ()
@@ -2124,10 +2123,8 @@ nor configuration file options were specified.")))))
         (slot-specs (def :slot-specs)))
     (loop for slot in (def :direct-slot-names)
        for spec = (assoc slot slot-specs) do
-	 (when (and (member :initform (rest spec))
-		    (not (eq :unbound (getf (rest spec) :initform))))
-	   (push (getf (rest spec) :initform) initforms)
-	   (push (first spec) slot-names)))
+	 (push (getf (rest spec) :initform) initforms)
+	 (push (first spec) slot-names))
     (values (nreverse slot-names) (nreverse initforms))))    
 
 (defmethod setup-test :around ((test test-mixin))
