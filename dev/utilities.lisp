@@ -24,9 +24,9 @@ and NIL NAME and TYPE components"
   (make-pathname :name nil :type nil :defaults pathname))
 
 ;; FIXME -- abstract and merge with unique-directory
-(defun unique-filename (pathname)
+(defun unique-filename (pathname &optional (max-count 100))
   (let ((date-part (date-stamp)))
-    (loop repeat 100
+    (loop repeat max-count
        for index from 1
 	 for name = 
 	 (merge-pathnames 
@@ -37,7 +37,7 @@ and NIL NAME and TYPE components"
 	  pathname) do
 	 (unless (probe-file name)
 	   (return-from unique-filename name)))
-    (error "Unable to find unique pathname for ~a" pathname)))
+    (error "Unable to find unique pathname for ~a; there are already ~:d similar files" pathname max-count)))
 	    
 ;; FIXME -- abstract and merge with unique-filename
 (defun unique-directory (pathname)
