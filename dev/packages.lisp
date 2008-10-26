@@ -77,7 +77,7 @@
        #:*test-maximum-failure-count*
        #:*lift-dribble-pathname*
        #:*lift-report-pathname*
-	    
+       #:*current-asdf-system-name*
        #:*test-scratchpad*
        #:*test-notepad*
        #:*lift-equality-test*

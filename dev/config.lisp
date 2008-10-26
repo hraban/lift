@@ -9,7 +9,15 @@
 
 (defvar *current-configuration-stream* nil)
 
-(defvar *current-asdf-system-name* nil)
+(defvar *current-asdf-system-name* nil
+  "Holds the name of the system being tested when using the `:generic` 
+configuration.
+
+
+LIFT needs this to run the `:generic` configuration because this is
+how it determines which configuration file to lof. If you use 
+`asdf:test-op` then this value will be set automatically. 
+Otherwise, you will need to set it yourself.")
 
 (eval-when (:load-toplevel :execute)
   (when (find-package :asdf)
@@ -36,7 +44,9 @@
 	  (and (not srp-symbol)
 	       (error "Unable to use :generic configuration option because asdf:system-relative-pathname is not function bound (maybe try updating ASDF?)"))
 	  (and (not *current-asdf-system-name*)
-	       (error "Unable to use :generic configuration option because because the current system cannot be determined. Are you using asdf:test-op?"))))))
+	       (error "Unable to use :generic configuration option 
+because the current system cannot be determined. You can either 
+use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
 
 (defun find-generic-test-configuration (&optional (errorp nil))
   (flet ((try-it (path)
