@@ -445,7 +445,8 @@ error, then ensure-error will generate a test failure."
 
 (defmacro ensure-same
     (form values &key (test nil test-specified-p) 
-     (report nil) (arguments nil))
+     (report nil) (arguments nil)
+     (ignore-multiple-values? nil))
   "Ensure same compares value-or-values-1 value-or-values-2 or 
 each value of value-or-values-1 value-or-values-2 (if they are 
 multiple values) using test. If a problem is encountered 
@@ -454,17 +455,21 @@ and arguments as arguments to that string (if report and arguments
 are supplied). If ensure-same is used within a test, a test failure 
 is generated instead of a warning"
   (%build-ensure-comparison form values 'unless 
-			    test test-specified-p report arguments))
+			    test test-specified-p report arguments
+			    ignore-multiple-values?))
 
 (defmacro ensure-different
     (form values &key (test nil test-specified-p) 
-     (report nil) (arguments nil))
+     (report nil) (arguments nil)
+     (ignore-multiple-values? nil))
   "Ensure-different compares value-or-values-1 value-or-values-2 or each value of value-or-values-1 and value-or-values-2 (if they are multiple values) using test. If any comparison returns true, then ensure-different raises a warning which uses report as a format string and `arguments` as arguments to that string (if report and `arguments` are supplied). If ensure-different is used within a test, a test failure is generated instead of a warning"
   (%build-ensure-comparison form values 'when
-			    test test-specified-p report arguments))
+			    test test-specified-p report arguments
+			    ignore-multiple-values?))
 
 (defun %build-ensure-comparison
-    (form values guard-fn test test-specified-p report arguments)
+    (form values guard-fn test test-specified-p report arguments
+     ignore-multiple-values?)
   (setf test (remove-leading-quote test))
   (when (and (consp test)
              (eq (first test) 'function))
@@ -482,8 +487,10 @@ is generated instead of a warning"
 			 (t
 			  `(funcall *lift-equality-test*)))
 		   ,ga ,gb)))
-	 (loop for value in (multiple-value-list ,form)
-	    for other-value in (multiple-value-list ,values) do
+	 (loop for value in (,(if ignore-multiple-values? 
+				  'list 'multiple-value-list) ,form)
+	    for other-value in (,(if ignore-multiple-values? 
+				     'list 'multiple-value-list) ,values) do
 	    (,guard-fn (,gtest value other-value)
 	      (maybe-raise-not-same-condition 
 	       value other-value
