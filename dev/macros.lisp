@@ -185,7 +185,7 @@ be executed more than a fixnum number of times. The `delay` defaults to
 		  (progn ,@body)))
 	   (timeout-error (c)
 	     (declare (ignore c))
-	     ,gevent-count))))))  
+	     (float (/ ,gevent-count ,delay))))))))  
 
 ;; stolen from metatilities
 (defmacro muffle-redefinition-warnings (&body body)
