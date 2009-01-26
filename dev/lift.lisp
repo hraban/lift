@@ -1323,7 +1323,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 	      *current-testsuite-name* suite)))))
 
 (defun make-testsuite (suite-name args)
-  (let ((testsuite (find-testsuite suite-name)))
+  (let ((testsuite (find-testsuite suite-name :errorp t)))
     (if testsuite
 	(apply #'make-instance testsuite args)
 	(error "Testsuite ~a not found." suite-name))))
