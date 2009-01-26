@@ -4,6 +4,8 @@
   (:use #:common-lisp #:asdf))
 (in-package #:lift-documentation-system)
 
+#+(or)
+;; just ignore for now... sigh.
 (defsystem lift-documentation
   :author "Gary King <gwking@metabang.com>"
   :maintainer "Gary Warren King <gwking@metabang.com>"
