@@ -5,7 +5,7 @@
 
 (eval-when (:compile-toplevel :load-toplevel :execute)
 
-(defmeasure measure-seconds 
+(defmeasure :measure-seconds 
     :value 'get-internal-real-time
     :finally '(coerce (/ it internal-time-units-per-second) 
 			'double-float)
@@ -15,7 +15,7 @@
 
 The accuracy can be no greater than {hs internal-time-units-per-second}.")
 
-(defmeasure measure-space
+(defmeasure :measure-space
     :value 'total-bytes-allocated
     :type integer
     :documentation 
