@@ -4,7 +4,6 @@
   (:use #:common-lisp #:asdf))
 (in-package #:lift-documentation-system)
 
-#+(or)
 ;; just ignore for now... sigh.
 (defsystem lift-documentation
   :author "Gary King <gwking@metabang.com>"
@@ -16,6 +15,7 @@
 			:components ((:file "package")
 				     (:file "setup" 
 				      :depends-on ("package"))))
+	       #+(or)
 	       (:module 
 		"docs"
 		:depends-on ("setup")
