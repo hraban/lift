@@ -23,4 +23,4 @@
 		:components
 		((:docudown-source "index.md")
 		 (:docudown-source "user-guide.md"))))
-  :depends-on (:lift :docudown))
+  :depends-on (:lift #+(or) :docudown))
