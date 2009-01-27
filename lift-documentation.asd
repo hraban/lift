@@ -10,7 +10,9 @@
   :maintainer "Gary Warren King <gwking@metabang.com>"
   :licence "MIT Style License"
   :description "Documentation for LIFT"
-  :components ((:module "setup"
+  :components (
+	       #+(or)
+		 (:module "setup"
 			:pathname "docs/" 
 			:components ((:file "package")
 				     (:file "setup" 
