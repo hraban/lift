@@ -530,11 +530,12 @@ is generated instead of a warning"
 (defmacro ensure-cases ((&rest vars) (&rest cases) &body body)
   (let ((case (gensym))
 	(total (gensym))
-	(problems (gensym)))
+	(problems (gensym))
+	(single-var-p (= (length vars) 1)))
     `(let ((,problems nil) (,total 0))
        (loop for ,case in ,cases do
 	    (incf ,total)
-	    (destructuring-bind ,vars ,case
+	    (destructuring-bind ,vars ,(if single-var-p `(list ,case) case)
 	      (restart-case
 		  (progn ,@body)
 		(ensure-failed (cond)
