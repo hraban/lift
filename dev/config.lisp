@@ -53,7 +53,7 @@ In all cases, the report will go into
 configuration.
 
 LIFT needs this to run the `:generic` configuration because this is
-how it determines which configuration file to lof. If you use 
+how it determines which configuration file to load. If you use 
 `asdf:test-op` then this value will be set automatically. 
 Otherwise, you will need to set it yourself.")
 
