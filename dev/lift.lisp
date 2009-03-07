@@ -492,7 +492,9 @@ is generated instead of a warning"
 	    for other-value in (,(if ignore-multiple-values? 
 				     'list 'multiple-value-list) ,values) do
 	    (,guard-fn (,gtest value other-value)
-	      (maybe-raise-not-same-condition 
+	      (,(ecase guard-fn 
+		       (unless 'maybe-raise-not-same-condition)
+		       (when 'maybe-raise-ensure-same-condition))
 	       value other-value
 	       ,(if test-specified-p (list 'quote test) '*lift-equality-test*)
 	       ,report ,@arguments)
