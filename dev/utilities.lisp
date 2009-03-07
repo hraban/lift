@@ -235,3 +235,8 @@ the class itself is not included in the mapping. Proper? defaults to nil."
   (if (length-1-list-p parameter)
     (first parameter)
     parameter))
+
+(defun ensure-string (it)
+  (etypecase it
+    (string it)
+    (symbol (symbol-name it))))
