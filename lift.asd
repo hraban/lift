@@ -2,7 +2,7 @@
 (in-package #:lift-system)
 
 (defsystem lift
-  :version "1.6.1"
+  :version "1.7.0"
   :author "Gary Warren King <gwking@metabang.com>"
   :maintainer "Gary Warren King <gwking@metabang.com>"
   :licence "MIT Style License; see file COPYING for details"
