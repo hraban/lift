@@ -1,5 +1,44 @@
 (in-package #:lift)
 
+#|
+
+(:report-property :if-exists :supersede)
+(:report-property :unique-name nil)
+(:report-property :format :html)
+(:report-property :name "index")
+(:report-property :relative-to db.agraph.tests)
+
+For text based reports like :describe, the report name is the filename
+where the report is placed or a stream (e.g., *standard-output*).
+
+The :name property specifies the name and type.
+
+There are three ways to specify the directory:
+
+1. :full-name
+2. :relative-to
+3. the current directory (via *default-pathname-defaults*)
+
+If :full-name is a pathname with a name and type, then these will be
+used rather than :name. If :unique-name is true (and the destination
+is not a stream), then the date and an integer tag will be added to the 
+name. E.g., the path `/tmp/lift-tests/report.txt` will become 
+`/tmp/lift-tests/report-2009-02-01-1.txt`.
+
+
+For HTML, The report name specifies a _directory_. The :name property
+is ignored.
+
+There are three ways to specify the directory location. 
+
+1. :full-name
+2. :relative-to
+3. the current directory (via *default-pathname-defaults*)
+
+In all cases, the report will go into 
+
+|#
+
 (defgeneric generate-report-summary-pathname ()
   )
 
@@ -12,7 +51,6 @@
 (defvar *current-asdf-system-name* nil
   "Holds the name of the system being tested when using the `:generic` 
 configuration.
-
 
 LIFT needs this to run the `:generic` configuration because this is
 how it determines which configuration file to lof. If you use 
@@ -186,22 +224,106 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
 (defconfig-variable :maximum-errors *test-maximum-error-count*)
 (defconfig-variable :maximum-error-count *test-maximum-error-count*)
 
+(defgeneric report-pathname (method &optional result))
+
+(defmethod report-pathname :around ((method (eql :html)) 
+				    &optional (result *test-result*))
+  (cond ((and (test-result-property result :full-pathname)
+	      (streamp (test-result-property result :full-pathname)))
+	 (call-next-method))
+	(t
+	 (let ((old-name (test-result-property result :name))
+	       (old-full-pathname (test-result-property result :full-pathname))
+	       (old-unique-name (test-result-property result :unique-name)))
+	   (unwind-protect
+		(progn
+		  (setf (test-result-property result :name) t
+			(test-result-property result :unique-name) nil)
+		  (let ((destination (pathname-sans-name+type (call-next-method))))
+		    (when old-name
+		      (setf destination
+			    (merge-pathnames
+			     (make-pathname :directory `(:relative ,old-name))
+			     destination)))
+		    (print destination)
+		    (merge-pathnames
+		     (make-pathname :name "index" :type "html")
+		     (pathname-sans-name+type
+		      (if old-unique-name 
+			  (unique-directory destination)
+			  destination)))))
+	     (setf (test-result-property result :name) old-name
+		   (test-result-property result :full-pathname) 
+		   old-full-pathname
+		   (test-result-property result :unique-name) 
+		   old-unique-name))))))
+
+#+(or)
+(defmethod report-pathname :around ((method t) &optional (result *test-result*))
+  "Make sure that directories exist"
+  (let ((output (call-next-method)))
+    (cond ((streamp output)
+	   output)
+	  (t
+	   (ensure-directories-exist output)
+	   output))))
+
+(defmethod report-pathname ((method t) &optional (result *test-result*))
+  (let* ((given-report-name (test-result-property result :name))
+	 (report-type (string-downcase
+		       (ensure-string 
+			(test-result-property result :format))))
+	 (report-name (or (and given-report-name
+			       (not (eq given-report-name t))
+			       (merge-pathnames
+				given-report-name 
+				(make-pathname :type report-type)))
+			  (format nil "report.~a" report-type)))
+	 (via nil)
+	 (dest (or (and (setf via :full-pathname)
+			(test-result-property result :full-pathname)
+			(streamp
+			 (test-result-property result :full-pathname))
+			(test-result-property result :full-pathname))
+		   (and (setf via :full-pathname)
+			(test-result-property result :full-pathname)
+			(not (streamp
+			      (test-result-property result :full-pathname)))
+			(cond ((eq given-report-name t)
+			       (test-result-property result :full-pathname))
+			      ((null given-report-name)
+			       (merge-pathnames
+				(test-result-property result :full-pathname)
+				report-name))
+			      (t
+			       (merge-pathnames
+				(test-result-property result :full-pathname)
+				given-report-name))))
+		   (and (setf via :relative-to)
+			(let ((relative-to 
+			       (test-result-property result :relative-to)))
+			  (and relative-to
+			       (asdf:find-system relative-to nil)
+			       (asdf:system-relative-pathname 
+				relative-to report-name))))
+		   (and (setf via :current-directory)
+			(merge-pathnames
+			 (make-pathname :defaults report-name)))))
+	 (unique-name? (test-result-property result :unique-name)))
+    (values 
+     (if (and unique-name? (not (streamp dest)))
+	 (unique-filename dest)
+	 dest)
+     via)))
+
 (defmethod handle-config-preference ((name (eql :build-report))
 				     args)
-  (declare (ignore args))
-  (let* ((dest (or (test-result-property *test-result* :full-pathname)
-		   (asdf:system-relative-pathname 
-		    (or (test-result-property *test-result* :relative-to)
-			'lift)
-		    (or (test-result-property *test-result* :name)
-			"report.html"))))
-	 (format (or (test-result-property *test-result* :format)
+ (declare (ignore args))
+ (let* ((format (or (test-result-property *test-result* :format)
 		     :html))
-	 (unique-name (test-result-property *test-result* :unique-name)))
-    (when (and unique-name (not (streamp dest)))
-	(setf dest (unique-filename dest)))
-    (with-standard-io-syntax 
-      (let ((*print-readably* nil))
+	 (dest (report-pathname format *test-result*)))
+   (with-standard-io-syntax 
+     (let ((*print-readably* nil))
 	(handler-bind 
 	    ((error 
 	      (lambda (c)
@@ -212,17 +334,17 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
 			"~%~%Backtrace~%~%~s" 
 			(get-backtrace c)))))
 	  (cond
-	    ((or (streamp dest) (writable-directory-p dest))
+	    ((or (streamp dest) 
+		 (ensure-directories-exist dest)
+		 (writable-directory-p dest))
 	     (format *debug-io* "~&Sending report (format ~s) to ~a" 
 		     format dest)
 	     (test-result-report
-	      *test-result*
-	      dest
-	      format))
+	      *test-result* dest format))
 	    (t
 	     (format *debug-io* "~&Unable to write report (format ~s) to ~a" 
 		     format dest))))))))
-  
+ 
 
 (defconfig :trace 
   "Start tracing each of the arguments to :trace."

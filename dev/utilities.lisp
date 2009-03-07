@@ -23,8 +23,56 @@
 and NIL NAME and TYPE components"
   (make-pathname :name nil :type nil :defaults pathname))
 
+(defun pathname-has-device-p (pathname)
+  (and (or (stringp pathname) (pathnamep pathname))
+       (not (member (pathname-device pathname) '(nil :unspecific)))))
+
+(defun pathname-has-host-p (pathname)
+  (and (or (stringp pathname) (pathnamep pathname))
+       (not (member (pathname-host pathname) '(nil :unspecific)))))
+
+(defun relative-pathname (relative-to pathname &key name type)
+  (let ((directory (pathname-directory pathname)))
+    (when (eq (car directory) :absolute)
+      (setf directory (copy-list directory)
+	    (car directory) :relative))
+    (merge-pathnames
+     (make-pathname :name (or name (pathname-name pathname))
+                    :type (or type (pathname-type pathname))
+                    :directory directory
+		    )
+     relative-to)))
+
+(defun directory-pathname-p (p)
+  (flet ((component-present-p (value)
+           (and value (not (eql value :unspecific)))))
+    (and 
+     (not (component-present-p (pathname-name p)))
+     (not (component-present-p (pathname-type p)))
+     p)))
+
+(defun directory-p (name)
+  (let ((truename (probe-file name)))
+    (and truename (directory-pathname-p name))))
+
+(defun containing-pathname (pathspec)
+  "Return the containing pathname of the thing to which 
+pathspac points. For example:
+
+    > \(containing-directory \"/foo/bar/bis.temp\"\)
+    \"/foo/bar/\"
+    > \(containing-directory \"/foo/bar/\"\)
+    \"/foo/\"
+"
+  (make-pathname
+   :directory `(,@(butlast (pathname-directory pathspec)
+			   (if (directory-pathname-p pathspec) 1 0)))
+   :name nil
+   :type nil
+   :defaults pathspec))
+
 ;; FIXME -- abstract and merge with unique-directory
-(defun unique-filename (pathname &optional (max-count 100))
+(defun unique-filename (pathname &optional (max-count 10000))
   (let ((date-part (date-stamp)))
     (loop repeat max-count
        for index from 1
@@ -41,18 +89,13 @@ and NIL NAME and TYPE components"
 	    
 ;; FIXME -- abstract and merge with unique-filename
 (defun unique-directory (pathname)
-  (when (or (pathname-name pathname) (pathname-type pathname))
-    (setf pathname (make-pathname 
-		    :name nil
-		    :type nil
-		    :directory `(,@(pathname-directory pathname)
-				   ,(format nil "~a~@[.~a~]"
-					    (pathname-name pathname) 
-					    (pathname-type pathname)))
-		    :defaults (pathname-sans-name+type pathname))))
-  (or (and (not (probe-file pathname)) pathname)
-      (let ((date-part (date-stamp)))
-	(loop repeat 100
+  (setf pathname (merge-pathnames pathname))
+  (let* ((date-part (date-stamp))
+	 (last-directory (first (last (pathname-directory pathname))))
+	 (base-pathname (containing-pathname pathname))
+	 (base-name (pathname-name last-directory))
+	 (base-type (pathname-type last-directory)))
+    (or (loop repeat 10000
 	   for index from 1
 	   for name = 
 	   (merge-pathnames 
@@ -60,14 +103,12 @@ and NIL NAME and TYPE components"
 	     :name nil
 	     :type nil
 	     :directory `(:relative 
-			  ,(format nil "~@[~a-~]~a-~d" 
-				   (and (stringp (pathname-name pathname))
-					(pathname-name pathname))
-				   date-part index)))
-	    (pathname-sans-name+type pathname)) do
+			  ,(format nil "~@[~a-~]~a-~d~@[.~a~]" 
+				   base-name date-part index base-type)))
+	    base-pathname) do
 	   (unless (probe-file name)
-	     (return name))))
-      (error "Unable to find unique pathname for ~a" pathname)))
+	     (return name)))
+	(error "Unable to find unique pathname for ~a" pathname))))
 
 (defun date-stamp (&key (datetime (get-universal-time)) (include-time? nil))
   (multiple-value-bind

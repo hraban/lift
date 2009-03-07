@@ -93,24 +93,6 @@ lift::(progn
 			       &key package &allow-other-keys)
   )
 
-(defgeneric html-report-pathname (pathname))
-
-(defmethod html-report-pathname (pathname)
-  (merge-pathnames 
-   (make-pathname :name (if (eql (length (pathname-name pathname)) 0)
-			    "index" (pathname-name pathname))
-		  :type "html"
-		  :defaults (namestring (unique-directory pathname)))
-   pathname))
-
-(defmethod test-result-report :around 
-    (result output (format (eql :html))
-	    &rest args
-	    &key &allow-other-keys)
-  (let ((output (html-report-pathname output)))
-    (ensure-directories-exist output)
-    (apply #'call-next-method result output format args)))
-
 (defmethod test-result-report (result output format
 			       &rest args
 			       &key (package *package*) &allow-other-keys)
