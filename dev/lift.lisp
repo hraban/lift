@@ -1547,11 +1547,15 @@ nor configuration file options were specified.")))))
 	(*current-test-case-name* name)
 	(error nil))
     (flet ((maybe-push-result ()
-	     (unless result-pushed?
-	       (setf result-pushed? t)
-	       (push (list (type-of suite)
-			   *current-test-case-name* (test-data suite))
-		     (tests-run result)))))
+					;(print (list :mpr result-pushed? (test-data suite)))
+	     (let ((datum (list (type-of suite)
+				*current-test-case-name* (test-data suite))))
+	       (cond ((null result-pushed?)
+		      (setf result-pushed? t)
+		      (push datum (tests-run result)))
+		     (t
+		      ;; replace
+		      (setf (first (tests-run result)) datum))))))
       (when (and *test-print-test-case-names*
 		 (eq (test-mode result) :multiple))
 	(print-lift-message "~&  run: ~a" name))
