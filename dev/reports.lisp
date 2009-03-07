@@ -834,7 +834,9 @@ lift::(progn
 		     (funcall profile-fn style count-calls-p))
 		 (timeout-error 
 		     (c)
-		   (declare (ignore c)))))
+		   (declare (ignore c)))
+		 (error (c)
+		   (error c))))
 	   (setf seconds (first measures) conses (second measures) 
 		 results result error errorp))
       ;; cleanup / ensure we get report
