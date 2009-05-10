@@ -16,10 +16,15 @@
        #:class-direct-superclasses
        #:class-precedence-list)
       (:export
+       #:*benchmark-log-path*
        #:*lift-report-detail-hook*
        #:*lift-report-header-hook*
        #:*lift-report-footer-hook*
+       #:with-profile-report
        #:describe-test-result
+       #:count-repetitions
+       #:while-counting-repetitions
+       #:while-counting-events
        #:with-timeout
 
        #:testsuite-ambiguous
@@ -56,10 +61,6 @@
        #:with-profile-report
        #:write-profile-information
        #:profiling-threshold*
-       #:*benchmark-log-path*
-       #:count-repetitions
-       #:while-counting-repetitions
-       #:while-counting-events
 
        ;; Variables
        #:*test-ignore-warnings?*
@@ -125,6 +126,10 @@
        #:liftpropos
 
        #:handle-config-preference
+
+       #:start-periodic-profiling
+       #:stop-periodic-profiling
+       #:periodic-profilers
        ))))
 
 (unless (and (find-package :asdf)
