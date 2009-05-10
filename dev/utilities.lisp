@@ -240,3 +240,77 @@ the class itself is not included in the mapping. Proper? defaults to nil."
   (etypecase it
     (string it)
     (symbol (symbol-name it))))
+
+;;;;
+
+(defun version-numbers (version &optional padded)
+  "Returns a list of the version numbers in a #\. delimited string of
+integers. E.g. (version-numbers \"2.2.1\") ==> (2 2 1). If the optional
+`padded` parameter is included, the length of the returned list will be
+right-padded with zeros so that it is of length padded (the list won't
+be truncated if padded is smaller than the number of version digits in 
+the string."
+  (let ((result (mapcar 'safe-parse-integer (split version '(#\.)))))
+    (if padded 
+	(pad-version result padded)
+	result)))
+
+(defun canonical-versions-numbers (v-1 v-2)
+  (let* ((v-1s (version-numbers v-1))
+	 (v-2s (version-numbers v-2))
+	 (max (max (length v-1s) (length v-2s))))
+    (values (pad-version v-1s max) (pad-version v-2s max))))
+
+(defun version= (v-1 v-2)
+  (multiple-value-bind (v-1s v-2s)
+      (canonical-versions-numbers v-1 v-2)
+    (every (lambda (v1 v2) (= v1 v2))
+	   v-1s v-2s)))
+
+(defun version< (v-1 v-2)
+  (multiple-value-bind (v-1s v-2s)
+      (canonical-versions-numbers v-1 v-2)
+    (loop for last1 = nil then v1
+       for last2 = nil then v2
+       for v1 in v-1s
+       for v2 in v-2s 	 
+       when (or (and (null last1) (> v1 v2))
+		(and (not (null last1)) 
+		     (= last1 last2)
+		     (> v1 v2))) do
+       (return-from version< nil)
+       when (< v1 v2) do
+       (return-from version< t)
+       finally 
+       ;; everything equal
+       (when (and (not (null last1)) (= last1 last2))
+	 (return-from version< nil)))
+    t))
+
+(defun pad-version (v size)
+  (assert (<= (length v) size))
+  (append v (make-list (- size (length v)) :initial-element 0)))
+
+(defun version<= (v-1 v-2)
+  (or (version< v-1 v-2)
+      (version= v-1 v-2)))
+
+(defun version> (v-1 v-2)
+  (not (version<= v-1 v-2)))
+
+(defun version>= (v-1 v-2)
+  (not (version< v-1 v-2)))
+
+(defun safe-parse-integer (string)
+  (parse-integer string :junk-allowed t))
+
+(defun split (string &optional (ws '(#\Space #\Tab)))
+  (flet ((is-ws (char) (find char ws)))
+    (nreverse
+     (let ((list nil) (start 0) (words 0) end)
+       (loop
+	(setf end (position-if #'is-ws string :start start))
+	(push (subseq string start end) list)
+	(incf words)
+	(unless end (return list))
+	(setf start (1+ end)))))))
