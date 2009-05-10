@@ -230,3 +230,38 @@ control over where in the test hierarchy the search begins."
        (slot-boundp result 'suites-run)
        (consp (suites-run result))
        (find suite (suites-run result))))
+
+
+(defun test-results (&key (result *test-result*) (failures? t)
+		     (errors? t) (successes? nil)
+		     (expected-failures? t) (expected-errors? t))
+  (let ((acc nil))
+    (flet ((gather (list kind process?)
+	     (when list
+	       (push (cons
+		      kind 
+		      (if process?
+			  (loop for item in list collect
+			       (list (class-name (class-of (testsuite item)))
+				     (test-method item) item))
+			  list)) acc))))
+      (when errors? 
+	(gather (errors result) :errors t))
+      (when failures? 
+	(gather (failures result) :failures t))
+      (when expected-errors? 
+	(gather (expected-errors result) :expected-errors t))
+      (when expected-failures? 
+	(gather (expected-failures result) :expected-failures t))
+      (when successes?
+	(gather (loop for (suite test-case data) in (tests-run result) 
+		     unless (getf data :problem) collect (list suite test-case))
+		:successes nil))
+      (nreverse acc))))
+
+(defun test-successes (&key (result *test-result*))
+  (cdr (first (test-results :result result 
+			    :successes? t
+			    :errors? nil :expected-errors? nil
+			    :failures? nil :expected-failures? nil))))
+
