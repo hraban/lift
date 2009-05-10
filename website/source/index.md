@@ -22,9 +22,16 @@
 
 ### What it is
 
-LIFT is yet another **LI**sp **F**ramework for **T**esting. It started out firmly in the [SUnit][] / [JUnit][] mold but has evolved to include better unit testing features and system test features as well. It also has a much spunkier acronym.
+LIFT is yet another **LI**sp **F**ramework for **T**esting.
+It started out firmly in the [SUnit][] / [JUnit][] mold but
+has evolved to include better unit testing features and
+system test features as well. It also has a much spunkier
+acronym.
 
-The best place to get an overview of LIFT and its features is in the [user's guide][8]. Though still a work in progress, it covers all of LIFT's basic features and many of its more advanced ones too.
+The best place to get an overview of LIFT and its features is
+in the [user's guide][8]. Though still a work in progress, it
+covers all of LIFT's basic features and many of its more
+advanced ones too.
 
    [8]: user-guide.html (LIFT User's Guide)
 
@@ -58,13 +65,15 @@ The externals of LIFT haven't changed too much though the implementation has bee
 
 ### Where is it
 
-A [Darcs][16] repository is available. The commands are listed below:
-    
-   [16]: http://www.darcs.net/
+A [Darcs][16] repository is available. The commands are
+listed below:
+
+ [16]: http://www.darcs.net/
 
     darcs get http://common-lisp.net/project/lift/
 
-LIFT is also [ASDF installable][18]. Its CLiki home is right [where][19] you'd expect.
+LIFT is also [ASDF installable][18]. Its CLiki home is right
+[where][19] you'd expect.
 
    [18]: http://www.cliki.net/asdf-install
    [19]: http://www.cliki.net/lift

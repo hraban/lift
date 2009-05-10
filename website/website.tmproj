@@ -2,8 +2,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>currentDocument</key>
-	<string>source/index.md</string>
 	<key>documents</key>
 	<array>
 		<dict>
@@ -32,9 +30,7 @@
 			<key>filename</key>
 			<string>source/index.md</string>
 			<key>lastUsed</key>
-			<date>2009-01-25T17:28:04Z</date>
-			<key>selected</key>
-			<true/>
+			<date>2009-04-29T13:56:28Z</date>
 		</dict>
 		<dict>
 			<key>filename</key>
@@ -91,36 +87,6 @@
 			<key>firstVisibleLine</key>
 			<integer>0</integer>
 		</dict>
-		<key>source/index.md</key>
-		<dict>
-			<key>caret</key>
-			<dict>
-				<key>column</key>
-				<integer>0</integer>
-				<key>line</key>
-				<integer>1</integer>
-			</dict>
-			<key>columnSelection</key>
-			<false/>
-			<key>firstVisibleColumn</key>
-			<integer>0</integer>
-			<key>firstVisibleLine</key>
-			<integer>0</integer>
-			<key>selectFrom</key>
-			<dict>
-				<key>column</key>
-				<integer>0</integer>
-				<key>line</key>
-				<integer>0</integer>
-			</dict>
-			<key>selectTo</key>
-			<dict>
-				<key>column</key>
-				<integer>0</integer>
-				<key>line</key>
-				<integer>1</integer>
-			</dict>
-		</dict>
 		<key>source/mucking.lisp</key>
 		<dict>
 			<key>caret</key>
@@ -134,106 +100,6 @@
 			<integer>0</integer>
 			<key>firstVisibleLine</key>
 			<integer>19</integer>
-		</dict>
-		<key>source/resources/footer.md</key>
-		<dict>
-			<key>caret</key>
-			<dict>
-				<key>column</key>
-				<integer>30</integer>
-				<key>line</key>
-				<integer>8</integer>
-			</dict>
-			<key>firstVisibleColumn</key>
-			<integer>0</integer>
-			<key>firstVisibleLine</key>
-			<integer>0</integer>
-		</dict>
-		<key>source/resources/header.md</key>
-		<dict>
-			<key>caret</key>
-			<dict>
-				<key>column</key>
-				<integer>0</integer>
-				<key>line</key>
-				<integer>1</integer>
-			</dict>
-			<key>columnSelection</key>
-			<false/>
-			<key>firstVisibleColumn</key>
-			<integer>0</integer>
-			<key>firstVisibleLine</key>
-			<integer>0</integer>
-			<key>selectFrom</key>
-			<dict>
-				<key>column</key>
-				<integer>0</integer>
-				<key>line</key>
-				<integer>0</integer>
-			</dict>
-			<key>selectTo</key>
-			<dict>
-				<key>column</key>
-				<integer>0</integer>
-				<key>line</key>
-				<integer>1</integer>
-			</dict>
-		</dict>
-		<key>source/resources/navigation.md</key>
-		<dict>
-			<key>caret</key>
-			<dict>
-				<key>column</key>
-				<integer>0</integer>
-				<key>line</key>
-				<integer>1</integer>
-			</dict>
-			<key>firstVisibleColumn</key>
-			<integer>0</integer>
-			<key>firstVisibleLine</key>
-			<integer>0</integer>
-		</dict>
-		<key>source/resources/shared-header.md</key>
-		<dict>
-			<key>caret</key>
-			<dict>
-				<key>column</key>
-				<integer>0</integer>
-				<key>line</key>
-				<integer>19</integer>
-			</dict>
-			<key>firstVisibleColumn</key>
-			<integer>0</integer>
-			<key>firstVisibleLine</key>
-			<integer>0</integer>
-		</dict>
-		<key>source/resources/ug-footer.md</key>
-		<dict>
-			<key>caret</key>
-			<dict>
-				<key>column</key>
-				<integer>0</integer>
-				<key>line</key>
-				<integer>9</integer>
-			</dict>
-			<key>firstVisibleColumn</key>
-			<integer>0</integer>
-			<key>firstVisibleLine</key>
-			<integer>0</integer>
-		</dict>
-		<key>source/resources/ug-header.md</key>
-		<dict>
-			<key>caret</key>
-			<dict>
-				<key>column</key>
-				<integer>0</integer>
-				<key>line</key>
-				<integer>6</integer>
-			</dict>
-			<key>firstVisibleColumn</key>
-			<integer>0</integer>
-			<key>firstVisibleLine</key>
-			<integer>0</integer>
 		</dict>
 		<key>source/user-guide.css</key>
 		<dict>
@@ -264,30 +130,8 @@
 			<integer>389</integer>
 		</dict>
 	</dict>
-	<key>openDocuments</key>
-	<array>
-		<string>source/index.md</string>
-		<string>source/resources/shared-header.md</string>
-		<string>source/resources/header.md</string>
-		<string>source/resources/navigation.md</string>
-		<string>source/resources/ug-header.md</string>
-		<string>source/resources/ug-footer.md</string>
-		<string>source/resources/footer.md</string>
-	</array>
 	<key>showFileHierarchyDrawer</key>
 	<false/>
-	<key>showFileHierarchyPanel</key>
-	<true/>
-	<key>treeState</key>
-	<dict>
-		<key>resources</key>
-		<dict>
-			<key>isExpanded</key>
-			<true/>
-			<key>subItems</key>
-			<dict/>
-		</dict>
-	</dict>
 	<key>windowFrame</key>
 	<string>{{479, 67}, {578, 788}}</string>
 </dict>
