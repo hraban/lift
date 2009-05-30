@@ -36,7 +36,7 @@
         (t
          `(:cross ,@(mapcar #'standardize-cases-form cases)))))
 
-;;; ---------------------------------------------------------------------------
+
 
 (defun check-subcases (cases)
   (cond ((not (valid-tag-p (first cases)))
@@ -44,23 +44,23 @@
         (t
          (mapcar #'standardize-cases-form cases))))
 
-;;; ---------------------------------------------------------------------------
+
 
 (defun default-cases-tag ()
   :cross)
 
-;;; ---------------------------------------------------------------------------
+
 
 (defun valid-tag-p (tag)
   (member tag '(:map :cross)))
 
-;;; ---------------------------------------------------------------------------
+
 
 (defmethod process-cases-form :around ((type t) &rest forms)
   (apply #'call-next-method type (if (atom (car forms))
                                    (list forms) forms)))
 
-;;; ---------------------------------------------------------------------------
+
   
 (defmethod process-cases-form ((type t) &rest forms)
   (cond ((atom (first type))
@@ -77,7 +77,7 @@
                  (list ,@(mapcar (lambda (var) `(cons ',var ,var)) vars)))
                ,@vars))))
 
-;;; ---------------------------------------------------------------------------
+
 
 (defmethod process-cases-form ((type (eql :map)) &rest forms)
   (let ((vars (ensure-list (flatten (vars-from-assignment forms))))
@@ -89,7 +89,7 @@
                             vars args))
                   values))))
 
-;;; ---------------------------------------------------------------------------
+
 
 (defmethod process-cases-form ((type (eql :cross)) &rest forms)
   (let ((vars (ensure-list (flatten (vars-from-assignment forms))))
@@ -108,7 +108,7 @@
      :right)
     `(:b ,@(nreverse result))))
 
-;;; ---------------------------------------------------------------------------
+
 
 (defun vars-from-assignment (assignment)
   (cond ((is-binding-p assignment)
@@ -122,7 +122,7 @@
         (t (loop for assignment in assignment collect
                  (vars-from-assignment assignment)))))
          
-;;; ---------------------------------------------------------------------------
+
 
 (defun values-from-assignment (assignment)
   (cond ((is-binding-p assignment)
@@ -139,7 +139,7 @@
          (loop for assignment in assignment nconc
                  (ensure-list (values-from-assignment assignment))))))
 
-;;; ---------------------------------------------------------------------------
+
 
 (defun is-binding-p (assignment)
   (eq (first assignment) :b))
@@ -153,48 +153,48 @@
           prototype-of
           prototype-exists-p))
 
-;;; ---------------------------------------------------------------------------
+
 ;;; API
-;;; ---------------------------------------------------------------------------
+
 
 (defgeneric map-prototypes-of (fn thing)
   (:documentation ""))
 
-;;; ---------------------------------------------------------------------------
+
 
 (defgeneric prototypes-of (thing)
   (:documentation ""))
 
-;;; ---------------------------------------------------------------------------
+
 
 (defgeneric prototype-of (thing)
   (:documentation ""))
 
-;;; ---------------------------------------------------------------------------
+
 
 (defgeneric prototype-exists-p (thing)
   (:documentation ""))
 
-;;; ---------------------------------------------------------------------------
+
 ;;; implementation
-;;; ---------------------------------------------------------------------------
+
 
 (defmethod map-prototypes-of :around (fn thing)
   (declare (ignore fn))
   (when (prototype-exists-p thing)
     (call-next-method)))
 
-;;; ---------------------------------------------------------------------------
+
 
 (defmethod map-prototypes-of (fn (thing standard-class))
   (map-subclass-prototypes fn thing))
 
-;;; ---------------------------------------------------------------------------
+
 
 (defmethod map-prototypes-of (fn (thing built-in-class))
   (map-subclass-prototypes fn thing))
 
-;;; ---------------------------------------------------------------------------
+
 
 (defun map-subclass-prototypes (fn thing)
   (mopu:map-subclasses thing
@@ -203,12 +203,12 @@
                            (funcall fn (prototype-of subclass)))))
   (values))
    
-;;; ---------------------------------------------------------------------------
+
 
 (defmethod prototypes-of (thing)
   (containers:collect-using 'map-prototypes-of nil thing))
 
-;;; ---------------------------------------------------------------------------
+
 
 (defmethod prototype-exists-p (thing)
   ;; the expensive way to see if a prototype exists is to try and make one
@@ -222,12 +222,12 @@
           (values t))))
     (error (c) (inspect c) nil)))
 
-;;; ---------------------------------------------------------------------------
+
 
 (defmethod prototype-of ((thing standard-class))
   (allocate-instance thing))
 
-;;; ---------------------------------------------------------------------------
+
 
 (defmethod prototype-of ((thing (eql 'fixnum)))
   (variates:integer-random variates:*random-generator* -10 10))
@@ -240,41 +240,26 @@
 (defmethod more-prototypes-p :before ((testsuite test-mixin))
   (setf (current-step testsuite) 'more-prototypes-p))
 
-;;; ---------------------------------------------------------------------------
+
 
 (defmethod initialize-prototypes :before ((testsuite test-mixin))
   (setf (current-step testsuite) 'initialize-prototypes))
 
-;;; ---------------------------------------------------------------------------
+
 
 (defmethod next-prototype :before ((testsuite test-mixin))
   (setf (current-step testsuite) 'next-prototype))
 
-;;; ---------------------------------------------------------------------------
+
 
 (defmethod testsuite-teardown :before ((testsuite test-mixin))
   (setf (current-step testsuite) 'testsuite-teardown))
 
-;;; ---------------------------------------------------------------------------
-
-(defmethod start-test :before
-    ((result test-result) (testsuite test-mixin) method-name)
-  (declare (ignore method-name)) 
-  (setf (current-step testsuite) 'start-test))
-
-;;; ---------------------------------------------------------------------------
-
-(defmethod end-test :before
-    ((result test-result) (testsuite test-mixin) method-name)
-  (declare (ignore method-name))
-  (setf (current-step testsuite) 'end-test))
-
-;;; ---------------------------------------------------------------------------
 
 (defmethod setup-test :before ((testsuite test-mixin))
   (setf (current-step testsuite) 'setup-test))
 
-;;; ---------------------------------------------------------------------------
+
 
 #+Ignore
 (defmethod teardown-test :before ((testsuite test-mixin))

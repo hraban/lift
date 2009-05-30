@@ -21,7 +21,7 @@
 		:components
 		((:file "packages")
 		 (:file "utilities" 
-			:depends-on ("packages"))
+			:depends-on ("packages" "macros"))
 		 (:file "macros"
 			:depends-on ("packages"))))
 	       (:module
@@ -45,6 +45,10 @@
 			:depends-on ("port" "lift"))
 		 (:file "introspection" 
 			:depends-on ("lift"))
+		 #+allegro
+		 (:file "periodic-profiling"
+			;; what I'd like to say
+			#+no :depends-on #+no ((:feature :allegro)))
 		  #+Ignore
 		 (:file "prototypes"
 			:depends-on ("lift"))))

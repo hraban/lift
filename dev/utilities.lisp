@@ -187,17 +187,6 @@ the class itself is not included in the mapping. Proper? defaults to nil."
   "Is x a list of length 1?"
   (and (consp x) (null (cdr x))))
 
-(defmacro defclass-property (property &optional (default nil default-supplied?))
-  "Create getter and setter methods for 'property' on symbol's property lists." 
-  (let ((real-name (intern (format nil "~:@(~A~)" property) :keyword)))
-    `(progn
-       (defgeneric ,property (symbol))
-       (defgeneric (setf ,property) (value symbol))
-       (defmethod ,property ((class-name symbol))
-          (get class-name ,real-name ,@(when default-supplied? (list default))))
-       (defmethod (setf ,property) (value (class-name symbol))
-         (setf (get class-name ,real-name) value)))))
-
 (defun parse-brief-slot (slot)
   (let* ((slot-spec 
 	  (typecase slot

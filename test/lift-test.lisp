@@ -781,3 +781,35 @@ See file COPYING for license
   test-1
   (let ((r (run-tests :suite 'test-suite-with-no-tests-helper)))
     (ensure-same (length (tests-run r)) 0)))
+
+;;;;;
+
+
+(deftestsuite handle-serious-condition (lift-test)
+  ()
+  (:documentation 
+   "LIFT should keep running tests even when a testcase gets a
+serious condition. (though maybe there should be an option that
+these cancel testing instead.)"))
+
+(deftestsuite handle-serious-condition-helper ()
+  ())
+
+(addtest (handle-serious-condition-helper)
+  test-1
+  ;; I expect this to signal an error!
+  (make-array (1- most-positive-fixnum)))
+
+(addtest (handle-serious-condition)
+  test-1
+  (let ((got-condition nil))
+    (handler-case 
+	(let ((tr (run-test :suite 'handle-serious-condition-helper
+			    :name 'test-1)))
+	  (ensure-same (length (tests-run tr)) 1)
+	  (ensure-null (failures tr))
+	  (ensure (errors tr))
+	  (ensure-same (test-mode tr) :single))
+      (condition (c)
+	(setf got-condition c)))
+    (ensure-null got-condition)))

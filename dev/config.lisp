@@ -1,7 +1,6 @@
 (in-package #:lift)
 
 #|
-
 (:report-property :if-exists :supersede)
 (:report-property :unique-name nil)
 (:report-property :format :html)
@@ -38,6 +37,9 @@ There are three ways to specify the directory location.
 In all cases, the report will go into 
 
 |#
+
+(defun show-test-warning (message &rest args)
+  (apply #'format *error-output* message args))
 
 (defgeneric generate-report-summary-pathname ()
   )
@@ -128,46 +130,51 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
 
 (defun %run-tests-from-file (path)
   (with-open-file (*current-configuration-stream* path
-						  :direction :input
-						  :if-does-not-exist :error)
+      						  :direction :input
+      						  :if-does-not-exist :error)
     (let ((form nil)
-	  (run-tests-p t))
+      	  (run-tests-p t))
       (loop while (not (eq (setf form (read *current-configuration-stream* 
-					    nil :eof nil)) :eof)) 
-	 collect
-	 (handler-bind 
-	     ((error (lambda (c) (format 
-				  *error-output* 
-				  "Error while running ~a from ~a: ~a"
-				  form path c)
-			     (pprint (get-backtrace c))
-			     (invoke-debugger c))))
-	   (destructuring-bind
-		 (name &rest args)
-	       form
-	     (assert (typep name 'symbol) nil
-		     "Each command must be a symbol and ~s is not." name)
-	     (setf args (massage-arguments args))
-	     (cond 
-	       ;; check for preferences first (i.e., keywords)
-	       ((eq (symbol-package name) 
-		    (symbol-package :keyword))
-		;; must be a preference
-		(handle-config-preference name args))
-	       ((and run-tests-p (find-testsuite name :errorp nil))
-		(multiple-value-bind (_ restartedp)
-		    (with-simple-restart (cancel-testing-from-configuration
-					  "Cancel testing from file ~a" path)
-		      (run-tests :suite name 
-				 :result *test-result* 
-				 :testsuite-initargs args))
-		  (declare (ignore _))
-		  ;; no more testing; continue to process commands
-		  (when restartedp 
-		    (setf run-tests-p nil))))
-	       (t
-		(warn "Don't understand '~s' while reading from ~s" 
-		      form path))))))))
+      					    nil :eof nil)) :eof)) 
+      	 collect
+      	 (handler-bind 
+      	     ((error (lambda (c) (format 
+      				  *error-output* 
+      				  "Error while running ~a from ~a: ~a"
+      				  form path c)
+      			     (pprint (get-backtrace c))
+      			     (invoke-debugger c))))
+	   (format t "~&handle config: ~s" form)
+      	   (destructuring-bind
+      		 (name &rest args)
+      	       form
+      	     (assert (typep name 'symbol) nil
+      		     "Each command must be a symbol and ~s is not." name)
+      	     (setf args (massage-arguments args))
+      	     (cond 
+      	       ;; check for preferences first (i.e., keywords)
+      	       ((eq (symbol-package name) 
+      		    (symbol-package :keyword))
+      		;; must be a preference
+      		(handle-config-preference name args))
+      	       ((and run-tests-p (find-testsuite name :errorp nil))
+      		(multiple-value-bind (_ restartedp)
+      		    (with-simple-restart (cancel-testing-from-configuration
+      					  "Cancel testing from file ~a" path)
+		      (if (find-testsuite name :errorp nil)
+			  (run-tests :suite name 
+				     :result *test-result* 
+				     :testsuite-initargs args)
+			  (show-test-warning
+			   "~&Warning: testsuite ~s not found, skipping" name)))
+      		  (declare (ignore _))
+      		  ;; no more testing; continue to process commands
+      		  (when restartedp 
+      		    (setf run-tests-p nil))))
+      	       (t
+      		(show-test-warning
+		 "Don't understand '~s' while reading from ~s" 
+		 form path))))))))
   (values *test-result*))
 
 (defun massage-arguments (args)
@@ -178,8 +185,8 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
 	     (t arg))))
 
 (defmethod handle-config-preference ((name t) args)
-  (warn "Unknown preference ~s (with arguments ~s)" 
-	 name args))
+  (show-test-warning "Unknown preference ~s (with arguments ~s)" 
+		     name args))
 
 (defmethod handle-config-preference ((name (eql :include)) args)
   (%run-tests-from-file (merge-pathnames (first args) 
@@ -317,12 +324,12 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
 
 (defmethod handle-config-preference ((name (eql :build-report))
 				     args)
- (declare (ignore args))
- (let* ((format (or (test-result-property *test-result* :format)
+  (declare (ignore args))
+  (let* ((format (or (test-result-property *test-result* :format)
 		     :html))
 	 (dest (report-pathname format *test-result*)))
-   (with-standard-io-syntax 
-     (let ((*print-readably* nil))
+    (with-standard-io-syntax 
+      (let ((*print-readably* nil))
 	(handler-bind 
 	    ((error 
 	      (lambda (c)
@@ -343,7 +350,7 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
 	    (t
 	     (format *debug-io* "~&Unable to write report (format ~s) to ~a" 
 		     format dest))))))))
- 
+  
 
 (defconfig :trace 
   "Start tracing each of the arguments to :trace."
@@ -351,3 +358,31 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
 
 (defconfig :untrace
   (eval `(untrace ,@args)))
+
+(defconfig :skip-tests-reset
+  (setf *skip-tests* nil))
+
+(defconfig :skip-testsuites
+  (loop for arg in args do
+       (if (find-testsuite arg)
+	   (push arg *skip-tests*)
+	   (show-test-warning "Unable to find testsuite ~a to skip" arg))))
+
+(defconfig :skip-tests 
+  (loop for arg in args do
+       (let ((suite (if (consp arg) (first arg) arg))
+	     (test-case (if (consp arg) (second arg) nil)))
+	 (cond ((not (or (atom arg) 
+			 (= (length arg) 1) (= (length arg) 2)))
+		(show-test-warning 
+		 ":skip-tests takes atoms or two element lists as arguments. Ignoring ~a in ~a" 
+		 arg args))
+	       ((and (null test-case) (null (find-testsuite suite)))
+		(show-test-warning
+		 "Unable to find testsuite ~a to skip" suite))
+	       ((and test-case (null (find-test-case suite test-case)))
+		(show-test-warning 
+		 "Unable to find test-case ~a in testsuite ~a to skip" 
+		 test-case suite))
+	       (t
+		(push (list suite test-case) *skip-tests*))))))

@@ -12,11 +12,11 @@ testsuite-run
   run child suites
 
 run-test-internal
-  start-test
+  record-start-times
   setup-test
     funcall test-method
     teardown-test
-    end-test
+    record-end-times
 
 
 ;; sharing test code

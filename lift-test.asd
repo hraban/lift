@@ -23,6 +23,7 @@
 			     (:file "order-of-operations")
 			     (:file "test-config-files")
 			     (:file "test-maximum-problems")
+			     (:file "test-skipping")
 			     #+(or)
 			     (:file "test-prototypes"))))  
   :depends-on (:lift))

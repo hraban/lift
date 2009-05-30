@@ -105,7 +105,7 @@
   (+ min (random (- max min))))
 
 (defmethod random-element (suite sequence)
-  (elt sequence (random-number suite 0 (1- (length sequence)))))
+  (elt sequence (random-number suite 0 (length sequence))))
 
 (defrandom-instance an-integer test-mixin
   (random-number suite -100 100))

@@ -34,7 +34,7 @@ run-test-internal
 
 testsuite-run
   foreach method in suite, run-test-internal
-  if children, foreach direct-subclass, run-tests-internal
+  if do-children?, foreach direct-subclass, run-tests-internal
 
 
 # Stuff

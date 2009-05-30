@@ -639,29 +639,6 @@ lift::(progn
 
 ;;;;
 
-(defmacro append-to-report ((var output-to) &body body)
-  (let ((gclosep (gensym "closep"))
-	(gstream (gensym "stream")))
-    `(let* ((,gclosep nil)
-	    (,gstream ,output-to)
-	    (,var (etypecase ,gstream 
-		    (stream ,gstream)
-		    ((or pathname string)
-		     (setf ,gclosep t)
-		     (open ,gstream 
-			   :if-does-not-exist :create
-			   :if-exists :append
-			   :direction :output)))))
-       (unwind-protect
-	    (labels ((out (key value)
-		       (when value
-			 (let ((*print-readably* nil))
-			   (format out "~&\(~s ~s\)" key value)))))
-	      (declare (ignorable (function out)))
-	      (progn ,@body))
-	 (when ,gclosep
-	   (close ,var))))))
-
 (defvar *lift-report-header-hook* nil)
 
 (defvar *lift-report-footer-hook* nil)

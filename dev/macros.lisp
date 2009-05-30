@@ -9,6 +9,25 @@
 
 (defvar *count-calls-p* nil)
 
+(defun compile-quickly (body)
+  "Compile body with as much extra stuff as possible turned `off`. 
+
+For example, compile without cross-reference information."
+  (#-allegro let #+allegro excl::compiler-let 
+	     (#+allegro (excl:*record-xref-info* nil))
+     (compile nil body)))
+
+(defmacro defclass-property (property &optional (default nil default-supplied?))
+  "Create getter and setter methods for 'property' on symbol's property lists." 
+  (let ((real-name (intern (format nil "~:@(~A~)" property) :keyword)))
+    `(progn
+       (defgeneric ,property (symbol))
+       (defgeneric (setf ,property) (value symbol))
+       (defmethod ,property ((class-name symbol))
+          (get class-name ,real-name ,@(when default-supplied? (list default))))
+       (defmethod (setf ,property) (value (class-name symbol))
+         (setf (get class-name ,real-name) value)))))
+
 (defmacro undefmeasure (name)
   (let ((gname (gensym "name-")))
     `(let ((,gname ,(form-keyword name)))
@@ -133,7 +152,7 @@
      &body body)
   `(with-profile-report-fn 
        ,name ,style 
-       (lambda () (progn ,@body))
+       (compile-quickly (lambda () (progn ,@body)))
        ',body
        ,@(when ccp-supplied? 
 	       `(:count-calls-p ,count-calls-p))
@@ -226,4 +245,210 @@ signaled. (suppored in Allegro, Clozure CL, CLisp, and Lispworks)"
       (setf docstring (first body)
 	    body (rest body)))
     `(defmethod handle-config-preference ((name (eql ,name)) args)
+       (declare (ignorable args))
        ,@body)))
+
+;;;;
+
+(defmacro ensure (predicate &key report arguments)
+  "If ensure's `predicate` evaluates to false, then it will generate a 
+test failure. You can use the `report` and `arguments` keyword parameters
+to customize the report generated in test results. For example:
+
+    (ensure (= 23 12) 
+     :report \"I hope ~a does not = ~a\" 
+     :arguments (12 23))
+
+will generate a message like
+
+    Warning: Ensure failed: (= 23 12) (I hope 12 does not = 23)
+"
+  (let ((gpredicate (gensym)))
+    `(let ((,gpredicate ,predicate))
+       (if ,gpredicate
+	   (values ,gpredicate)
+	   (let ((condition (make-condition 
+			     'ensure-failed-error 
+			     :assertion ',predicate
+			     ,@(when report
+				     `(:message 
+				       (format nil ,report ,@arguments))))))
+	     (if (find-restart 'ensure-failed)
+		 (invoke-restart 'ensure-failed condition) 
+		 (warn condition)))))))
+
+(defmacro ensure-null (predicate &key report arguments)
+  "If ensure-null's `predicate` evaluates to true, then it will generate a 
+test failure. You can use the `report` and `arguments` keyword parameters
+to customize the report generated in test results. See [ensure][] for more 
+details."
+  (let ((g (gensym)))
+    `(let ((,g ,predicate))
+       (if (null ,g)
+	   t
+	 (let ((condition (make-condition 'ensure-null-failed-error
+			    :value ,g
+			    :assertion ',predicate
+			    ,@(when report
+				`(:message (format nil ,report ,@arguments))))))
+	   (if (find-restart 'ensure-failed)
+	       (invoke-restart 'ensure-failed condition) 
+	     (warn condition)))))))
+
+(defmacro ensure-condition (condition &body body)
+  "This macro is used to make sure that body really does produce condition."
+  (setf condition (remove-leading-quote condition))
+  (destructuring-bind (condition &key report arguments)
+                      (if (consp condition) condition (list condition))
+    (let ((g (gensym)))
+      `(let ((,g nil))
+         (unwind-protect
+           (handler-case 
+             (progn ,@body)
+             (,condition (cond) 
+                         (declare (ignore cond)) (setf ,g t))
+             (condition (cond) 
+                        (setf ,g t)
+                        (let ((c (make-condition 
+                                  'ensure-expected-condition
+                                  :expected-condition-type ',condition
+                                  :the-condition cond
+                                  ,@(when report
+                                      `(:message 
+					(format nil ,report ,arguments))))))
+                          (if (find-restart 'ensure-failed)
+                            (invoke-restart 'ensure-failed c) 
+                            (warn c)))))
+           (when (not ,g)
+             (if (find-restart 'ensure-failed)
+               (invoke-restart
+		'ensure-failed 
+		(make-condition 
+		 'ensure-expected-condition
+		 :expected-condition-type ',condition
+		 :the-condition nil
+		 ,@(when report
+			 `(:message (format nil ,report ,arguments))))) 
+               (warn "Ensure-condition didn't get the condition it expected."))))))))
+
+(defmacro ensure-no-warning (&body body)
+  "This macro is used to make sure that body produces no warning."
+  (let ((g (gensym))
+	(gcondition (gensym)))
+    `(let ((,g nil)
+	   (,gcondition nil))
+       (unwind-protect
+	    (handler-case 
+		(progn ,@body)
+	      (warning (c)
+		(setf ,gcondition c ,g t)))
+	 (when ,g
+	   (let ((c (make-condition 
+		    'ensure-expected-no-warning-condition
+		    :the-condition ,gcondition)))
+	    (if (find-restart 'ensure-failed)
+		(invoke-restart 'ensure-failed c) 
+		(warn c))))))))
+
+(defmacro ensure-warning (&body body)
+  "Ensure-warning evaluates its body. If the body does *not* signal a 
+warning, then ensure-warning will generate a test failure."
+  `(ensure-condition warning ,@body))
+
+(defmacro ensure-error (&body body)
+  "Ensure-error evaluates its body. If the body does *not* signal an 
+error, then ensure-error will generate a test failure."
+  `(ensure-condition error ,@body))
+
+(defmacro ensure-same
+    (form values &key (test nil test-specified-p) 
+     (report nil) (arguments nil)
+     (ignore-multiple-values? nil))
+  "Ensure same compares value-or-values-1 value-or-values-2 or 
+each value of value-or-values-1 value-or-values-2 (if they are 
+multiple values) using test. If a problem is encountered 
+ensure-same raises a warning which uses report as a format string
+and arguments as arguments to that string (if report and arguments 
+are supplied). If ensure-same is used within a test, a test failure 
+is generated instead of a warning"
+  (%build-ensure-comparison form values 'unless 
+			    test test-specified-p report arguments
+			    ignore-multiple-values?))
+
+(defmacro ensure-different
+    (form values &key (test nil test-specified-p) 
+     (report nil) (arguments nil)
+     (ignore-multiple-values? nil))
+  "Ensure-different compares value-or-values-1 value-or-values-2 or each value of value-or-values-1 and value-or-values-2 (if they are multiple values) using test. If any comparison returns true, then ensure-different raises a warning which uses report as a format string and `arguments` as arguments to that string (if report and `arguments` are supplied). If ensure-different is used within a test, a test failure is generated instead of a warning"
+  (%build-ensure-comparison form values 'when
+			    test test-specified-p report arguments
+			    ignore-multiple-values?))
+
+(defmacro ensure-cases ((&rest vars) (&rest cases) &body body)
+  (let ((case (gensym))
+	(total (gensym))
+	(problems (gensym))
+	(single-var-p (= (length vars) 1)))
+    `(let ((,problems nil) (,total 0))
+       (loop for ,case in ,cases do
+	    (incf ,total)
+	    (destructuring-bind ,vars ,(if single-var-p `(list ,case) case)
+	      (restart-case
+		  (progn ,@body)
+		(ensure-failed (cond)
+		  (push (list ,case cond) ,problems)))))
+       (if ,problems
+	 (let ((condition (make-condition 
+			   'ensure-cases-failure
+			   :total ,total
+			   :problems ,problems)))
+	   (if (find-restart 'ensure-failed)
+	       (invoke-restart 'ensure-failed condition) 
+	       (warn condition)))
+	 ;; return true if we're happy
+	 t))))
+
+(defmacro with-test-slots (&body body)
+  `(symbol-macrolet ((lift-result (getf (test-data *current-test*) :result)))   
+     ;; case111 - LW complains otherwise
+     (declare (ignorable lift-result)
+	      ,@(when (def :dynamic-variables)
+		      `((special ,@(mapcar #'car (def :dynamic-variables))))))
+     (symbol-macrolet
+	 ,(mapcar #'(lambda (local)
+		      `(,local (test-environment-value ',local)))
+		  (test-slots (def :testsuite-name)))
+       (declare (ignorable ,@(test-slots (def :testsuite-name))))
+       (macrolet
+	   ,(mapcar (lambda (spec)
+		      (destructuring-bind (name arglist) spec
+			`(,name ,arglist 
+				`(flet-test-function 
+				  *current-test* ',',name ,,@arglist))))
+		    (def :function-specs))
+	 (progn ,@body)))))
+
+;;;;
+
+(defmacro append-to-report ((var output-to) &body body)
+  (let ((gclosep (gensym "closep"))
+	(gstream (gensym "stream")))
+    `(let* ((,gclosep nil)
+	    (,gstream ,output-to)
+	    (,var (etypecase ,gstream 
+		    (stream ,gstream)
+		    ((or pathname string)
+		     (setf ,gclosep t)
+		     (open ,gstream 
+			   :if-does-not-exist :create
+			   :if-exists :append
+			   :direction :output)))))
+       (unwind-protect
+	    (labels ((out (key value)
+		       (when value
+			 (let ((*print-readably* nil))
+			   (format out "~&\(~s ~s\)" key value)))))
+	      (declare (ignorable (function out)))
+	      (progn ,@body))
+	 (when ,gclosep
+	   (close ,var))))))

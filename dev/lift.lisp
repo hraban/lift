@@ -78,7 +78,7 @@ the test is running. Note that this may interact oddly with ensure-warning.")
 (defvar *test-print-test-case-names* nil
   "If true, LIFT will print the name of each test-case before it runs. See also: *test-print-testsuite-names*.")
 
-(defparameter *lift-tests-to-skip* nil
+(defparameter *skip-tests* nil
   "A lift of test-suites and (testsuite test-case) pairs that LIFT will ignore
 during calls to run-tests.")
 
@@ -333,140 +333,6 @@ can be :supersede, :append, or :error.")
 (defun lift-report-condition (c)
   (format *debug-io* "~&~A." c))
 
-(defmacro ensure (predicate &key report arguments)
-  "If ensure's `predicate` evaluates to false, then it will generate a 
-test failure. You can use the `report` and `arguments` keyword parameters
-to customize the report generated in test results. For example:
-
-    (ensure (= 23 12) 
-     :report \"I hope ~a does not = ~a\" 
-     :arguments (12 23))
-
-will generate a message like
-
-    Warning: Ensure failed: (= 23 12) (I hope 12 does not = 23)
-"
-  (let ((gpredicate (gensym)))
-    `(let ((,gpredicate ,predicate))
-       (if ,gpredicate
-	   (values ,gpredicate)
-	   (let ((condition (make-condition 
-			     'ensure-failed-error 
-			     :assertion ',predicate
-			     ,@(when report
-				     `(:message 
-				       (format nil ,report ,@arguments))))))
-	     (if (find-restart 'ensure-failed)
-		 (invoke-restart 'ensure-failed condition) 
-		 (warn condition)))))))
-
-(defmacro ensure-null (predicate &key report arguments)
-  "If ensure-null's `predicate` evaluates to true, then it will generate a 
-test failure. You can use the `report` and `arguments` keyword parameters
-to customize the report generated in test results. See [ensure][] for more 
-details."
-  (let ((g (gensym)))
-    `(let ((,g ,predicate))
-       (if (null ,g)
-	   t
-	 (let ((condition (make-condition 'ensure-null-failed-error
-			    :value ,g
-			    :assertion ',predicate
-			    ,@(when report
-				`(:message (format nil ,report ,@arguments))))))
-	   (if (find-restart 'ensure-failed)
-	       (invoke-restart 'ensure-failed condition) 
-	     (warn condition)))))))
-
-(defmacro ensure-condition (condition &body body)
-  "This macro is used to make sure that body really does produce condition."
-  (setf condition (remove-leading-quote condition))
-  (destructuring-bind (condition &key report arguments)
-                      (if (consp condition) condition (list condition))
-    (let ((g (gensym)))
-      `(let ((,g nil))
-         (unwind-protect
-           (handler-case 
-             (progn ,@body)
-             (,condition (cond) 
-                         (declare (ignore cond)) (setf ,g t))
-             (condition (cond) 
-                        (setf ,g t)
-                        (let ((c (make-condition 
-                                  'ensure-expected-condition
-                                  :expected-condition-type ',condition
-                                  :the-condition cond
-                                  ,@(when report
-                                      `(:message 
-					(format nil ,report ,arguments))))))
-                          (if (find-restart 'ensure-failed)
-                            (invoke-restart 'ensure-failed c) 
-                            (warn c)))))
-           (when (not ,g)
-             (if (find-restart 'ensure-failed)
-               (invoke-restart
-		'ensure-failed 
-		(make-condition 
-		 'ensure-expected-condition
-		 :expected-condition-type ',condition
-		 :the-condition nil
-		 ,@(when report
-			 `(:message (format nil ,report ,arguments))))) 
-               (warn "Ensure-condition didn't get the condition it expected."))))))))
-
-(defmacro ensure-no-warning (&body body)
-  "This macro is used to make sure that body produces no warning."
-  (let ((g (gensym))
-	(gcondition (gensym)))
-    `(let ((,g nil)
-	   (,gcondition nil))
-       (unwind-protect
-	    (handler-case 
-		(progn ,@body)
-	      (warning (c)
-		(setf ,gcondition c ,g t)))
-	 (when ,g
-	   (let ((c (make-condition 
-		    'ensure-expected-no-warning-condition
-		    :the-condition ,gcondition)))
-	    (if (find-restart 'ensure-failed)
-		(invoke-restart 'ensure-failed c) 
-		(warn c))))))))
-
-(defmacro ensure-warning (&body body)
-  "Ensure-warning evaluates its body. If the body does *not* signal a 
-warning, then ensure-warning will generate a test failure."
-  `(ensure-condition warning ,@body))
-
-(defmacro ensure-error (&body body)
-  "Ensure-error evaluates its body. If the body does *not* signal an 
-error, then ensure-error will generate a test failure."
-  `(ensure-condition error ,@body))
-
-(defmacro ensure-same
-    (form values &key (test nil test-specified-p) 
-     (report nil) (arguments nil)
-     (ignore-multiple-values? nil))
-  "Ensure same compares value-or-values-1 value-or-values-2 or 
-each value of value-or-values-1 value-or-values-2 (if they are 
-multiple values) using test. If a problem is encountered 
-ensure-same raises a warning which uses report as a format string
-and arguments as arguments to that string (if report and arguments 
-are supplied). If ensure-same is used within a test, a test failure 
-is generated instead of a warning"
-  (%build-ensure-comparison form values 'unless 
-			    test test-specified-p report arguments
-			    ignore-multiple-values?))
-
-(defmacro ensure-different
-    (form values &key (test nil test-specified-p) 
-     (report nil) (arguments nil)
-     (ignore-multiple-values? nil))
-  "Ensure-different compares value-or-values-1 value-or-values-2 or each value of value-or-values-1 and value-or-values-2 (if they are multiple values) using test. If any comparison returns true, then ensure-different raises a warning which uses report as a format string and `arguments` as arguments to that string (if report and `arguments` are supplied). If ensure-different is used within a test, a test failure is generated instead of a warning"
-  (%build-ensure-comparison form values 'when
-			    test test-specified-p report arguments
-			    ignore-multiple-values?))
-
 (defun %build-ensure-comparison
     (form values guard-fn test test-specified-p report arguments
      ignore-multiple-values?)
@@ -527,30 +393,6 @@ is generated instead of a warning"
       (invoke-restart 'ensure-failed condition) 
       (warn condition))))
 
-(defmacro ensure-cases ((&rest vars) (&rest cases) &body body)
-  (let ((case (gensym))
-	(total (gensym))
-	(problems (gensym))
-	(single-var-p (= (length vars) 1)))
-    `(let ((,problems nil) (,total 0))
-       (loop for ,case in ,cases do
-	    (incf ,total)
-	    (destructuring-bind ,vars ,(if single-var-p `(list ,case) case)
-	      (restart-case
-		  (progn ,@body)
-		(ensure-failed (cond)
-		  (push (list ,case cond) ,problems)))))
-       (if ,problems
-	 (let ((condition (make-condition 
-			   'ensure-cases-failure
-			   :total ,total
-			   :problems ,problems)))
-	   (if (find-restart 'ensure-failed)
-	       (invoke-restart 'ensure-failed condition) 
-	       (warn condition)))
-	 ;; return true if we're happy
-	 t))))
-
 
 ;;; ---------------------------------------------------------------------------
 ;;; test-mixin
@@ -595,6 +437,7 @@ is generated instead of a warning"
    (expected-failures :initform nil :accessor expected-failures)
    (errors :initform nil :accessor errors)
    (expected-errors :initform nil :accessor expected-errors)
+   (skipped-tests :initform nil :accessor skipped-tests)
    (test-mode :initform :single :initarg :test-mode :accessor test-mode)
    (test-interactive? :initform nil 
                       :initarg :test-interactive? :accessor test-interactive?)
@@ -607,38 +450,34 @@ is generated instead of a warning"
    (start-time-universal :accessor start-time-universal :initform nil)
    (end-time-universal :accessor end-time-universal)
    (real-end-time-universal :accessor real-end-time-universal)
-   (properties :initform nil :accessor test-result-properties)
-   (tests-to-skip :initform nil
-		  :initarg :tests-to-skip
-		  :reader tests-to-skip
-		  :writer %set-tests-to-skip))
+   (properties :initform nil :accessor test-result-properties))
   (:documentation 
 "A `test-result` instance contains all of the information collectd by 
 LIFT during a test run.")
   (:default-initargs
     :test-interactive? *test-is-being-defined?*
     :real-start-time (get-internal-real-time)
-    :real-start-time-universal (get-universal-time)
-    :tests-to-skip *lift-tests-to-skip*))
+    :real-start-time-universal (get-universal-time)))
 
-(defmethod initialize-instance :after
-    ((result test-result) &key tests-to-skip)
-  (when tests-to-skip
-    (%set-tests-to-skip 
-     (mapcar (lambda (datum)
-	       (cond ((or (atom datum)
-			  (= (length datum) 1))
-		      (cons (find-testsuite datum) nil))
-		     ((= (length datum) 2)
-		      (cons (find-testsuite (first datum))
-			    (or (and (keywordp (second datum)) (second datum))
-				(find-test-case (find-testsuite (first datum))
-						(second datum)))))
-		     (t
-		      (warn "Unable to interpret skip datum ~a. Ignoring." 
-			    datum))))
-	     tests-to-skip)
-     result)))
+(defun canonize-skip-tests ()
+  (when *skip-tests*
+    (setf *skip-tests*
+	  (mapcar
+	   (lambda (datum)
+	     (cond ((or (atom datum)
+			(= (length datum) 1)
+			(and (= (length datum) 2) (null (second datum))
+			     (setf datum (first datum))))
+		    (cons (find-testsuite datum :errorp t) nil))
+		   ((= (length datum) 2)
+		    (cons (find-testsuite (first datum) :errorp t)
+			  (or (and (keywordp (second datum)) (second datum))
+			      (find-test-case (find-testsuite (first datum))
+					      (second datum) :errorp t))))
+		   (t
+		    (warn "Unable to interpret skip datum ~a. Ignoring." 
+			  datum))))
+	   *skip-tests*))))
 
 (defun test-result-property (result property &optional default)
   (getf (test-result-properties result) property default))
@@ -701,17 +540,11 @@ the methods that should be run to do the tests for this test."))
 (defgeneric do-testing (testsuite result fn)
   (:documentation ""))
 
-(defgeneric end-test (result case method-name)
-  (:documentation ""))
-
 (defgeneric run-test-internal (suite name result &rest args)
   (:documentation ""))
 
 (defgeneric run-tests-internal (suite &rest args
  			       &key &allow-other-keys)
-  (:documentation ""))
-
-(defgeneric start-test (result case method-name)
   (:documentation ""))
 
 (defgeneric test-report-code (testsuite method)
@@ -735,8 +568,7 @@ the methods that should be run to do the tests for this test."))
 (defgeneric do-testing-in-environment (testsuite result function)
   (:documentation ""))  
 
-(defgeneric skip-test-case (result suite-name test-case-name)
-  )
+(defgeneric skip-test-case (result suite-name test-case-name))
 
 (defgeneric describe-test-result (result stream &key &allow-other-keys)
   )
@@ -828,26 +660,6 @@ the thing being defined.")
     (setf *code-blocks* (sort *code-blocks* #'< 
 			      :key (lambda (name.cb)
 				     (priority (cdr name.cb))))))
-
-(defmacro with-test-slots (&body body)
-  `(symbol-macrolet ((lift-result (getf (test-data *current-test*) :result)))   
-     ;; case111 - LW complains otherwise
-     (declare (ignorable lift-result)
-	      ,@(when (def :dynamic-variables)
-		      `((special ,@(mapcar #'car (def :dynamic-variables))))))
-     (symbol-macrolet
-	 ,(mapcar #'(lambda (local)
-		      `(,local (test-environment-value ',local)))
-		  (test-slots (def :testsuite-name)))
-       (declare (ignorable ,@(test-slots (def :testsuite-name))))
-       (macrolet
-	   ,(mapcar (lambda (spec)
-		      (destructuring-bind (name arglist) spec
-			`(,name ,arglist 
-				`(flet-test-function 
-				  *current-test* ',',name ,,@arglist))))
-		    (def :function-specs))
-	 (progn ,@body)))))
 
 (defvar *deftest-clauses*
   '(:setup :teardown :test :documentation :tests :export-p :export-slots
@@ -1022,7 +834,8 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
           (convert-clauses-into-lists clauses-and-options *deftest-clauses*))
     (initialize-current-definition)
     (setf (def :testsuite-name) testsuite-name)
-    (setf (def :superclasses) (mapcar #'find-testsuite superclasses))
+    (setf (def :superclasses) (mapcar (lambda (class) (find-testsuite class :errorp t))
+				      superclasses))
     (setf (def :deftestsuite) t)
     ;; parse clauses into defs
     (loop for clause in clauses-and-options do
@@ -1298,7 +1111,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
     (remf args :config)
     (remf args :report-pathname)
     (remf args :do-children?)
-    (remf args :tests-to-skip)
+    (remf args :skip-tests)
     (remf args :testsuite-initargs)
     (let* ((*test-break-on-errors?* break-on-errors?)
 	   (*test-break-on-failures?* break-on-failures?)
@@ -1331,36 +1144,48 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 	(apply #'make-instance testsuite args)
 	(error "Testsuite ~a not found." suite-name))))
 
+(defun handle-error-while-testing (condition error-class suite result)
+  (report-test-problem
+   error-class result suite
+   *current-test-case-name* condition
+   :backtrace (get-backtrace condition))
+  (when (and *test-break-on-errors?*
+	     (not (testcase-expects-error-p)))
+    (invoke-debugger condition)))
+
 (defmethod do-testing-in-environment :around ((suite test-mixin) result fn)
   (declare (ignore fn))
-  (tagbody 
-   :test-start
-     (restart-case
-	 (handler-bind ((warning #'muffle-warning)       
+  (catch :test-end
+    (tagbody 
+     :test-start
+       (restart-case
+	   (handler-bind ((warning #'muffle-warning)       
 					; ignore warnings... 
-			(error 
-			 (lambda (condition)
-			   (report-test-problem
-			    'testsuite-error result suite
-			    *current-test-case-name* condition
-			    :backtrace (get-backtrace condition))
-			   (if *test-break-on-errors?*
-			       (invoke-debugger condition)
-			       (go :test-end)))))
-	   (unwind-protect
-		(let ((*lift-equality-test* (equality-test suite)))
-		  (testsuite-setup suite result)
-		  (call-next-method)
-		  result)
-	     ;; cleanup
-	     (testsuite-teardown suite result)))
-       (ensure-failed (condition) 
-	 (report-test-problem
-	  'testsuite-failure result suite 
-	  *current-test-case-name* condition))
-       (retry-test () :report "Retry the test." 
-		   (go :test-start)))
-   :test-end)
+			  (error 
+			   (lambda (condition)
+			     (handle-error-while-testing
+			      condition 'testsuite-error suite result)
+			     (go :test-end)))
+			  (serious-condition 
+			   (lambda (condition)
+			     (handle-error-while-testing
+			      condition 'testsuite-serious-condition
+			      suite result)
+			     (go :test-end))))
+	     (unwind-protect
+		  (let ((*lift-equality-test* (equality-test suite)))
+		    (testsuite-setup suite result)
+		    (call-next-method)
+		    result)
+	       ;; cleanup
+	       (testsuite-teardown suite result)))
+	 (ensure-failed (condition) 
+	   (report-test-problem
+	    'testsuite-failure result suite 
+	    *current-test-case-name* condition))
+	 (retry-test () :report "Retry the test." 
+		     (go :test-start)))
+     :test-end))
   (values result))
 
 (defmethod do-testing-in-environment ((suite test-mixin) result fn)
@@ -1400,6 +1225,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 		  (dribble *lift-dribble-pathname*)
 		  (report-pathname t)
 		  (profile nil)
+		  (skip-tests *skip-tests*)
 		  ;(timeout nil)
 		  (do-children? *test-do-children?*)
 		  (testsuite-initargs nil) 
@@ -1415,16 +1241,18 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 	(remf args :run-setup)
 	(remf args :dribble)
 	(remf args :config)
+	(remf args :skip-tests)
 	(remf args :report-pathname)
 	(remf args :do-children?)
-	(remf args :tests-to-skip)
 	(remf args :testsuite-initargs)
 	(let* ((*lift-report-pathname*
 		(cond ((null report-pathname) nil)
 		      ((eq report-pathname t)
 		       (report-summary-pathname))))
 	       (*test-do-children?* do-children?)
+	       (*skip-tests* skip-tests)
 	       (report-pathname *lift-report-pathname*))
+	  (canonize-skip-tests)
 	  (when report-pathname
 	    (ensure-directories-exist report-pathname))
 	  (cond ((and suite config)
@@ -1490,22 +1318,24 @@ nor configuration file options were specified.")))))
       (values stream nil)))
 
 (defun skip-test-case-p (result suite-name test-case-name)
+  (declare (ignore result))
   (find-if (lambda (skip-datum)
 	     (and (eq suite-name (car skip-datum))
 		  (or (null (cdr skip-datum))
 		      (eq test-case-name (cdr skip-datum)))))
-	   (tests-to-skip result)))
+	   *skip-tests*))
 
 (defmethod skip-test-case (result suite-name test-case-name)
-  (declare (ignore result suite-name test-case-name))
+  (push (list suite-name test-case-name) (skipped-tests result))
   )
 
 (defun skip-test-suite-children-p (result testsuite)
+  (declare (ignore result))
   (let ((suite-name (class-name (class-of testsuite))))
     (find-if (lambda (skip-datum)
 	       (and (eq suite-name (car skip-datum))
 		    (eq :including-children (cdr skip-datum))))
-	     (tests-to-skip result))))
+	     *skip-tests*)))
 
 (defmethod testsuite-run ((testsuite test-mixin) (result test-result))
   (unless (start-time result)
@@ -1566,16 +1396,16 @@ nor configuration file options were specified.")))))
 					; ignore warnings... 
 			    (error 
 			     (lambda (condition)
-			       (report-test-problem
-				'test-error result suite
-				*current-test-case-name* condition
-				:backtrace (get-backtrace condition))
-			       (if (and *test-break-on-errors?*
-					(not (testcase-expects-error-p)))
-				   (invoke-debugger condition)
-				   (go :test-end)))))
+			       (handle-error-while-testing
+				condition 'test-error suite result)
+			       (go :test-end)))
+			    (serious-condition 
+			     (lambda (condition)
+			       (handle-error-while-testing
+				condition 'test-serious-condition suite result)
+			       (go :test-end))))
 	       (setf (current-method suite) name)
-	       (start-test result suite name)
+	       (record-start-times suite)
 	       (unwind-protect
 		    (progn
 		      (setup-test suite)
@@ -1594,7 +1424,7 @@ nor configuration file options were specified.")))))
 		 ;; cleanup
 		 (maybe-push-result)
 		 (test-case-teardown suite result)
-		 (end-test result suite name)))
+		 (record-end-times result suite)))
 	   (ensure-failed (condition) 
 	     (report-test-problem
 	      'test-failure result suite 
@@ -1710,6 +1540,9 @@ nor configuration file options were specified.")))))
   (declare (ignore why))
   (flet ((do-it (name)
 	   ;; should just use find-restart but I was experimenting
+	   (let ((restart (find-restart name)))
+	     (when restart (invoke-restart restart)))
+	   #+(or)
 	   (let* ((restarts (compute-restarts))
 		  (it (find name restarts :key #'restart-name :from-end nil)))
 	     (when it 
@@ -1729,14 +1562,14 @@ nor configuration file options were specified.")))))
   (let ((foo *test-print-level*))
     (if (eq foo :follow-print) *print-level* foo)))
 
-(defmethod start-test ((result test-result) (suite test-mixin) name) 
+(defun record-start-times (suite) 
   (declare (ignore name))
   (setf (current-step suite) :start-test
 	(test-data suite) 
 	`(:start-time ,(get-internal-real-time)
 	  :start-time-universal ,(get-universal-time))))
 
-(defmethod end-test ((result test-result) (suite test-mixin) name)
+(defun record-end-times (result suite)
   (declare (ignore name))
   (setf (current-step suite) :end-test
 	(getf (test-data suite) :end-time) (get-internal-real-time)
@@ -1973,10 +1806,20 @@ nor configuration file options were specified.")))))
   (:default-initargs 
    :test-problem-kind "Error"))
 
+(defclass test-serious-condition (test-error-mixin)
+  ()
+  (:default-initargs 
+   :test-problem-kind "Serious condition"))
+
 (defclass testsuite-error (test-error-mixin)
   ()
   (:default-initargs 
    :test-problem-kind "Testsuite error"))
+
+(defclass testsuite-serious-condition (test-error-mixin)
+  ()
+  (:default-initargs 
+   :test-problem-kind "Testsuite serious condition"))
 
 (defclass testsuite-failure (generic-problem)
   ()
