@@ -40,7 +40,7 @@ all suites. This is equivalent to the behavior of [find-test-cases][]."))
 ;;;;;
 ;; some introspection
 
-(defun liftpropos (string &key (include-cases? nil))
+(defun liftpropos (string &key (include-cases? nil) (start-at 'test-mixin))
   "Returns a list of testsuites whose name contains `string`."
   (let ((result nil)
 	(name-as-string (ensure-string string)))
@@ -49,15 +49,14 @@ all suites. This is equivalent to the behavior of [find-test-cases][]."))
 			   :test #'char-equal)
 	       (push to-add result))))
       (map-testsuites
-       (lambda (suite level)
+       (lambda (suite-name level)
 	 (declare (ignore level))
-	 (let ((suite-name (class-name suite)))
-	   (add-if-match suite-name)
-	   (when include-cases?
-	     (loop for method-name in (testsuite-tests suite-name) do
-		  (add-if-match 
-		   method-name (cons suite-name method-name))))))
-       'test-mixin))
+	 (add-if-match suite-name)
+	 (when include-cases?
+	   (loop for method-name in (testsuite-tests suite-name) do
+		(add-if-match 
+		 method-name (cons suite-name method-name)))))
+       start-at))
     (sort result #'string-lessp :key (lambda (it)
 				       (typecase it
 					 (atom it)
@@ -68,34 +67,48 @@ all suites. This is equivalent to the behavior of [find-test-cases][]."))
     (labels ((do-it (suite level)
 	       (unless (gethash suite visited)
 		 (setf (gethash suite visited) t)
-		 (funcall fn suite level)
-		 (loop for subclass in (subclasses suite :proper? t) do
+		 (funcall fn (class-name suite) level)
+		 (loop for subclass in (direct-subclasses suite) do
 		      (do-it subclass (1+ level))))))
     (do-it (find-class (find-testsuite start-at) nil) 0))))
 
+(defun collect-testsuites (start-at &key filter transform)
+  (let ((filter (when filter (ensure-function filter)))
+	(transform (when transform (ensure-function transform)))
+	(result nil))
+    (map-testsuites
+     (lambda (suite level)
+       (when (or (null filter) (funcall filter suite level))
+	 (push (if transform (funcall transform suite level) suite) result)))
+     start-at)
+    (nreverse result)))
+
+;;?? deprecate
 (defun testsuites (&optional (start-at 'test-mixin))
   "Returns a list of testsuite classes. The optional parameter provides
 control over where in the test hierarchy the search begins."
-  (let ((result nil))
+  (collect-testsuites start-at))
+
+(defun test-case-count (testsuite)
+  (let ((result 0))
     (map-testsuites (lambda (suite level)
 		      (declare (ignore level))
-		      (push suite result))
-		    start-at)
-    (nreverse result)))
+		      (incf result (length (testsuite-methods suite))))
+		    testsuite)
+    result))
 
 (defun print-tests (&key (include-cases? t) (start-at 'test-mixin) (stream t))
   "Prints all of the defined test classes from :start-at on down." 
   (map-testsuites
-   (lambda (suite level)
+   (lambda (suite-name level)
      (let ((indent (coerce (make-list (* level 3) :initial-element #\Space)
-			   'string))
-	   (name (class-name suite)))
+			   'string)))
        (format stream "~&~a~s (~:d)" 
 	       indent
-	       name
-	       (length (testsuite-methods name)))
+	       suite-name
+	       (length (testsuite-methods suite-name)))
        (when include-cases?
-	 (loop for method-name in (testsuite-tests name) do
+	 (loop for method-name in (testsuite-tests suite-name) do
 	      (format stream "~&~a  ~a" indent method-name)))))
    start-at))
      
@@ -116,6 +129,10 @@ control over where in the test hierarchy the search begins."
   (or (and *testsuite-test-count* 
            (prog1 *testsuite-test-count* (incf *testsuite-test-count*))) 
       (length (testsuite-methods testsuite))))
+
+(defmethod find-testsuite ((suite test-mixin) &key (errorp nil))
+  (declare (ignore errorp))
+  suite)
 
 (defmethod find-testsuite ((suite symbol) &key (errorp nil))
   (or (testsuite-p suite)
@@ -230,38 +247,3 @@ control over where in the test hierarchy the search begins."
        (slot-boundp result 'suites-run)
        (consp (suites-run result))
        (find suite (suites-run result))))
-
-
-(defun test-results (&key (result *test-result*) (failures? t)
-		     (errors? t) (successes? nil)
-		     (expected-failures? t) (expected-errors? t))
-  (let ((acc nil))
-    (flet ((gather (list kind process?)
-	     (when list
-	       (push (cons
-		      kind 
-		      (if process?
-			  (loop for item in list collect
-			       (list (class-name (class-of (testsuite item)))
-				     (test-method item) item))
-			  list)) acc))))
-      (when errors? 
-	(gather (errors result) :errors t))
-      (when failures? 
-	(gather (failures result) :failures t))
-      (when expected-errors? 
-	(gather (expected-errors result) :expected-errors t))
-      (when expected-failures? 
-	(gather (expected-failures result) :expected-failures t))
-      (when successes?
-	(gather (loop for (suite test-case data) in (tests-run result) 
-		     unless (getf data :problem) collect (list suite test-case))
-		:successes nil))
-      (nreverse acc))))
-
-(defun test-successes (&key (result *test-result*))
-  (cdr (first (test-results :result result 
-			    :successes? t
-			    :errors? nil :expected-errors? nil
-			    :failures? nil :expected-failures? nil))))
-

@@ -230,6 +230,11 @@ the class itself is not included in the mapping. Proper? defaults to nil."
     (string it)
     (symbol (symbol-name it))))
 
+(defun ensure-function (thing)
+  (typecase thing
+    (function thing)
+    (symbol (symbol-function thing))))
+
 ;;;;
 
 (defun version-numbers (version &optional padded)

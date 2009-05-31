@@ -11,7 +11,14 @@
 
 ;;;;
 
-(deftestsuite test-skipping-helper-a ()
+(deftestsuite test-skipping-helper ()
+  ())
+
+(addtest (test-skipping-helper)
+  test-1
+  (ensure t))
+
+(deftestsuite test-skipping-helper-a (test-skipping-helper)
   ())
 
 (addtest (test-skipping-helper-a)
@@ -48,27 +55,28 @@
   test-2
   (ensure t))
 
+
 ;;;;
 
 (addtest (test-skipping)
   nothing-skipped
   (run-tests :suite 'test-skipping-helper-a)
   (ensure-same (length (tests-run *test-result*)) 7 :test '=)
-  (ensure-null (skipped-tests *test-result*)))
+  (ensure-null (skipped-test-cases *test-result*)))
 
 (addtest (test-skipping)
   skip-testsuite
   (run-tests :suite 'test-skipping-helper-a
 	     :skip-tests '(test-skipping-helper-a-2))
   (ensure-same (length (tests-run *test-result*)) 5 :test '=)
-  (ensure-same (length (skipped-tests *test-result*)) 2 :test '=))
+  (ensure-same (length (skipped-test-cases *test-result*)) 2 :test '=))
 
 (addtest (test-skipping)
   skip-test-case
   (run-tests :suite 'test-skipping-helper-a
 	     :skip-tests '((test-skipping-helper-a-2 test-1)))
   (ensure-same (length (tests-run *test-result*)) 6 :test '=)
-  (ensure-same (length (skipped-tests *test-result*)) 1 :test '=))
+  (ensure-same (length (skipped-test-cases *test-result*)) 1 :test '=))
 
 (addtest (test-skipping)
   skip-mix
@@ -77,7 +85,17 @@
 			   test-skipping-helper-a-1
 			   (test-skipping-helper-a test-2)))
   (ensure-same (length (tests-run *test-result*)) 3 :test '=)
-  (ensure-same (length (skipped-tests *test-result*)) 4 :test '=))
+  (ensure-same (length (skipped-test-cases *test-result*)) 4 :test '=))
+
+(addtest (test-skipping)
+  skip-subclasses
+  (run-tests :suite 'test-skipping-helper
+	     :skip-tests '(test-skipping-helper-a))
+  (ensure-same (length (tests-run *test-result*)) 1 :test '=)
+  ;; we only skipped the three test-cases in `test-skipping-helper-a`
+  (ensure-same (length (skipped-test-cases *test-result*)) 3 :test '=)
+  ;; we  skip the suite's subclasses so it is the only one that shows up
+  (ensure-same (length (skipped-testsuites *test-result*)) 1 :test '=))
 
 ;;;;
 
@@ -96,14 +114,14 @@
   (setf config-file (write-config ""))
   (run-tests :config config-file)
   (ensure-same (length (tests-run *test-result*)) 7 :test '=)
-  (ensure-null (skipped-tests *test-result*)))
+  (ensure-null (skipped-test-cases *test-result*)))
 
 (addtest (test-skipping-via-config)
   skip-testsuite-1
   (setf config-file (write-config "(:skip-tests test-skipping-helper-a-2)"))
   (run-tests :config config-file)
   (ensure-same (length (tests-run *test-result*)) 5 :test '=)
-  (ensure-same (length (skipped-tests *test-result*)) 2 :test '=))
+  (ensure-same (length (skipped-test-cases *test-result*)) 2 :test '=))
 
 (addtest (test-skipping-via-config)
   skip-testsuite-2
@@ -111,7 +129,7 @@
 	(write-config "(:skip-testsuites test-skipping-helper-a-2)"))
   (run-tests :config config-file)
   (ensure-same (length (tests-run *test-result*)) 5 :test '=)
-  (ensure-same (length (skipped-tests *test-result*)) 2 :test '=))
+  (ensure-same (length (skipped-test-cases *test-result*)) 2 :test '=))
 
 (addtest (test-skipping-via-config)
   skip-testsuite-3
@@ -119,7 +137,7 @@
 	(write-config "(:skip-tests (test-skipping-helper-a-2))"))
   (run-tests :config config-file)
   (ensure-same (length (tests-run *test-result*)) 5 :test '=)
-  (ensure-same (length (skipped-tests *test-result*)) 2 :test '=))
+  (ensure-same (length (skipped-test-cases *test-result*)) 2 :test '=))
 
 (addtest (test-skipping-via-config)
   skip-test-case
@@ -127,7 +145,7 @@
 	(write-config "(:skip-tests (test-skipping-helper-a-2 test-1))"))
   (run-tests :config config-file)
   (ensure-same (length (tests-run *test-result*)) 6 :test '=)
-  (ensure-same (length (skipped-tests *test-result*)) 1 :test '=))
+  (ensure-same (length (skipped-test-cases *test-result*)) 1 :test '=))
 
 (addtest (test-skipping-via-config)
   skip-mix-1
@@ -137,7 +155,7 @@
 			   (test-skipping-helper-a test-2))"))
   (run-tests :config config-file)
   (ensure-same (length (tests-run *test-result*)) 3 :test '=)
-  (ensure-same (length (skipped-tests *test-result*)) 4 :test '=))
+  (ensure-same (length (skipped-test-cases *test-result*)) 4 :test '=))
 
 (addtest (test-skipping-via-config)
   skip-mix-2
@@ -148,5 +166,5 @@
 (:skip-tests (test-skipping-helper-a test-2))"))
   (run-tests :config config-file)
   (ensure-same (length (tests-run *test-result*)) 3 :test '=)
-  (ensure-same (length (skipped-tests *test-result*)) 4 :test '=))
+  (ensure-same (length (skipped-test-cases *test-result*)) 4 :test '=))
 

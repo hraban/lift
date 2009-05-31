@@ -41,7 +41,8 @@
        #:expected-failures
        #:errors
        #:expected-errors
-       #:skipped-tests
+       #:skipped-test-cases
+       #:skipped-testsuites
        #:ensure-cases
        #:ensure-random-cases
        #:deftestsuite

@@ -6,7 +6,8 @@
                 #:failures
                 #:errors
                 #:tests-run
-		#:skipped-tests
+		#:skipped-test-cases
+		#:skipped-testsuites
                 #:test-mode
                 #:test-interactive?
                 #:make-test-result
