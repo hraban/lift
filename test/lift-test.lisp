@@ -813,3 +813,32 @@ these cancel testing instead.)"))
       (condition (c)
 	(setf got-condition c)))
     (ensure-null got-condition)))
+
+;;;;
+
+
+(deftestsuite test-interrupts (lift-test)
+  ())
+
+(deftestsuite test-interrupts-helper ()
+  ())
+
+(addtest (test-interrupts-helper)
+  test-1
+  (push :a *test-notepad*))
+
+(addtest (test-interrupts-helper)
+  test-2
+  (push :b *test-notepad*)
+  (signal 'excl:interrupt-signal))
+
+(addtest (test-interrupts-helper)
+  test-3
+  (push :c *test-notepad*))
+
+(addtest (test-interrupts)
+  test-1
+  (let ((*test-notepad* nil))
+    (lift:run-tests :suite 'test-interrupts-helper)
+    (ensure-same *test-notepad* '(:b :a) :test 'equal)))
+

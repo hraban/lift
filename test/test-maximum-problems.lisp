@@ -4,14 +4,13 @@
   ()
   (:function 
    (do-it (name)
-     ;; ignore cancel-testing-from-configuration into cancel-testing
+     ;; catch cancel-testing-from-configuration and return current 
+     ;; *test-result* (which is passe as an argument)
      (restart-case
 	 (run-tests :suite name :report-pathname nil)
-       (lift::cancel-testing-from-configuration ()
+       (lift::cancel-testing-from-configuration (result)
 	 :test (lambda (c) (declare (ignore c)) t)
-	 nil
-	 #+(or)
-	 (invoke-restart (find-restart 'lift::cancel-testing)))))))
+	 result)))))
 
 (addtest (test-maximum-problems) 
   all-nil
