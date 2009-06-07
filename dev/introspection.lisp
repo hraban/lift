@@ -157,7 +157,12 @@ control over where in the test hierarchy the search begins."
 		    :testsuite-name suite-name 
 		    :possible-matches possibilities))
 	   possibilities))))
-			     
+	
+(defun test-case-p (suite-class name)
+  (gethash name (test-name->methods (class-name suite-class))))
+
+#+(or)
+;; old
 (defun test-case-p (suite-class name)
   (find-method #'lift-test nil `(,suite-class (eql ,name)) nil)) 
 
@@ -247,3 +252,79 @@ control over where in the test hierarchy the search begins."
        (slot-boundp result 'suites-run)
        (consp (suites-run result))
        (find suite (suites-run result))))
+
+(defun test-results (&key (result *test-result*) (failures? t)
+                    (errors? t) (successes? nil)
+                    (expected-failures? t) (expected-errors? t))
+  (let ((acc nil))
+    (flet ((gather (list kind process?)
+            (when list
+              (push (cons
+                     kind 
+                     (if process?
+                         (loop for item in list collect
+                              (list (class-name (class-of (testsuite item)))
+                                    (test-method item) item))
+                         list)) acc))))
+      (when errors? 
+       (gather (errors result) :errors t))
+      (when failures? 
+       (gather (failures result) :failures t))
+      (when expected-errors? 
+       (gather (expected-errors result) :expected-errors t))
+      (when expected-failures? 
+       (gather (expected-failures result) :expected-failures t))
+      (when successes?
+       (gather (loop for (suite test-case data) in (tests-run result) 
+                    unless (getf data :problem) collect (list suite test-case))
+               :successes nil))
+      (nreverse acc))))
+
+(defun test-successes (&key (result *test-result*))
+  (cdr (first (test-results :result result 
+                           :successes? t
+                           :errors? nil :expected-errors? nil
+                           :failures? nil :expected-failures? nil))))
+
+(defun massage-condition-string (triple)
+  (destructuring-bind (suite name condition)
+      triple
+    (declare (ignore suite name))
+    (let ((string (princ-to-string (test-condition condition))))
+      (setf string (rewrite-unreadables string))
+      (let ((length (length string)))
+	(subseq string 0 (min length 200))))))
+
+(defun rewrite-unreadables (string)
+  #+allegro
+  (excl:replace-regexp string "#<\\([^ ]*\\) @ #x[0-9a-zA-Z]*>" "#<\\1>")
+  #-allegro
+  string)
+
+;; could build up a list here too
+;; expensive, don't keep calling `massage-condition-string`
+(defun report-issues (result kind)
+  (let* ((args (list :failures? nil :errors? nil :expected-failures? nil
+		     :expected-errors? nil)))
+    (ecase kind
+      (:errors (setf (getf args :errors?) t))
+      (:failures (setf (getf args :failures?) t)))
+    (let ((tests (rest (first (apply #'test-results :result result args))))
+	  (last-string ""))
+      (loop for triple in 
+	   (sort tests 'string-lessp :key 'massage-condition-string) do
+	   (destructuring-bind (suite name condition)
+	       triple
+	     (declare (ignore condition))
+	     (unless (string= last-string (massage-condition-string triple))
+	       (setf last-string (massage-condition-string triple))
+	       (format t "~%~%~a~%~%" last-string))
+	     (format t "~&   ~a ~a~&" suite name))))))
+
+#+(or)
+(db.agraph::with-new-file (*standard-output* "errors.txt")
+  (report-issues tr :errors))
+
+#+(or)
+(db.agraph::with-new-file (*standard-output* "failures.txt")
+  (report-issues tr :failures))
