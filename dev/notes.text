@@ -1,5 +1,8 @@
 (in-package lift)
 
+should only need one method for run-test-internal since we're the only
+  one that calls it!
+
 I tried to be clever and abstract out the do-testing part from the run-tests
 and run-test. The trouble is that this abstraction isn't right. I end up 
 needing to wrap error catching at two levels (one at the outer level to handle
@@ -413,3 +416,4 @@ ok - LIFT: variable to control behavior on warning / failure: print full report,
 ok - add :function to define local functions, use rewriting and macrolet 
 yes - so how do we integrate measuring with the report -- change the test result
   add test result properties
+-- ok - the ensure-failed restarts should not be interactive
