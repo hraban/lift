@@ -120,7 +120,7 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
 		 (*lift-debug-output* *debug-io*)
 		 (*lift-standard-output* *standard-output*)
 		 (*test-break-on-errors?* nil)
-		 (*test-do-children?* t)
+		 (*test-run-subsuites?* t)
 		 (*lift-equality-test* 'equal)
 		 (*test-print-length* :follow-print)
 		 (*test-print-level* :follow-print)
@@ -159,7 +159,21 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
       		(handle-config-preference name args))
       	       ((and run-tests-p (find-testsuite name :errorp nil))
       		(multiple-value-bind (_ restartedp)
-      		    (with-simple-restart (cancel-testing-from-configuration
+		    (restart-case 
+			(if (find-testsuite name :errorp nil)
+			    (run-tests :suite name 
+				       :result *test-result* 
+				       :testsuite-initargs args)
+			    (show-test-warning
+			     "~&Warning: testsuite ~s not found, skipping" name))
+		      (cancel-testing-from-configuration (result)
+			:report (lambda (stream)
+				  (format stream "Cancel testing from file ~a"
+					  path))
+			(declare (ignore result))
+			(values nil t)))
+      		    #+(or)
+		    (with-simple-restart (cancel-testing-from-configuration
       					  "Cancel testing from file ~a" path)
 		      (if (find-testsuite name :errorp nil)
 			  (run-tests :suite name 
@@ -189,7 +203,7 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
 		     name args))
 
 (defmethod handle-config-preference ((name (eql :include)) args)
-  (%run-tests-from-file (merge-pathnames (first args) 
+  (%run-tests-from-file (merge-pathnames (ensure-string (first args))
 					 *current-configuration-stream*)))
 
 (defconfig-variable :dribble *lift-dribble-pathname*)
@@ -200,7 +214,7 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
 
 (defconfig-variable :break-on-errors? *test-break-on-errors?*)
 
-(defconfig-variable :do-children? *test-do-children?*)
+(defconfig-variable :do-children? *test-run-subsuites?*)
 
 (defconfig-variable :equality-test *lift-equality-test*)
 
