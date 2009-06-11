@@ -447,8 +447,9 @@ is generated instead of a warning"
 	    (labels ((out (key value)
 		       (when value
 			 (let ((*print-readably* nil))
-			   (format out "~&\(~s ~s\)" key value)))))
+			   (format out "~&\(~s . ~s\)" key value)))))
 	      (declare (ignorable (function out)))
-	      (progn ,@body))
+	      (progn ,@body)
+	      (force-output out))
 	 (when ,gclosep
 	   (close ,var))))))

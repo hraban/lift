@@ -827,6 +827,7 @@ these cancel testing instead.)"))
   test-1
   (push :a *test-notepad*))
 
+#+allegro
 (addtest (test-interrupts-helper)
   test-2
   (push :b *test-notepad*)
@@ -836,6 +837,7 @@ these cancel testing instead.)"))
   test-3
   (push :c *test-notepad*))
 
+#+allegro
 (addtest (test-interrupts)
   test-1
   (let ((*test-notepad* nil))

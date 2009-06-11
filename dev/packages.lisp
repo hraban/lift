@@ -99,6 +99,9 @@
        #:ensure-error
        #:ensure-no-warning
           
+       ;; test protocol
+       #:do-test
+
        ;;?? Not yet
        ;; with-test
           

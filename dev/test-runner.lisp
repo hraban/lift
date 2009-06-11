@@ -258,12 +258,19 @@ nor configuration file options were specified.")))))
     (apply #'run-test-internal 
 	   *current-test* name result passthrough-arguments)))
 
+(defmethod do-test ((suite test-mixin) name result)
+  (declare (ignore result))
+  (let* ((suite-name (class-name (class-of suite)))
+	 (fn (gethash name (test-name->methods suite-name))))
+    (if fn
+	(funcall fn suite)
+	(error "expected to find ~a test for ~a but didn't" name suite-name))))
+
 (defmethod run-test-internal ((suite test-mixin) (name symbol) result
 			      &rest _)
   (declare (ignore _))
   (let ((result-pushed? nil)
 	(*current-test-case-name* name)
-	(suite-name (class-name (class-of suite)))
 	(error nil))
     (flet ((maybe-push-result ()
 	     (let ((datum (list (type-of suite)
@@ -305,12 +312,7 @@ nor configuration file options were specified.")))))
 		      (setf (current-step suite) :testing)
 		      (multiple-value-bind (result measures error-condition)
 			  (while-measuring (t measure-space measure-seconds)
-			    (let ((fn (gethash name (test-name->methods suite-name))))
-			      (if fn
-				(funcall fn suite)
-				(error "expected to find ~a test for ~a but didn't" name suite-name))
-			      #+(or)
-			      (lift-test suite name)))
+			    (do-test suite name result))
 			(declare (ignore result))
 			(setf error error-condition)
 			(destructuring-bind (space seconds) measures

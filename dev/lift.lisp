@@ -491,6 +491,8 @@ LIFT during a test run.")
   (apply #'format *lift-debug-output* message args)
   (force-output *lift-debug-output*))
 
+(defgeneric do-test (testsuite test-case-name result))
+
 (defgeneric testsuite-setup (testsuite result)
   (:documentation "Setup at the testsuite-level")
   (:method ((testsuite test-mixin) (result test-result))

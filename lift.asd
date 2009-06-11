@@ -45,6 +45,8 @@
 			:depends-on ("port" "lift"))
 		 (:file "introspection" 
 			:depends-on ("lift"))
+		 (:file "test-runner" 
+			:depends-on ("lift"))
 		 #+allegro
 		 (:file "periodic-profiling"
 			;; what I'd like to say

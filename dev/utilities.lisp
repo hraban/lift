@@ -176,12 +176,6 @@ the class itself is not included in the mapping. Proper? defaults to nil."
   (let ((result (class-precedence-list (get-class thing))))
     (if proper? (rest result) result)))
 
-#+(or)
-;;?? remove
-(defun direct-superclasses (thing)
-  "Returns the immediate superclasses of thing. Thing can be a class, object or symbol naming a class."
-  (class-direct-superclasses (get-class thing)))
-
 (declaim (inline length-1-list-p)) 
 (defun length-1-list-p (x) 
   "Is x a list of length 1?"

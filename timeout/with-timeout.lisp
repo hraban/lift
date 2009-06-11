@@ -13,26 +13,6 @@
   (:documentation "An error signaled when the duration specified in 
 the [with-timeout][] is exceeded."))
 
-(defmacro with-timeout ((seconds) &body body)
-  "Execute `body` for no more than `seconds` time. 
-
-If `seconds` is exceeded, then a [timeout-error][] will be signaled. 
-
-If `seconds` is nil, then the body will be run normally until it completes
-or is interrupted."
-  (build-with-timeout seconds body))
-
-(defun build-with-timeout (seconds body)
-  (let ((gseconds (gensym "seconds-"))
-  (gdoit (gensym "doit-")))
-    `(let ((,gseconds ,seconds))
-       (flet ((,gdoit ()
-    (progn ,@body)))
-   (cond (,gseconds
-    ,(generate-platform-specific-code gseconds gdoit))
-         (t
-    (,gdoit)))))))
-
 #+allegro
 (defun generate-platform-specific-code (seconds-symbol doit-symbol)
   `(mp:with-timeout (,seconds-symbol (error 'timeout-error)) 
@@ -81,7 +61,7 @@ or is interrupted."
       (,process (ccl:process-run-function 
            ,checker-process
            (lambda ()
-       (setf ,result (progn (,doit-symbol))))))) 
+       (setf ,result (multiple-value-list (,doit-symbol))))))) 
        (ccl:process-wait-with-timeout
   ,waiting-process
   (* ,seconds-symbol #+(or openmcl ccl)
@@ -91,7 +71,26 @@ or is interrupted."
        (when (ccl::process-active-p ,process)
    (ccl:process-kill ,process)
    (cerror "Timeout" 'timeout-error))
-       (values ,result))))
+       (values-list ,result))))
+
+#+(or digitool openmcl ccl)
+(defun generate-platform-specific-code (seconds-symbol doit-symbol)
+  (let ((gsemaphore (gensym "semaphore"))
+	(gresult (gensym "result"))
+	(gprocess (gensym "process")))
+   `(let* ((,gsemaphore (ccl:make-semaphore))
+           (,gresult)
+           (,gprocess
+            (ccl:process-run-function
+             ,(format nil "Timed Process ~S" gprocess)
+             (lambda ()
+               (setf ,gresult (multiple-value-list (,doit-symbol)))
+               (ccl:signal-semaphore ,gsemaphore)))))
+      (cond ((ccl:timed-wait-on-semaphore ,gsemaphore ,seconds-symbol)
+             (values-list ,gresult))
+            (t
+             (ccl:process-kill ,gprocess)
+             (error 'timeout-error))))))
 
 #+lispworks
 (defun generate-platform-specific-code (seconds-symbol doit-symbol)
@@ -102,7 +101,7 @@ or is interrupted."
       "WITH-TIMEOUT"
       '()
       (lambda ()
-        (setq ,gresult (,doit-symbol))))))
+        (setq ,gresult (multiple-value-list (,doit-symbol)))))))
        (unless (mp:process-wait-with-timeout
     "WITH-TIMEOUT"
     ,seconds-symbol
@@ -110,7 +109,7 @@ or is interrupted."
       (not (mp:process-alive-p ,gprocess))))
    (mp:process-kill ,gprocess)
    (cerror "Timeout" 'timeout-error))
-       ,gresult)))
+       (values-list ,gresult))))
 
 (unless (let ((symbol
          (find-symbol (symbol-name '#:generate-platform-specific-code)
@@ -119,5 +118,26 @@ or is interrupted."
   (defun generate-platform-specific-code (seconds-symbol doit-symbol)
     (declare (ignore seconds-symbol))
     `(,doit-symbol)))
+
+(defmacro with-timeout ((seconds) &body body)
+  "Execute `body` for no more than `seconds` time. 
+
+If `seconds` is exceeded, then a [timeout-error][] will be signaled. 
+
+If `seconds` is nil, then the body will be run normally until it completes
+or is interrupted."
+  (build-with-timeout seconds body))
+
+(defun build-with-timeout (seconds body)
+  (let ((gseconds (gensym "seconds-"))
+  (gdoit (gensym "doit-")))
+    `(let ((,gseconds ,seconds))
+       (flet ((,gdoit ()
+    (progn ,@body)))
+   (cond (,gseconds
+    ,(generate-platform-specific-code gseconds gdoit))
+         (t
+    (,gdoit)))))))
+
 
 ))

@@ -61,7 +61,7 @@ lift::(progn
   )
 
 (defgeneric summarize-test-problems-of-type 
-    (problems stream id heading)
+    (problems stream id heading name)
   )
 
 (defgeneric summarize-single-test 
@@ -205,27 +205,40 @@ lift::(progn
 
 (defmethod summarize-test-result (result stream (format (eql :html)))
   (format stream "~&<div id=\"summary\">")
-  (format stream "~&<h1>Test results for: ~a</h1>~%"
-	  (results-for result))
+  (format stream "~&<h1>Test results for: ")
+  (cond ((probe-file (results-for result))
+	 (let ((config-html (merge-pathnames "config.html" stream)))
+	   (save-configuration-file result config-html)
+	   (format stream "<a href=\"config.html\">~a</a>"
+		   (results-for result))))
+	(t
+	 (format stream "~a" (results-for result))))
+  (format stream "</h1>~%")
   (let ((complete-success? (and (null (errors result))
                                 (null (failures result))))) 
     (cond (complete-success?
 	   (format stream "~&<h2>~A Successful test~:P</h2>~%"
 		   (length (tests-run result))))
 	  (t
-	   (format stream 
-		   "~&<h2>~A Test~:P~[~:;, ~:*~A Failure~:P~]~[~:;, ~:*~A Error~:P~].</h2>~%"
-		   (length (tests-run result))
-		   (length (failures result))
-		   (length (errors result)))))
+	   (format stream "~&<h2>~:d test~:p"
+		   (length (tests-run result)))
+	   (format stream "~[~:;, ~:*<a href=\"#failures\">~:d failure~:P~]</a>"
+		   (length (failures result)))
+	   (format stream "~[~:;, ~:*<a href=\"#errors\">~:d error~:P~]</a>"
+		   (length (errors result)))
+	   (format stream "</h2>")))
 
     (when (or (expected-errors result) (expected-failures result))
-      (format stream "~&<h3>~[~:;~:*Expected failure~p: ~:*~a~]~[~:;, ~]~[~:;~:*Expected error~p: ~:*~a~]</h3>~%" 
-	      (length (expected-failures result))
-	      ;; zero if only one or the other (so we don't need a separator...)
+      (format stream "~&<h3>")
+      (format stream "~[~:;~:*<a href=\"#expected-failures\">Expected failure~p: ~:*~:d</a>~]"
+	      (length (expected-failures result)))
+      ;; zero if only one or the other (so we don't need a separator...)
+      (format stream "~[~:;, ~]"
 	      (* (length (expected-failures result))
-		 (length (expected-errors result)))
-	      (length (expected-errors result))))
+		 (length (expected-errors result))))
+      (format stream "~[~:;~:*<a href=\"#expected-errors\">Expected error~p: ~:*~:d</a>~]"
+	      (length (expected-errors result)))
+      (format stream "</h3>~%"))
 
     (when (and (slot-boundp result 'end-time-universal)
 	       (numberp (end-time-universal result))
@@ -252,24 +265,24 @@ lift::(progn
   (format stream "~&<h2>Problem Summary:</h2>")
   (when (failures result)
     (summarize-test-problems-of-type 
-     (failures result) stream "failure-summary" "Failures"))
+     (failures result) stream "failure-summary" "Failures" "failures"))
   (when (errors result)
     (summarize-test-problems-of-type 
-     (errors result) stream "error-summary" "Errors"))
+     (errors result) stream "error-summary" "Errors" "errors"))
   (when (expected-failures result)
     (summarize-test-problems-of-type 
      (expected-failures result)
-     stream "expected-failure-summary" "Expected Failures"))
+     stream "expected-failure-summary" "Expected Failures" "expected-failures"))
   (when (expected-errors result)
     (summarize-test-problems-of-type 
      (expected-errors result) stream "expected-failure-summary" 
-     "Expected Errors"))
+     "Expected Errors" "expected-errors"))
   (format stream "~&</div>"))
 
 (defmethod summarize-test-problems-of-type 
-    (problems stream id heading)
+    (problems stream id heading name)
   (format stream "~&<div id=\"~a\">" id)
-  (format stream "~&<h3>~a</h3>" heading)
+  (format stream "~&<a name=\"~a\"></a><h3>~a</h3>" name heading)
   (report-tests-by-suite 
    (mapcar (lambda (problem)
 	     `(,(type-of (testsuite problem))
@@ -279,10 +292,32 @@ lift::(progn
   (format stream "~&</div>"))
 
 (defmethod summarize-tests-run (result stream (format (eql :html)))
-  (format stream "~&<div id=\"results\">")
-  (format stream "~&<h2>Tests Run:</h2>")
-  (report-tests-by-suite (tests-run result) stream)
-  (format stream "~&</div>"))
+  (flet ((doit (stream)
+	   (format stream "~&<div id=\"results\">")
+	   (format stream "~&<h2>Tests Run:</h2>")
+	   (report-tests-by-suite (tests-run result) stream)
+	   (format stream "~&</div>")))
+    (cond ((or (failures result) (errors result)
+	       (expected-failures result) (expected-errors result))
+	   ;; print separately
+	   (with-open-file (new-stream (merge-pathnames "summary.html" stream)
+				   :direction :output
+				   :if-does-not-exist :create
+				   :if-exists :supersede)
+	     (html-header 
+	      new-stream 
+	      "test summary"
+	      (test-result-property result :style-sheet))
+	     (format new-stream "~&<br><br><h1>Test Summary</h1>~%")
+	     (format new-stream "~&<a href=\"~a\">Back</a>"
+		     (namestring (make-pathname :name (pathname-name stream)
+						:type (pathname-type stream))))
+	     (doit new-stream)
+	     (html-footer new-stream))
+	   (format stream
+		   "~&<h2><a href=\"summary.html\">Test result summary</a></h2>~%"))	
+	  (t
+	   (doit stream)))))
 
 (defun report-tests-by-suite (tests stream)
   (let ((current-suite nil))
@@ -423,7 +458,8 @@ lift::(progn
 			     (details-link stream suite test-name) 
 			     stream)))
        (ensure-directories-exist output-pathname)
-       (let ((*print-right-margin* 64))
+       (let ((*print-right-margin* 64)
+	     (problem (getf datum :problem)))
 	 (with-open-file (out output-pathname
 			      :direction :output
 			      :if-does-not-exist :create
@@ -437,14 +473,27 @@ lift::(progn
 	   (format out "~&<a href=\"~a\">Back</a>"
 		   (namestring (make-pathname :name (pathname-name stream)
 					      :type (pathname-type stream))))
+	   (format out "~&<p>Problem occurred during ~a.</p>"
+		   (test-step problem))
 	   (format out "~&<pre>")
 	   (format out "~a"
 		   (wrap-encode-pre 
 		    (with-output-to-string (s)
-		      (print-test-problem "" (getf datum :problem) s t))
+		      (print-test-problem "" problem s t))
 		    :width (test-result-property 
 			    *test-result* :print-width 60)))
 	   (format out "~&</pre>") 
+	   (when (and (typep problem 'test-error-mixin)
+		      (backtrace problem))
+	     (format out "~&~%<h2>Backtrace</h2>~%~%")
+	     (format out "~&<pre><code>~%")
+	     (format out "~a"
+		     (wrap-encode-pre 
+		      (with-output-to-string (s)
+			(print (backtrace problem) s))
+		      :width (test-result-property 
+			      *test-result* :print-width 60)))
+	     (format out "~&</pre></code>~%"))
 	   (html-footer out))))))
 
 #+(or)
@@ -688,24 +737,24 @@ lift::(progn
      &key (stream *standard-output*))
   (labels ((out (key value)
 	     (when value
-	       (format stream "~&\(~s ~s\)" key value)))
+	       (format stream "~&\(~s . ~s\)" key value)))
 	   (write-datum (name &key (source data))
-	     (let* ((key (intern (symbol-name name) :keyword))
+	     (let* ((key (form-keyword name))
 		    (value (getf source key)))
-	       (out key value)))
-	   (prop (name)
-	     (write-datum name :source (getf data :properties))))
+	       (out key value))))
     (format stream "~&\(~%")
-    (format stream "~&\(:suite ~a\)" suite-name)	     
-    (format stream "~&\(:name ~a\)" test-case-name)
+    (out :suite suite-name)
+    (out :name test-case-name)
     ;; FIXME - we could make these extensible
     (write-datum 'start-time-universal)
     (write-datum 'end-time-universal)
     (write-datum 'result)
     (write-datum 'seconds)
     (write-datum 'conses)
-    (loop for stuff in (getf data :properties) by #'cddr do
-	 (prop stuff))
+    (let ((properties (getf data :properties)))
+      (loop for key in properties by #'cddr
+	 for value in (rest properties) by #'cddr do
+	 (out key value)))
     (cond ((getf data :problem)
 	   (let ((problem (getf data :problem)))
 	     (out :problem-kind (test-problem-kind problem))
@@ -891,3 +940,40 @@ lift::(progn
   (and (symbolp thing)
        (fboundp thing)
        (typep (symbol-function thing) 'standard-generic-function)))
+
+(defun save-configuration-file (result destination)
+  (with-open-file (stream destination
+			  :direction :output
+			  :if-exists :supersede
+			  :if-does-not-exist :create)
+    (html-header 
+     stream 
+     "test configuration file"
+     (test-result-property result :style-sheet))
+    (format stream "~&<h1>Test configuration</h1>~%")
+    (format stream "~&<pre>~%")
+    (with-open-file (*current-configuration-stream* (results-for result)
+						    :direction :input
+						    :if-does-not-exist :error)
+      (let ((form nil))
+	(loop while (not (eq (setf form (read *current-configuration-stream* 
+					      nil :eof nil)) :eof))
+	   do
+	   ;; special handling for include
+	   (cond ((and (consp form) (eql (first form) :include))
+		  (destructuring-bind (name &rest args)
+		      form
+		    (declare (ignore name))
+		    (format stream "~&~%;; begin - include ~a~%" 
+			    (first args))
+		    (save-configuration-file
+		     (merge-pathnames (ensure-string (first args))
+				      *current-configuration-stream*)
+		     stream)
+		    (format stream "~&;; end - include ~a~%~%"
+			    (first args))))
+		 (t
+		  (print form stream))))))
+    (format stream "~&</pre>~%")
+    (html-footer stream)))
+
