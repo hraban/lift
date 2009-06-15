@@ -797,6 +797,8 @@ these cancel testing instead.)"))
 
 (addtest (handle-serious-condition-helper)
   test-1
+  (signal 'serious-condition)
+  #+(or)
   ;; I expect this to signal an error!
   (make-array (1- most-positive-fixnum)))
 

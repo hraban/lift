@@ -9,7 +9,7 @@ website/changelog.xml
 
 lift.tar.gz
 website/output/
-test-results/
+test-results*/
 lift-local.config
 *.dribble
 *.fasl

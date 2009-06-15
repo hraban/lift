@@ -90,8 +90,10 @@
 	   (report-test-problem
 	    'testsuite-failure result suite 
 	    *current-test-case-name* condition))
-	 (retry-test () :report "Retry the test." 
-		     (go :test-start)))
+	 (retry-test () 
+	   :report (lambda (s) (format s "Re-run testsuite ~a"
+			     *current-testsuite-name*))
+	   (go :test-start)))
      :test-end))
   (values result))
 
@@ -326,7 +328,8 @@ nor configuration file options were specified.")))))
 		 (test-case-teardown suite result)
 		 (record-end-times result suite)))
 	   (ensure-failed (condition) 
-	     :test (lambda (c) (declare (ignore c)) *in-middle-of-failure?*)
+	     :test (lambda (c) (declare (ignore c)) 
+			   *in-middle-of-failure?*)
 	     (report-test-problem
 	      'test-failure result suite 
 	      *current-test-case-name* condition)
@@ -335,8 +338,10 @@ nor configuration file options were specified.")))))
 		 (let ((*in-middle-of-failure?* nil))
 		   (invoke-debugger condition))
 		 (go :test-end)))
-	   (retry-test () :report "Retry the test." 
-		       (go :test-start)))
+	   (retry-test () 
+	     :report (lambda (s) (format s "Re-run test-case ~a"
+			     *current-test-case-name*))
+	     (go :test-start)))
        :test-end)
       (maybe-push-result))
     (when *lift-report-pathname*
@@ -349,13 +354,14 @@ nor configuration file options were specified.")))))
 
 
 (defun handle-error-while-testing (condition error-class suite result)
-  (report-test-problem
-   error-class result suite
-   *current-test-case-name* condition
-   :backtrace (get-backtrace condition))
-  (when (and *test-break-on-errors?*
-	     (not (testcase-expects-error-p)))
-    (invoke-debugger condition)))
+  (let ((*in-middle-of-failure?* nil))
+    (report-test-problem
+     error-class result suite
+     *current-test-case-name* condition
+     :backtrace (get-backtrace condition))
+    (when (and *test-break-on-errors?*
+	       (not (testcase-expects-error-p)))
+      (invoke-debugger condition))))
 
 (defun maybe-add-dribble (stream dribble-stream)
   (if dribble-stream

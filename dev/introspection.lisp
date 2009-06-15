@@ -303,23 +303,42 @@ control over where in the test hierarchy the search begins."
 
 ;; could build up a list here too
 ;; expensive, don't keep calling `massage-condition-string`
-(defun report-issues (result kind)
+(defun build-issues-list (result kind)
   (let* ((args (list :failures? nil :errors? nil :expected-failures? nil
 		     :expected-errors? nil)))
     (ecase kind
       (:errors (setf (getf args :errors?) t))
       (:failures (setf (getf args :failures?) t)))
-    (let ((tests (rest (first (apply #'test-results :result result args))))
+    (let ((tests (mapcar (lambda (triple)
+			   (list* (massage-condition-string triple) triple))
+			 (rest (first (apply #'test-results 
+					     :result result args)))))
+	  (result nil)
+	  (sub-result nil)
 	  (last-string ""))
-      (loop for triple in 
-	   (sort tests 'string-lessp :key 'massage-condition-string) do
-	   (destructuring-bind (suite name condition)
-	       triple
-	     (declare (ignore condition))
-	     (unless (string= last-string (massage-condition-string triple))
-	       (setf last-string (massage-condition-string triple))
-	       (format t "~%~%~a~%~%" last-string))
-	     (format t "~&   ~a ~a~&" suite name))))))
+      (flet ((grab (sub-result)
+	       (when sub-result
+		 (push (cons last-string sub-result) result))))
+	(loop for datum in 
+	     (sort tests 'string-lessp :key 'first) do
+	     (destructuring-bind (string _0 _1 _2)
+		 datum
+	       (declare (ignore _0 _1 _2))
+	       (unless (string= last-string string)
+		 (grab sub-result)
+		 (setf last-string string
+		       sub-result nil))
+	       (push datum sub-result)))
+	(grab sub-result)
+	(nreverse result)))))
+
+(defun report-issues (result kind)
+  (loop for (string . issues) in (build-issues-list result kind) do
+       (format t "~%~%~a~%~%" string)
+       (loop for issue in issues do
+	    (destructuring-bind (_1 suite name _2) issue
+	      (declare (ignore _1 _2))
+	      (format t "~&   ~a ~a~&" suite name)))))
 
 #+(or)
 (db.agraph::with-new-file (*standard-output* "errors.txt")

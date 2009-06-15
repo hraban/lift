@@ -78,38 +78,12 @@ For example, compile without cross-reference information."
 	     (,gcatch-errors-p ,catch-errors-p)
 	     ,@vars)
 	 (setf ,gresult
-	       (handler-case 
-		   ,@(measure-1 vars measures)
-		 (error (c)
-		   (setf ,gcondition c)
-		   (unless ,gcatch-errors-p
-		     (error c)))))
-	 (values ,gresult (list ,@vars) ,gcondition)))))
-
-#+notyet
-;; returns error as third value (and probably as first too!)
-(defmacro while-measuring ((&rest measures) (&body error-body)
-			   &body body)
-  (let ((vars (loop for measure in measures collect
-		   (gensym (format nil "~a-" measure))))
-	(gcondition (gensym "condition-"))
-	(gresult (gensym "result-")))
-    (labels ((measure-1 (vars measures)
-	       (cond ((null measures) body)
-		     (t
-		      `((while-measuring-1 (,(first vars) ,(first measures))
-			 ,@(measure-1 (rest vars) (rest measures))))))))
-      `(let ((,gcondition nil)
-	     (,gresult nil)
-	     ,@vars)
-	 (setf ,gresult
-	       (handler-case 
-		   ,@(measure-1 vars measures)
-		 (error (c) 
-		   ,@(if error-body
-			 `((progn ,error-body
-				 (error c)))
-			 `((setf ,gcondition c))))))
+	       (handler-bind
+		   ((error (lambda (c)
+			     (setf ,gcondition c)
+			     (unless ,gcatch-errors-p
+			       (error c)))))
+		 ,@(measure-1 vars measures)))
 	 (values ,gresult (list ,@vars) ,gcondition)))))
 
 #+(or) 

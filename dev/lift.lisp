@@ -127,6 +127,7 @@ can be :supersede, :append, or :error.")
 
 (defvar *test-show-code-p* t)
  
+
 ;;; ---------------------------------------------------------------------------
 ;;; Error messages and warnings
 ;;; ---------------------------------------------------------------------------
@@ -153,6 +154,151 @@ can be :supersede, :append, or :error.")
 
 (defparameter +lift-unable-to-parse-test-name-and-class+ 
   "")
+
+
+;;; ---------------------------------------------------------------------------
+;;; classes
+;;; ---------------------------------------------------------------------------
+
+(defclass test-mixin ()
+  ((name :initform nil :initarg :name :accessor name :reader testsuite-name)
+   (run-setup :reader run-setup :initarg :run-setup)
+   (done-setup? :initform nil :reader done-setup?)
+   (done-dynamics? :initform nil :reader done-dynamics?)
+   (test-slot-names :initform nil :initarg :test-slot-names 
+		    :reader test-slot-names)
+   (current-step :initform :created :accessor current-step)
+   (current-method :initform nil :accessor current-method)
+   (save-equality-test :initform nil  :reader save-equality-test)
+   (log-file :initform nil :initarg :log-file :reader log-file)
+   (test-data :initform nil :accessor test-data)
+   (expected-failure-p :initform nil :initarg :expected-failure-p
+		       :reader expected-failure-p)
+   (expected-error-p :initform nil :initarg :expected-error-p
+		     :reader expected-error-p)
+   (expected-problem-p :initform nil :initarg :expected-problem-p
+		       :reader expected-problem-p)
+   (suite-initargs
+    :initform nil
+    :accessor suite-initargs)
+   (profile 
+    :initform nil
+    :initarg :profile
+    :accessor profile))
+  (:documentation "A test suite")
+  (:default-initargs
+    :run-setup :once-per-test-case))
+
+(defclass test-result ()
+  ((results-for :initform nil 
+		:initarg :results-for 
+		:accessor results-for)
+   (tests-run :initform nil :accessor tests-run)
+   (suites-run :initform nil :accessor suites-run)
+   (failures :initform nil :accessor failures)
+   (expected-failures :initform nil :accessor expected-failures)
+   (errors :initform nil :accessor errors)
+   (expected-errors :initform nil :accessor expected-errors)
+   (skipped-test-cases :initform nil :accessor skipped-test-cases)
+   (skipped-testsuites :initform nil :accessor skipped-testsuites)
+   (test-mode :initform :single :initarg :test-mode :accessor test-mode)
+   (test-interactive? :initform nil 
+                      :initarg :test-interactive? :accessor test-interactive?)
+   (real-start-time :initarg :real-start-time :reader real-start-time)
+   (start-time :accessor start-time :initform nil)
+   (end-time :accessor end-time)
+   (real-end-time :accessor real-end-time)
+   (real-start-time-universal
+    :initarg :real-start-time-universal :reader real-start-time-universal)
+   (start-time-universal :accessor start-time-universal :initform nil)
+   (end-time-universal :accessor end-time-universal)
+   (real-end-time-universal :accessor real-end-time-universal)
+   (properties :initform nil :accessor test-result-properties))
+  (:documentation 
+"A `test-result` instance contains all of the information collectd by 
+LIFT during a test run.")
+  (:default-initargs
+    :test-interactive? *test-is-being-defined?*
+    :real-start-time (get-internal-real-time)
+    :real-start-time-universal (get-universal-time)))
+
+(defclass test-problem-mixin ()
+  ((testsuite :initform nil :initarg :testsuite :reader testsuite)
+   (test-method :initform nil :initarg :test-method :reader test-method)
+   (test-condition :initform nil
+		   :initarg :test-condition 
+		   :reader test-condition)
+   (test-problem-kind :reader test-problem-kind :allocation :class)
+   (test-step :initform nil :initarg :test-step :reader test-step)))
+
+(defmethod print-object ((problem test-problem-mixin) stream)
+  (print-unreadable-object (problem stream)
+    (format stream "TEST-~@:(~A~): ~A in ~A" 
+            (test-problem-kind problem) 
+            (name (testsuite problem))
+	    (test-method problem))))
+
+(defclass generic-problem (test-problem-mixin)
+  ((test-problem-kind :initarg :test-problem-kind
+		      :allocation :class)))
+
+(defclass expected-problem-mixin ()
+  ((documentation :initform nil 
+		  :initarg :documentation
+		  :accessor failure-documentation)))
+
+(defclass test-expected-failure (expected-problem-mixin generic-problem)
+  ()
+  (:default-initargs 
+   :test-problem-kind "Expected failure"))
+
+(defclass test-failure (generic-problem)
+  ()
+  (:default-initargs 
+   :test-problem-kind "failure"))
+
+(defclass test-error-mixin (generic-problem) 
+  ((backtrace :initform nil :initarg :backtrace :reader backtrace)))
+  
+(defclass test-expected-error (expected-problem-mixin test-error-mixin)
+  ()
+  (:default-initargs 
+   :test-problem-kind "Expected error"))
+
+(defclass test-error (test-error-mixin)
+  ()
+  (:default-initargs 
+   :test-problem-kind "Error"))
+
+(defclass test-serious-condition (test-error-mixin)
+  ()
+  (:default-initargs 
+   :test-problem-kind "Serious condition"))
+
+(defclass testsuite-error (test-error-mixin)
+  ()
+  (:default-initargs 
+   :test-problem-kind "Testsuite error"))
+
+(defclass testsuite-serious-condition (test-error-mixin)
+  ()
+  (:default-initargs 
+   :test-problem-kind "Testsuite serious condition"))
+
+(defclass testsuite-failure (generic-problem)
+  ()
+  (:default-initargs 
+   :test-problem-kind "Testsuite failure"))
+
+
+
+(defclass process-test-mixin (test-mixin)
+  ((maximum-time :initform *test-maximum-time* 
+                 :accessor maximum-time
+                 :initarg :maximum-time)))
+
+(defclass test-timeout-failure (test-failure)
+  ((test-problem-kind :initform "Timeout" :allocation :class)))
 
 
 ;;; ---------------------------------------------------------------------------
@@ -399,67 +545,33 @@ can be :supersede, :append, or :error.")
 ;;; test-mixin
 ;;; ---------------------------------------------------------------------------
 
-(defclass test-mixin ()
-  ((name :initform nil :initarg :name :accessor name :reader testsuite-name)
-   (run-setup :reader run-setup :initarg :run-setup)
-   (done-setup? :initform nil :reader done-setup?)
-   (done-dynamics? :initform nil :reader done-dynamics?)
-   (test-slot-names :initform nil :initarg :test-slot-names 
-		    :reader test-slot-names)
-   (current-step :initform :created :accessor current-step)
-   (current-method :initform nil :accessor current-method)
-   (save-equality-test :initform nil  :reader save-equality-test)
-   (log-file :initform nil :initarg :log-file :reader log-file)
-   (test-data :initform nil :accessor test-data)
-   (expected-failure-p :initform nil :initarg :expected-failure-p
-		       :reader expected-failure-p)
-   (expected-error-p :initform nil :initarg :expected-error-p
-		     :reader expected-error-p)
-   (expected-problem-p :initform nil :initarg :expected-problem-p
-		       :reader expected-problem-p)
-   (suite-initargs
-    :initform nil
-    :accessor suite-initargs)
-   (profile 
-    :initform nil
-    :initarg :profile
-    :accessor profile))
-  (:documentation "A test suite")
-  (:default-initargs
-    :run-setup :once-per-test-case))
+(defmethod testsuite-setup ((testsuite test-mixin) (result test-result))
+  (values))
 
-(defclass test-result ()
-  ((results-for :initform nil 
-		:initarg :results-for 
-		:accessor results-for)
-   (tests-run :initform nil :accessor tests-run)
-   (suites-run :initform nil :accessor suites-run)
-   (failures :initform nil :accessor failures)
-   (expected-failures :initform nil :accessor expected-failures)
-   (errors :initform nil :accessor errors)
-   (expected-errors :initform nil :accessor expected-errors)
-   (skipped-test-cases :initform nil :accessor skipped-test-cases)
-   (skipped-testsuites :initform nil :accessor skipped-testsuites)
-   (test-mode :initform :single :initarg :test-mode :accessor test-mode)
-   (test-interactive? :initform nil 
-                      :initarg :test-interactive? :accessor test-interactive?)
-   (real-start-time :initarg :real-start-time :reader real-start-time)
-   (start-time :accessor start-time :initform nil)
-   (end-time :accessor end-time)
-   (real-end-time :accessor real-end-time)
-   (real-start-time-universal
-    :initarg :real-start-time-universal :reader real-start-time-universal)
-   (start-time-universal :accessor start-time-universal :initform nil)
-   (end-time-universal :accessor end-time-universal)
-   (real-end-time-universal :accessor real-end-time-universal)
-   (properties :initform nil :accessor test-result-properties))
-  (:documentation 
-"A `test-result` instance contains all of the information collectd by 
-LIFT during a test run.")
-  (:default-initargs
-    :test-interactive? *test-is-being-defined?*
-    :real-start-time (get-internal-real-time)
-    :real-start-time-universal (get-universal-time)))
+(defmethod testsuite-setup :before ((testsuite test-mixin) (result test-result))
+  (when (and *test-print-testsuite-names*
+	     (eq (test-mode result) :multiple))
+    (print-lift-message "~&Start: ~a" (type-of testsuite)))
+  (push (type-of testsuite) (suites-run result))
+  (setf (current-step testsuite) :testsuite-setup))
+
+(defmethod testsuite-expects-error ((testsuite test-mixin))
+    nil)
+
+(defmethod testsuite-expects-failure ((testsuite test-mixin))
+  nil)
+
+(defmethod testsuite-teardown ((testsuite test-mixin) (result test-result))
+  ;; no-op
+  )
+
+(defmethod testsuite-teardown :after
+    ((testsuite test-mixin) (result test-result))
+  (setf (current-step testsuite) :testsuite-teardown
+	(real-end-time result) (get-internal-real-time)
+	(real-end-time-universal result) (get-universal-time)))
+
+;;;;
 
 (defun canonize-skip-tests ()
   (when *skip-tests*
@@ -491,93 +603,6 @@ LIFT during a test run.")
   (apply #'format *lift-debug-output* message args)
   (force-output *lift-debug-output*))
 
-(defgeneric do-test (testsuite test-case-name result))
-
-(defgeneric testsuite-setup (testsuite result)
-  (:documentation "Setup at the testsuite-level")
-  (:method ((testsuite test-mixin) (result test-result))
-           (values))
-  (:method :before ((testsuite test-mixin) (result test-result))
-	   (when (and *test-print-testsuite-names*
-		      (eq (test-mode result) :multiple))
-	     (print-lift-message "~&Start: ~a" (type-of testsuite)))
-	   (push (type-of testsuite) (suites-run result))
-           (setf (current-step testsuite) :testsuite-setup)))
-
-(defgeneric testsuite-expects-error (testsuite)
-  (:documentation "Returns whether or not the testsuite as a whole expects an error.")
-  (:method ((testsuite test-mixin))
-    nil))
-
-(defgeneric testsuite-expects-failure (testsuite)
-  (:documentation "Returns whether or not the testsuite as a whole expects to fail.")
-  (:method ((testsuite test-mixin))
-    nil))
-
-(defgeneric testsuite-run (testsuite result)
-  (:documentation "Run the cases in this suite and it's children."))
-
-(defgeneric testsuite-teardown (testsuite result)
-  (:documentation "Cleanup at the testsuite level.")
-  (:method ((testsuite test-mixin) (result test-result))
-    ;; no-op
-    )
-  (:method :after ((testsuite test-mixin) (result test-result))
-    (setf (current-step testsuite) :testsuite-teardown
-	  (real-end-time result) (get-internal-real-time)
-	  (real-end-time-universal result) (get-universal-time))))
-
-(defgeneric setup-test (testsuite)
-  (:documentation "Setup for a test-case. By default it does nothing."))
-
-(defgeneric test-case-teardown (testsuite result)
-  (:documentation "Tear-down a test-case. By default it does nothing.")
-  (:method-combination progn :most-specific-first))
-
-(defgeneric testsuite-methods (testsuite)
-  (:documentation "Returns a list of the test methods defined for test. I.e.,
-the methods that should be run to do the tests for this test."))
-
-(defgeneric do-testing (testsuite result fn)
-  (:documentation ""))
-
-(defgeneric run-test-internal (suite name result &rest args)
-  (:documentation ""))
-
-(defgeneric run-tests-internal (suite &rest args
- 			       &key &allow-other-keys)
-  (:documentation ""))
-
-(defgeneric test-report-code (testsuite method)
-  (:documentation ""))
-
-(defgeneric testsuite-p (thing)
-  (:documentation "Determine whether or not `thing` is a testsuite. Thing can be a symbol naming a suite, a subclass of `test-mixin` or an instance of a test suite. Returns nil if `thing` is not a testsuite and the symbol naming the suite if it is."))
-
-(defgeneric testsuite-name->gf (case name)
-  (:documentation ""))
-
-(defgeneric testsuite-name->method (class name)
-  (:documentation ""))
-
-(defgeneric flet-test-function (testsuite function-name &rest args)
-  (:documentation ""))
-
-(defgeneric equality-test (testsuite)
-  (:documentation ""))
-
-(defgeneric do-testing-in-environment (testsuite result function)
-  (:documentation ""))  
-
-;;?? probably just defuns (since they are hard to specialize on in any case)
-;;?? or change signature to take testsuite instead of suite-name
-(defgeneric skip-test-case (result suite-name test-case-name))
-(defgeneric skip-testsuite (result suite-name))
-
-(defgeneric describe-test-result (result stream &key &allow-other-keys)
-  )
-
-(defgeneric write-profile-information (testsuite))
 
 (defmethod write-profile-information ((suite t))
   )
@@ -640,11 +665,6 @@ the thing being defined.")
 
 (defstruct (code-block (:type list) (:conc-name nil))
   block-name (priority 0) filter code operate-when)
-
-(defgeneric block-handler (name value)
-  (:documentation "")
-  (:method ((name t) (value t))
-           (error "Unknown clause: ~A" name)))
 
 (defun add-code-block (name priority operate-when filter handler code)
   (let ((current (assoc name *code-blocks*))
@@ -1434,73 +1454,6 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 ;;; test-reports
 ;;; ---------------------------------------------------------------------------
 
-(defclass test-problem-mixin ()
-  ((testsuite :initform nil :initarg :testsuite :reader testsuite)
-   (test-method :initform nil :initarg :test-method :reader test-method)
-   (test-condition :initform nil
-		   :initarg :test-condition 
-		   :reader test-condition)
-   (test-problem-kind :reader test-problem-kind :allocation :class)
-   (test-step :initform nil :initarg :test-step :reader test-step)))
-
-(defmethod print-object ((problem test-problem-mixin) stream)
-  (print-unreadable-object (problem stream)
-    (format stream "TEST-~@:(~A~): ~A in ~A" 
-            (test-problem-kind problem) 
-            (name (testsuite problem))
-	    (test-method problem))))
-
-(defclass generic-problem (test-problem-mixin)
-  ((test-problem-kind :initarg :test-problem-kind
-		      :allocation :class)))
-
-(defclass expected-problem-mixin ()
-  ((documentation :initform nil 
-		  :initarg :documentation
-		  :accessor failure-documentation)))
-
-(defclass test-expected-failure (expected-problem-mixin generic-problem)
-  ()
-  (:default-initargs 
-   :test-problem-kind "Expected failure"))
-
-(defclass test-failure (generic-problem)
-  ()
-  (:default-initargs 
-   :test-problem-kind "failure"))
-
-(defclass test-error-mixin (generic-problem) 
-  ((backtrace :initform nil :initarg :backtrace :reader backtrace)))
-  
-(defclass test-expected-error (expected-problem-mixin test-error-mixin)
-  ()
-  (:default-initargs 
-   :test-problem-kind "Expected error"))
-
-(defclass test-error (test-error-mixin)
-  ()
-  (:default-initargs 
-   :test-problem-kind "Error"))
-
-(defclass test-serious-condition (test-error-mixin)
-  ()
-  (:default-initargs 
-   :test-problem-kind "Serious condition"))
-
-(defclass testsuite-error (test-error-mixin)
-  ()
-  (:default-initargs 
-   :test-problem-kind "Testsuite error"))
-
-(defclass testsuite-serious-condition (test-error-mixin)
-  ()
-  (:default-initargs 
-   :test-problem-kind "Testsuite serious condition"))
-
-(defclass testsuite-failure (generic-problem)
-  ()
-  (:default-initargs 
-   :test-problem-kind "Testsuite failure"))
 
 (defmethod test-report-code ((testsuite test-mixin) (method symbol))
   (let* ((class-name (class-name (class-of testsuite))))
@@ -1850,14 +1803,6 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
    (push (def :timeout) (def :default-initargs))
    (push :maximum-time (def :default-initargs))
    nil))
-
-(defclass process-test-mixin (test-mixin)
-  ((maximum-time :initform *test-maximum-time* 
-                 :accessor maximum-time
-                 :initarg :maximum-time)))
-
-(defclass test-timeout-failure (test-failure)
-  ((test-problem-kind :initform "Timeout" :allocation :class)))
 
 (defmethod lift-test :around ((suite test-mixin) name)
   (if (profile suite)

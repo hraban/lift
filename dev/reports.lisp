@@ -23,7 +23,12 @@ lift::(progn
   (setf (test-result-property *test-result* :style-sheet) "test-style.css")
   (setf (test-result-property *test-result* :title) "Merge LUBM 8000")
   (setf (test-result-property *test-result* :if-exists) :error)
-  (test-result-report *test-result* #p "/fi/internal/people/gwking/agraph/testing/report/" :html))
+  (test-result-report *test-result* #p"/fi/internal/people/gwking/agraph/testing/report/" :html))
+
+(ensure-directories-exist
+ #P"/fi/internal/people/gwking/agraph/testing/report/ag40-foray-2009-06-11-16/index.html")
+(lift::test-result-report 
+ *test-result* #P"/fi/internal/people/gwking/agraph/testing/report/ag40-foray-2009-06-11-16/index.html" :html)
 
 lift::(progn
   (setf (test-result-property *test-result* :style-sheet) "test-style.css")
@@ -315,7 +320,11 @@ lift::(progn
 	     (doit new-stream)
 	     (html-footer new-stream))
 	   (format stream
-		   "~&<h2><a href=\"summary.html\">Test result summary</a></h2>~%"))	
+		   "~&<h2><a href=\"summary.html\">Test result summary</a></h2>~%")
+	   (when (errors result)
+	     (build-issues-report result :errors stream))
+	   (when (failures result)
+	     (build-issues-report result :failures stream)))	
 	  (t
 	   (doit stream)))))
 
@@ -363,7 +372,7 @@ lift::(progn
 				    'testsuite-some-failures))))
 	   (format stream "~&<div class=\"testsuite-title\"><table class=\"~a\"><tr><td>~a</td>" extra-class suite)
 	   (format stream "<td class=\"testsuite-test-count\">~:d test~:p</td>"
-		   this-suite-end)
+		   (test-case-count current-suite))
 	   (format stream "<td class=\"testsuite-summary\">")
 	   (cond ((and (= error-count 0) (= failure-count 0))
 		  (format stream "all passed"))
@@ -941,7 +950,7 @@ lift::(progn
        (fboundp thing)
        (typep (symbol-function thing) 'standard-generic-function)))
 
-(defun save-configuration-file (result destination)
+(defmethod save-configuration-file ((result test-result) destination)
   (with-open-file (stream destination
 			  :direction :output
 			  :if-exists :supersede
@@ -952,7 +961,12 @@ lift::(progn
      (test-result-property result :style-sheet))
     (format stream "~&<h1>Test configuration</h1>~%")
     (format stream "~&<pre>~%")
-    (with-open-file (*current-configuration-stream* (results-for result)
+    (save-configuration-file (results-for result) stream)
+    (format stream "~&</pre>~%")
+    (html-footer stream)))
+
+(defmethod save-configuration-file ((pathname t) stream)
+    (with-open-file (*current-configuration-stream* pathname
 						    :direction :input
 						    :if-does-not-exist :error)
       (let ((form nil))
@@ -973,7 +987,29 @@ lift::(progn
 		    (format stream "~&;; end - include ~a~%~%"
 			    (first args))))
 		 (t
-		  (print form stream))))))
-    (format stream "~&</pre>~%")
-    (html-footer stream)))
+		  (print form stream)))))))
 
+(defun build-issues-report (result kind stream)
+  (format stream
+	  "~&<h2><a href=\"~a.html\">Test ~a summary</a></h2>~%" 
+	  kind kind)
+  (with-open-file (out (merge-pathnames (format nil "~a.html" kind)
+					stream)
+		       :direction :output
+		       :if-exists :supersede
+		       :if-does-not-exist :create)
+    (html-header 
+     out 
+     (format nil "~a summary" kind)
+     (test-result-property result :style-sheet))
+    (format out "~&<h1>~a summary</h1>~%" kind)
+    (loop for (string . issues) in (build-issues-list result kind) do
+       (format out "~%~%<h2>~a</h2>~%~%" string)
+       (format out "~&<ul>~%")	 
+       (loop for issue in issues do
+	    (destructuring-bind (_1 suite name _2) issue
+	      (declare (ignore _1 _2))
+	      (format out "~&<li><span>~a</span> <a href=\"~a\"><span>~a</span></a></li>~&" 
+		      suite (details-link stream suite name) name)))
+       (format out "~&</ul>~%"))
+    (html-footer out)))
