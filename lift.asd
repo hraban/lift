@@ -24,7 +24,14 @@
 			:depends-on ("packages" "macros"))
 		 (:file "macros"
 			:depends-on ("packages"))))
-	       (:module
+	       (:module 
+		"api"
+		:pathname "dev/"
+		:depends-on ("setup")
+		:components ((:file "generics")
+			     #+(or)
+			     (:file "classes" :depends-on ("generics"))))
+	       (:module 
 		"dev" 
 		:depends-on ("setup")
 		:components 
@@ -42,8 +49,10 @@
 		 (:file "config" 
 			:depends-on ("port" "lift"))
 		 (:file "reports" 
-			:depends-on ("port" "lift"))
+			:depends-on ("port" "lift" "copy-file"))
 		 (:file "introspection" 
+			:depends-on ("lift"))
+		 (:file "test-runner" 
 			:depends-on ("lift"))
 		 #+allegro
 		 (:file "periodic-profiling"
@@ -51,14 +60,7 @@
 			#+no :depends-on #+no ((:feature :allegro)))
 		  #+Ignore
 		 (:file "prototypes"
-			:depends-on ("lift"))))
-               
-	       #+(or)
-               (:module 
-		"website"
-		:components ((:module "source"
-				      :components 
-				      ((:static-file "index.md"))))))
+			:depends-on ("lift")))))
   
   :in-order-to ((test-op (load-op lift-test)))
   :depends-on ()

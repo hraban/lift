@@ -176,12 +176,6 @@ the class itself is not included in the mapping. Proper? defaults to nil."
   (let ((result (class-precedence-list (get-class thing))))
     (if proper? (rest result) result)))
 
-#+(or)
-;;?? remove
-(defun direct-superclasses (thing)
-  "Returns the immediate superclasses of thing. Thing can be a class, object or symbol naming a class."
-  (class-direct-superclasses (get-class thing)))
-
 (declaim (inline length-1-list-p)) 
 (defun length-1-list-p (x) 
   "Is x a list of length 1?"
@@ -308,3 +302,28 @@ the string."
 	(incf words)
 	(unless end (return list))
 	(setf start (1+ end)))))))
+
+;;; whitespace-p
+
+(defparameter +whitespace-characters+
+  (list #\Space #\Newline #\Tab #\Page #\Null #\Linefeed)
+  "A list of characters that should be treated as whitespace. See, 
+for example, [whitespacep][].")
+
+(defun whitespacep (char)
+  "Returns true if `char` is an element of [+whitespace-characters+][]
+and nil otherwise."
+  (not (null (find char +whitespace-characters+ :test #'char=))))
+
+(defun string-trim-if (predicate string &key (start 0) (end (length string)))
+  (let ((end (1- end)))
+    (loop for ch across string 
+       while (funcall predicate ch) do (incf start))
+    (when (< start end)
+      (loop for ch = (aref string end)
+         while (funcall predicate ch) do (decf end)))
+    (subseq string start (1+ end))))
+
+(defun strip-whitespace (string &key (start 0) (end (length string)))
+  (string-trim-if
+   #'whitespacep string :start start :end end))

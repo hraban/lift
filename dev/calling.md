@@ -16,7 +16,7 @@ do-testing-in-environment
 do-testing
   (:around setup dynamic variables)
   (:around setup timeout handler)
-  call `fn` (either testsuite-run or ___)
+  call `fn` (either testsuite-run or run-test-internal)
 
 testsuite-run
   for each method 

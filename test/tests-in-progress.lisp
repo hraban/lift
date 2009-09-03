@@ -1,5 +1,56 @@
 (in-package #:lift-test)
 
+;; test-freetext-indexing-abstract
+(deftestsuite parent-1 ()
+  ()
+  (:run-setup :once-per-suite)
+)
+
+;; test-federation-basic
+(deftestsuite parent-2 ()
+  ()
+  (:run-setup :once-per-suite)
+  (:setup
+   (push :p2 *test-notepad*)))
+
+;; test-fed-freetext
+(deftestsuite child-1 (parent-1 parent-2)
+  ()
+  (:run-setup :once-per-suite)
+  (:setup
+   (push :c1 *test-notepad*)))
+
+(addtest (child-1)
+  test-1
+  (push :c1a *test-notepad*))
+
+#+(or)
+(deftestsuite child-3 (parent-2)
+  ()
+  (:run-setup :once-per-suite)
+  (:setup
+   (push :c3 *test-notepad*)))
+
+(deftestsuite child-2 (child-1)
+  ()
+  (:run-setup :once-per-suite)
+  (:setup
+   (push :c2 *test-notepad*)))
+
+(addtest (child-2)
+  test-1
+  (push :c2a *test-notepad*))
+
+#|
+(setf *test-notepad* nil)
+
+(run-tests :suite 'child-2)
+
+(run-tests :suite 'parent-2)
+
+|#
+#|
+
 ;;;;;;;;;;;;;;;;;;
 
 (deftestsuite setup-and-slots-hierarchy-parent ()
@@ -62,3 +113,5 @@
   (print foo))
 
 ;;;;
+
+|#

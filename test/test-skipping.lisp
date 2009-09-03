@@ -167,4 +167,3 @@
   (run-tests :config config-file)
   (ensure-same (length (tests-run *test-result*)) 3 :test '=)
   (ensure-same (length (skipped-test-cases *test-result*)) 4 :test '=))
-

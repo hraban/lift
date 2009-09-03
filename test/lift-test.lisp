@@ -797,6 +797,8 @@ these cancel testing instead.)"))
 
 (addtest (handle-serious-condition-helper)
   test-1
+  (signal 'serious-condition)
+  #+(or)
   ;; I expect this to signal an error!
   (make-array (1- most-positive-fixnum)))
 
@@ -827,6 +829,7 @@ these cancel testing instead.)"))
   test-1
   (push :a *test-notepad*))
 
+#+allegro
 (addtest (test-interrupts-helper)
   test-2
   (push :b *test-notepad*)
@@ -836,9 +839,44 @@ these cancel testing instead.)"))
   test-3
   (push :c *test-notepad*))
 
+#+allegro
 (addtest (test-interrupts)
   test-1
   (let ((*test-notepad* nil))
     (lift:run-tests :suite 'test-interrupts-helper)
     (ensure-same *test-notepad* '(:b :a) :test 'equal)))
 
+#|
+;;;;
+
+(deftestsuite test-errors-in-equality-test (lift-test)
+  ())
+
+(deftestsuite test-errors-in-equality-test-helper ()
+  ())
+
+(addtest (test-errors-in-equality-test-helper
+	  :documentation "this is fun")
+  test-1
+  (ensure-same 1 1 :test (lambda (a b) (/ (- a b)))))
+
+(addtest (test-errors-in-equality-test-helper
+	 )
+  test-1
+  (:documentation "this is fun")
+  (ensure-same 1 1 :test (lambda (a b) (/ (- a b)))))
+
+
+(addtest (test-errors-in-equality-test)
+  test-1
+  (let ((*test-notepad* nil))
+    (lift:run-tests :suite 'test-errors-in-equality-test-helper)
+    (ensure-same *test-notepad* '(:b :a) :test 'equal)))
+
+
+(addtest (report-pathnamexx)
+  initial-properties-are-null
+  (ensure-null (lift::test-result-properties result))
+)
+
+|#
