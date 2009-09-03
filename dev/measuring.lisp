@@ -24,25 +24,10 @@ The accuracy can be no greater than {hs internal-time-units-per-second}.")
 )
 
 #+(or)
-(while-measuring-1 (conses measure-space)
-  (while-measuring-1 (time measure-seconds)
-    blay))
-
-#+(or)
 (let ((time 0))
   (while-measuring-1 (time measure-seconds)
     (sleep 1))
   time)
-
-#+(or)
-(let ((conses 0))
-  (while-measuring-1 (conses measure-space)
-    (sleep 1))
-  conses)
-
-#+(or)
-(while-measuring (measure-seconds)
-  (sleep 1))
 
 (defmacro with-measuring ((var measure-fn) &body body)
   (let ((ginitial (gensym "value-"))
@@ -103,12 +88,15 @@ The accuracy can be no greater than {hs internal-time-units-per-second}.")
 
 (defun make-profiled-function (fn)
   (lambda (style count-calls-p)
-    (declare (ignorable style count-calls-p))
-    #+allegro
-    (prof:with-profiling (:type style :count count-calls-p)
-      (funcall fn))
-    #-allegro
-    (funcall fn)))
+    (declare (ignorable count-calls-p))
+    (cond (style
+	   #+allegro
+	   (prof:with-profiling (:type style :count count-calls-p)
+	     (funcall fn))
+	   #-allegro
+	   (funcall fn))
+	  (t
+	   (funcall fn)))))
 
 (defun generate-profile-log-entry (log-name name seconds conses results error)
   (ensure-directories-exist log-name)

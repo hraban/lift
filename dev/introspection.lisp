@@ -40,10 +40,11 @@ all suites. This is equivalent to the behavior of [find-test-cases][]."))
 ;;;;;
 ;; some introspection
 
+
 (defun liftpropos (string &key (include-cases? nil) (start-at 'test-mixin))
   "Returns a list of testsuites whose name contains `string`."
   (let ((result nil)
-	(name-as-string (ensure-string string)))
+	(name-as-string (strip-whitespace (ensure-string string))))
     (flet ((add-if-match (suite-name &optional (to-add suite-name))
 	     (when (search name-as-string (ensure-string suite-name)
 			   :test #'char-equal)
@@ -63,6 +64,10 @@ all suites. This is equivalent to the behavior of [find-test-cases][]."))
 					 (cons (cdr it)))))))
 
 (defun map-testsuites (fn start-at)
+  "Call `fn` with each suite name starting at `start-at`
+
+`fn` should be a function of two arguments. It will called with
+a testsuite name and the `level` of the suite in the class hierarchy."
   (let ((visited (make-hash-table)))
     (labels ((do-it (suite level)
 	       (unless (gethash suite visited)
@@ -70,7 +75,7 @@ all suites. This is equivalent to the behavior of [find-test-cases][]."))
 		 (funcall fn (class-name suite) level)
 		 (loop for subclass in (direct-subclasses suite) do
 		      (do-it subclass (1+ level))))))
-    (do-it (find-class (find-testsuite start-at) nil) 0))))
+    (do-it (find-class (find-testsuite start-at :errorp t) nil) 0))))
 
 (defun collect-testsuites (start-at &key filter transform)
   (let ((filter (when filter (ensure-function filter)))
@@ -83,35 +88,58 @@ all suites. This is equivalent to the behavior of [find-test-cases][]."))
      start-at)
     (nreverse result)))
 
-;;?? deprecate
+(defun map-test-cases (fn start-at)
+  "Call `fn` with each test case for suites starting at `start-at`
+
+`fn` should be a function of three arguments. It will called with
+a testsuite name, a test-case name and the `level` of the suite
+in the class hierarchy."  
+  (map-testsuites 
+   (lambda (suite-name level)
+     ;; this suite / suite-name thing is messy
+     (loop for method-name in (testsuite-tests suite-name) do
+	  (funcall fn suite-name method-name level)))
+   start-at))
+
+(defun collect-test-cases (&optional (start-at 'test-mixin))
+  "Returns a list of cons-pairs of testsuites and testcases. The optional
+parameter provides control over where in the test hierarchy the search
+begins."
+  (let ((result nil))
+    (map-test-cases (lambda (suite name level)
+		      (declare (ignore level))
+		      (push (cons suite name) result))
+		    start-at)
+    (nreverse result)))
+
+;; deprecate
 (defun testsuites (&optional (start-at 'test-mixin))
   "Returns a list of testsuite classes. The optional parameter provides
 control over where in the test hierarchy the search begins."
-  (collect-testsuites start-at))
-
-(defun test-case-count (testsuite)
-  (let ((result 0))
+  (let ((result nil))
     (map-testsuites (lambda (suite level)
 		      (declare (ignore level))
-		      (incf result (length (testsuite-methods suite))))
-		    testsuite)
-    result))
+		      (push suite result))
+		    start-at)
+    (nreverse result)))
 
 (defun print-tests (&key (include-cases? t) (start-at 'test-mixin) (stream t))
   "Prints all of the defined test classes from :start-at on down." 
   (map-testsuites
-   (lambda (suite-name level)
+   (lambda (suite level)
      (let ((indent (coerce (make-list (* level 3) :initial-element #\Space)
-			   'string)))
+			   'string))
+	   (name (class-name suite)))
        (format stream "~&~a~s (~:d)" 
 	       indent
-	       suite-name
-	       (length (testsuite-methods suite-name)))
+	       name
+	       (length (testsuite-methods name)))
        (when include-cases?
-	 (loop for method-name in (testsuite-tests suite-name) do
+	 (loop for method-name in (testsuite-tests name) do
 	      (format stream "~&~a  ~a" indent method-name)))))
    start-at))
-     
+
+;; deprecate
 (defun list-tests (&key (include-cases? t) (start-at 'test-mixin) (stream t))
   "Lists all of the defined test classes from :start-at on down." 
   (mapc (lambda (subclass)
@@ -124,6 +152,14 @@ control over where in the test hierarchy the search begins."
 		   (format stream "~&  ~a" method-name)))))
         (testsuites start-at))
   (values))
+
+(defun test-case-count (testsuite)
+  (let ((result 0))
+    (map-testsuites (lambda (suite level)
+		      (declare (ignore level))
+		      (incf result (length (testsuite-methods suite))))
+		    testsuite)
+    result))
 
 (defun testsuite-test-count (testsuite)
   (or (and *testsuite-test-count* 
@@ -347,3 +383,58 @@ control over where in the test hierarchy the search begins."
 #+(or)
 (db.agraph::with-new-file (*standard-output* "failures.txt")
   (report-issues tr :failures))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; experimental
+
+(defun divide-cases (cases)
+  (let ((result nil)
+	(sub-result nil)
+	(rest cases)
+	(current-suite nil)
+	(target-size (floor (length cases) 2)))
+    (flet ((add-group (suite)
+	     (when sub-result
+	       (setf result (nconc result sub-result)))
+	     (setf current-suite suite
+		   sub-result nil)
+	     (when (>= (length result) target-size)
+	       (return-from divide-cases (values result rest)))))
+      (loop for (suite . name) in cases do
+	   (unless (eq current-suite suite)
+	     (add-group suite))
+	   (pop rest)
+	   (push (cons suite name) sub-result))
+      (add-group sub-result nil))))
+
+#|
+(divide-cases 
+ '((1 . a) (1 . b) (1 . c) (2 . a) (2 . b) (3 . a) (3 . b) (3 . c) (3 .d)))
+
+(divide-cases 
+ '((1 . a) (1 . b) (1 . c) (2 . a) (2 . b) (3 . a) (3 . b) (3 . c)))
+
+(divide-cases 
+ '((1 . a) (1 . b) (1 . c) (2 . a) (2 . b) (3 . a) (3 . b) (3 . c) (3 . d) (3 . e)))
+|#
+
+(defun suites-in-cases (cases)
+  (remove-duplicates (mapcar #'car cases)))
+
+(defun suites-in-portion (cases path)
+  (loop for part in path do
+       (setf cases (ecase part
+		     ((:top :t) (divide-cases cases))
+		     ((:bot :b :bottom) (nth-value 1 (divide-cases cases))))))
+  (suites-in-cases cases))
+
+(defun suites-in-portions (cases paths)
+  ;;?? nconc
+  (loop for path in paths append
+       (suites-in-portion cases path)))
+
+#+(or)
+(lift:run-tests
+ :suite (lift::suites-in-portion 
+	 (lift::collect-test-cases 'db.agraph.tests)
+	 '(:b)))

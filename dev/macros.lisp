@@ -340,9 +340,9 @@ error, then ensure-error will generate a test failure."
      (ignore-multiple-values? nil))
   "Ensure same compares value-or-values-1 value-or-values-2 or 
 each value of value-or-values-1 value-or-values-2 (if they are 
-multiple values) using test. If a problem is encountered 
-ensure-same raises a warning which uses report as a format string
-and arguments as arguments to that string (if report and arguments 
+multiple values) using test. If a comparison fails  
+ensure-same raises a warning which uses `report` as a format string
+and `arguments` as arguments to that string (if report and arguments 
 are supplied). If ensure-same is used within a test, a test failure 
 is generated instead of a warning"
   (%build-ensure-comparison form values 'unless 
@@ -362,20 +362,35 @@ is generated instead of a warning"
   (let ((case (gensym))
 	(total (gensym))
 	(problems (gensym))
+	(errors (gensym))
 	(single-var-p (= (length vars) 1)))
-    `(let ((,problems nil) (,total 0))
+    `(let ((,problems nil) (,errors nil) (,total 0))
        (loop for ,case in ,cases do
 	    (incf ,total)
-	    (destructuring-bind ,vars ,(if single-var-p `(list ,case) case)
-	      (restart-case
-		  (progn ,@body)
-		(ensure-failed (cond)
-		  (push (list ,case cond) ,problems)))))
-       (if ,problems
+	    (tagbody 
+	       (destructuring-bind ,vars ,(if single-var-p `(list ,case) case)
+		 (restart-case
+		     (handler-bind ((warning #'muffle-warning)       
+					; ignore warnings... 
+				    #+(and allegro)
+				    (excl:interrupt-signal 
+				     (lambda (_)
+				       (declare (ignore _))
+				       (cancel-testing :interrupt)))
+				    (error 
+				     (lambda (condition)
+				       (push (list ,case condition) ,errors)
+				       (go :continue))))
+		       (progn ,@body))
+		   (ensure-failed (cond)
+		     (push (list ,case cond) ,problems))))
+	       :continue))
+       (if (or ,problems ,errors)
 	 (let ((condition (make-condition 
 			   'ensure-cases-failure
 			   :total ,total
-			   :problems ,problems)))
+			   :problems ,problems
+			   :errors ,errors)))
 	   (if (find-restart 'ensure-failed)
 	       (invoke-restart 'ensure-failed condition) 
 	       (warn condition)))

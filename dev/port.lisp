@@ -1,6 +1,6 @@
 (in-package #:lift)
 
-(setf (documentation 'get-backtrace 'function)
+(setf (documentation 'get-backtrace-as-string 'function)
   "This is the function that is used internally by Hunchentoot to
 show or log backtraces.  It accepts a condition object ERROR and
 returns a string with the corresponding backtrace.")
@@ -46,15 +46,18 @@ returns a string with the corresponding backtrace.")
   (hcl:total-allocation))
 
 #+(or mcl ccl)
-(defun get-backtrace (error)
+(defun get-backtrace-as-string (error)
   (with-output-to-string (s)
     (let ((*debug-io* s))
       (format *terminal-io* "~@<An unhandled error condition has been signalled:~3I ~a~I~:@>~%~%"
               error)
       (ccl:print-call-history :detailed-p nil))))
 
-#+allegro
 (defun get-backtrace (error)
+  (get-backtrace-as-string error))
+
+#+allegro
+(defun get-backtrace-as-string (error)
   (with-output-to-string (s)
     (with-standard-io-syntax
       (let ((*print-readably* nil)
@@ -103,7 +106,7 @@ returns a string with the corresponding backtrace.")
 		 (zoom s))))))))
 
 #+lispworks
-(defun get-backtrace (error)
+(defun get-backtrace-as-string (error)
   (declare (ignore error))
   (with-output-to-string (s)
     (let ((dbg::*debugger-stack* (dbg::grab-stack nil :how-many most-positive-fixnum))
@@ -120,7 +123,7 @@ returns a string with the corresponding backtrace.")
     (pushnew :hunchentoot-sbcl-debug-print-variable-alist *features*)))
 
 #+sbcl
-(defun get-backtrace (error)
+(defun get-backtrace-as-string (error)
   (declare (ignore error))
   (with-output-to-string (s)
     #+:hunchentoot-sbcl-debug-print-variable-alist
@@ -135,13 +138,13 @@ returns a string with the corresponding backtrace.")
       (sb-debug:backtrace most-positive-fixnum s))))
 
 #+clisp
-(defun get-backtrace (error)
+(defun get-backtrace-as-string (error)
   (declare (ignore error))
   (with-output-to-string (s)
     (system::print-backtrace :out s)))
 
 #+(or cmucl scl)
-(defun get-backtrace (error)
+(defun get-backtrace-as-string (error)
   (declare (ignore error))
   (with-output-to-string (s)
     (let ((debug:*debug-print-level* nil)

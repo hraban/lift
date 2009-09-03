@@ -439,17 +439,23 @@ LIFT during a test run.")
 
 (define-condition ensure-cases-failure (test-condition)
   ((total :initarg :total :initform 0)
-   (problems :initarg :problems :initform nil))
+   (problems :initarg :problems :initform nil)
+   (errors :initarg :errors :initform nil))
   (:report (lambda (condition stream)
 	     (format 
 	      stream 
-	      "Ensure-cases: ~d out of ~d cases failed. Failing cases are:"
-	      (length (slot-value condition 'problems))
-	      (slot-value condition 'total))
-	     (format 
-	      stream 
-	      "~&~@<  ~@;~{~%  ~{~20s ~3,8@t~a~}~^, ~}~:>" 
-		     (slot-value condition 'problems)))))
+	      "Ensure-cases: ~d case~:p with ~[~:;~:*~d error~:p; ~]~[~:;~:*~d failure~:p; ~]"
+	      (slot-value condition 'total)
+	      (length (slot-value condition 'errors))
+	      (length (slot-value condition 'problems)))
+	     (when (slot-value condition 'errors)
+	       (format stream 
+		       "~&Errors: ~@<  ~@;~{~%  ~{~20s ~3,8@t~a~}~^, ~}~:>" 
+		       (slot-value condition 'errors)))
+	     (when (slot-value condition 'problems)
+	       (format stream 
+		       "~&Failures: ~@<  ~@;~{~%  ~{~20s ~3,8@t~a~}~^, ~}~:>" 
+		       (slot-value condition 'problems))))))
 
 (define-condition unexpected-success-failure (test-condition)
   ((expected :reader expected :initarg :expected)
@@ -492,6 +498,11 @@ LIFT during a test run.")
 	(gb (gensym "b-"))
 	(gtest (gensym "test-")))
     `(block ,gblock
+       #+(or)
+       (when *current-test*
+	 (when (atom (current-step *current-test*))
+	   (setf (current-step *current-test*) (list (current-step *current-test*))))
+	 (push :comparison (current-step *current-test*)))
        (flet ((,gtest (,ga ,gb)
 		(,@(cond (test-specified-p
 			  (if (atom test) 
@@ -505,13 +516,16 @@ LIFT during a test run.")
 	    for other-value in (,(if ignore-multiple-values? 
 				     'list 'multiple-value-list) ,values) do
 	    (,guard-fn (,gtest value other-value)
-	      (,(ecase guard-fn 
-		       (unless 'maybe-raise-not-same-condition)
-		       (when 'maybe-raise-ensure-same-condition))
-	       value other-value
-	       ,(if test-specified-p (list 'quote test) '*lift-equality-test*)
-	       ,report ,@arguments)
-	      (return-from ,gblock nil))))
+		       (,(ecase guard-fn 
+				(unless 'maybe-raise-not-same-condition)
+				(when 'maybe-raise-ensure-same-condition))
+			 value other-value
+			 ,(if test-specified-p (list 'quote test) '*lift-equality-test*)
+			 ,report ,@arguments)
+		       (return-from ,gblock nil))))
+       #+(or)
+       (when *current-test*
+	 (setf (current-step *current-test*) (second (current-step *current-test*))))
        (values t))))
 
 (defun maybe-raise-not-same-condition (value-1 value-2 test 
@@ -579,7 +593,8 @@ LIFT during a test run.")
 	  (mapcar
 	   (lambda (datum)
 	     (cond ((or (atom datum)
-			(= (length datum) 1)
+			(and (= (length datum) 1)
+			     (setf datum (first datum)))
 			(and (= (length datum) 2) (null (second datum))
 			     (setf datum (first datum))))
 		    (cons (find-testsuite datum :errorp t) nil))
@@ -1319,7 +1334,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
                       ;; from run-test
                       (format stream "~A.~A ~A" 
                               (results-for tr) 
-                              (first (first (tests-run tr)))
+                              (second (first (tests-run tr)))
                               (cond (complete-success?
                                      "passed")
                                     ((errors tr)
@@ -1430,24 +1445,25 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
          (method (test-method report))
          (condition (test-condition report))
          (code (test-report-code suite method))
+	 (step (test-step report))
          (testsuite-name method)	 
 	 (*print-level* (get-test-print-level))
 	 (*print-length* (get-test-print-length)))
-    (let ((*package* (symbol-package method)))
+    (let ((*package* (symbol-package method))
+	  (doc-string (gethash testsuite-name
+			       (test-case-documentation 
+				(class-name (class-of suite))))))
       (format stream "~&~A~(~A : ~A~)" prefix (type-of suite) testsuite-name)
-      (let ((doc-string (gethash testsuite-name
-				 (test-case-documentation 
-				  (class-name (class-of suite))))))
-	(when doc-string 
-	  (format stream "~&~A" doc-string)))
       (if show-code-p
 	  (setf code (with-output-to-string (out)
 		       (pprint code out)))
 	  (setf code nil))
       (format stream "~&~<  ~@;~
-                    ~@[Condition: ~<~@;~A~:>~]~
-                    ~@[~&Code     : ~a~]~
-                    ~&~:>" (list (list condition) code)))))
+                    ~@[Documentation: ~<~@;~a~:>~]~
+                    ~@[~&Condition    : ~<~@;~a~:>~]~
+                    ~@[~&During       : ~a~]~
+                    ~@[~&Code         : ~a~]~
+                    ~&~:>" (list (list doc-string) (list condition) step code)))))
 
 
 ;;; ---------------------------------------------------------------------------

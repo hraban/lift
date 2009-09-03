@@ -855,8 +855,9 @@ lift::(progn
      (log-name *benchmark-log-path*)
      (count-calls-p *count-calls-p*)
      (timeout nil))
-  (assert (member style '(:time :space :count-only)))
-  (cancel-current-profile :force? t)
+  (assert (member style '(nil :time :space :count-only)))
+  (when style
+    (cancel-current-profile :force? t))
   (let* ((seconds 0.0) (conses 0) 
 	 error
 	 results
@@ -876,7 +877,7 @@ lift::(progn
 		 results result error errorp))
       ;; cleanup / ensure we get report
       (generate-profile-log-entry log-name name seconds conses results error)
-      (when (> (current-profile-sample-count) 0)
+      (when (and style (> (current-profile-sample-count) 0))
 	(let ((pathname (unique-filename
 			 (merge-pathnames
 			  (make-pathname 
@@ -900,7 +901,7 @@ lift::(progn
 	    seconds conses)
     (format output "~%~%")
     (when error
-      (format output "~&Error occured during profiling: ~a~%~%" error))
+      (format output "~&Error occurred during profiling: ~a~%~%" error))
     (let ((*standard-output* output))
       (when *current-test* 
 	(write-profile-information *current-test*)))

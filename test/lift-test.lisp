@@ -846,3 +846,37 @@ these cancel testing instead.)"))
     (lift:run-tests :suite 'test-interrupts-helper)
     (ensure-same *test-notepad* '(:b :a) :test 'equal)))
 
+#|
+;;;;
+
+(deftestsuite test-errors-in-equality-test (lift-test)
+  ())
+
+(deftestsuite test-errors-in-equality-test-helper ()
+  ())
+
+(addtest (test-errors-in-equality-test-helper
+	  :documentation "this is fun")
+  test-1
+  (ensure-same 1 1 :test (lambda (a b) (/ (- a b)))))
+
+(addtest (test-errors-in-equality-test-helper
+	 )
+  test-1
+  (:documentation "this is fun")
+  (ensure-same 1 1 :test (lambda (a b) (/ (- a b)))))
+
+
+(addtest (test-errors-in-equality-test)
+  test-1
+  (let ((*test-notepad* nil))
+    (lift:run-tests :suite 'test-errors-in-equality-test-helper)
+    (ensure-same *test-notepad* '(:b :a) :test 'equal)))
+
+
+(addtest (report-pathnamexx)
+  initial-properties-are-null
+  (ensure-null (lift::test-result-properties result))
+)
+
+|#

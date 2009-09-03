@@ -302,3 +302,28 @@ the string."
 	(incf words)
 	(unless end (return list))
 	(setf start (1+ end)))))))
+
+;;; whitespace-p
+
+(defparameter +whitespace-characters+
+  (list #\Space #\Newline #\Tab #\Page #\Null #\Linefeed)
+  "A list of characters that should be treated as whitespace. See, 
+for example, [whitespacep][].")
+
+(defun whitespacep (char)
+  "Returns true if `char` is an element of [+whitespace-characters+][]
+and nil otherwise."
+  (not (null (find char +whitespace-characters+ :test #'char=))))
+
+(defun string-trim-if (predicate string &key (start 0) (end (length string)))
+  (let ((end (1- end)))
+    (loop for ch across string 
+       while (funcall predicate ch) do (incf start))
+    (when (< start end)
+      (loop for ch = (aref string end)
+         while (funcall predicate ch) do (decf end)))
+    (subseq string start (1+ end))))
+
+(defun strip-whitespace (string &key (start 0) (end (length string)))
+  (string-trim-if
+   #'whitespacep string :start start :end end))
