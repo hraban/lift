@@ -132,7 +132,7 @@
 		  (break-on-failures? *test-break-on-failures?*)
 		  (config nil)
 		  (dribble *lift-dribble-pathname*)
-		  (report-pathname t)
+		  (report-pathname *lift-report-pathname*)
 		  (profile nil)
 		  (skip-tests *skip-tests*)
 		  ;(timeout nil)
