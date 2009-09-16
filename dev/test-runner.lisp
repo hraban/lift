@@ -207,7 +207,7 @@ but not both."))
 				       :result result
 				       testsuite-initargs))
 			      (setf *current-testsuite-name* testsuite))
-			   (cancel-testing (result)
+			   (cancel-testing (&optional (result *rest-result*))
 			     :report (lambda (stream) 
 				       (format stream "Cancel testing of ~a"
 					       *current-testsuite-name*))
