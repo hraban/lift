@@ -132,7 +132,7 @@
 		  (break-on-failures? *test-break-on-failures?*)
 		  (config nil)
 		  (dribble *lift-dribble-pathname*)
-		  (report-pathname t)
+		  (report-pathname *lift-report-pathname*)
 		  (profile nil)
 		  (skip-tests *skip-tests*)
 		  ;(timeout nil)
@@ -207,10 +207,10 @@ but not both."))
 				       :result result
 				       testsuite-initargs))
 			      (setf *current-testsuite-name* testsuite))
-			   (cancel-testing (result)
-			     :report (lambda (stream) 
-				       (format stream "Cancel testing of ~a"
-					       *current-testsuite-name*))
+			  (cancel-testing (&optional (result *rest-result*))
+			    :report (lambda (stream) 
+				      (format stream "Cancel testing of ~a"
+					      *current-testsuite-name*))
 			     (declare (ignore result))
 			     (values nil t)))
 		     ;; cleanup
