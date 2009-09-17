@@ -125,5 +125,3 @@
   (error "error"))
 
 
-(deftestsuite test-normal-conditions (lift-test)
-  ())

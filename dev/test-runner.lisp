@@ -154,6 +154,7 @@
 	(remf args :report-pathname)
 	(remf args :do-children?)
 	(remf args :testsuite-initargs)
+	(remf args :profile)
 	(let* ((*lift-report-pathname*
 		(cond ((null report-pathname) nil)
 		      ((eq report-pathname t)
