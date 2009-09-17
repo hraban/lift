@@ -283,7 +283,7 @@ If this form is used and `catch-all-conditions? is true, then
 the signaling of _any_ other condition will cause a test failure.
 "
   (setf condition (remove-leading-quote condition))
-  (destructuring-bind (condition &key report arguments catch-all-conditions)
+  (destructuring-bind (condition &key report arguments catch-all-conditions?)
                       (if (consp condition) condition (list condition))
     (let ((g (gensym)))
       `(let ((,g nil))
@@ -292,7 +292,7 @@ the signaling of _any_ other condition will cause a test failure.
              (progn ,@body)
              (,condition (cond) 
                          (declare (ignore cond)) (setf ,g t))
-             (,(if catch-all-conditions
+             (,(if catch-all-conditions?
 		   'condition 'error)
 		 (cond) 
                         (setf ,g t)
