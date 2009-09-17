@@ -24,6 +24,7 @@
 			     (:file "test-config-files")
 			     (:file "test-maximum-problems")
 			     (:file "test-skipping")
+			     (:file "test-conditions")
 			     #+(or)
 			     (:file "test-prototypes"))))  
   :depends-on (:lift))

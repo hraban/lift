@@ -115,3 +115,15 @@
 ;;;;
 
 |#
+
+(deftestsuite test-boe? (lift-test)
+  ())
+
+(addtest (test-boe?)
+  test-1
+  (print "start")
+  (error "error"))
+
+
+(deftestsuite test-normal-conditions (lift-test)
+  ())
