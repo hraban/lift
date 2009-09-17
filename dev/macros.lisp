@@ -270,9 +270,20 @@ details."
 	     (warn condition)))))))
 
 (defmacro ensure-condition (condition &body body)
-  "This macro is used to make sure that body really does produce condition."
+  "Signal a test-failure if `body` does not signal `condition`.
+
+If `condition` is an atom, then non-error conditions will _not_
+cause a failure.
+
+`condition` may also be a list of the form 
+
+    (condition &key catch-all-conditions? report arguments)
+
+If this form is used and `catch-all-conditions? is true, then 
+the signaling of _any_ other condition will cause a test failure.
+"
   (setf condition (remove-leading-quote condition))
-  (destructuring-bind (condition &key report arguments)
+  (destructuring-bind (condition &key report arguments catch-all-conditions?)
                       (if (consp condition) condition (list condition))
     (let ((g (gensym)))
       `(let ((,g nil))
@@ -281,7 +292,9 @@ details."
              (progn ,@body)
              (,condition (cond) 
                          (declare (ignore cond)) (setf ,g t))
-             (condition (cond) 
+             (,(if catch-all-conditions?
+		   'condition 'error)
+		 (cond) 
                         (setf ,g t)
                         (let ((c (make-condition 
                                   'ensure-expected-condition
