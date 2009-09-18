@@ -152,8 +152,11 @@ lift::(progn
 			(length (errors result)))))))
 
 (defmethod summarize-test-environment (result stream format)
-  (declare (ignore result stream format))
-  )
+  (declare (ignore result format))
+  (format stream "~&Lisp: ~a" (lisp-version-string))
+  (format stream "~&      ~a" (lisp-implementation-version))
+  (format stream "~&On  : ~a ~a ~a" 
+	  (machine-type) (machine-version) (machine-instance)))
 
 (defmethod summarize-test-problems (result stream format)
   (declare (ignore result stream format))
@@ -264,7 +267,7 @@ lift::(progn
 (defmethod summarize-test-environment (result stream (format (eql :html)))
   (declare (ignore result))
   (format stream "~&<div id=\"environment\">")
-  
+  (call-next-method)
   (format stream "~&</div>"))
 
 (defmethod summarize-test-problems (result stream  (format (eql :html)))
@@ -560,7 +563,6 @@ lift::(progn
   (describe result stream))
 
 (defmethod summarize-tests-run (result stream (format (eql :describe)))
-  (declare (ignore result stream))
   (format stream "~&## Tests Run:")
   (let ((tests (tests-run result))
 	(current-suite nil))
@@ -597,6 +599,7 @@ lift::(progn
 					      'test-failure)))
 				rest
 				:end this-suite-end))
+		#+(or)
 		(extra-class (cond ((and (= error-count 0) (= failure-count 0))
 				    'testsuite-all-passed)
 				   ((> error-count 0)
@@ -965,6 +968,8 @@ lift::(progn
 			  :if-exists :append)
     (format output "~&Profile data for ~a" name)
     (format output "~&Date: ~a" (date-stamp :include-time? t))
+    (summarize-test-environment nil output nil)
+    (format output "~&Lisp: ~a" (lisp-version-string))
     (format output "~&  Total time: ~,2F; Total space: ~:d \(~:*~d\)"
 	    seconds conses)
     (format output "~%~%")
