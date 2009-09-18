@@ -1820,6 +1820,15 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
    (push :maximum-time (def :default-initargs))
    nil))
 
+(defmethod do-test :around ((suite test-mixin) name result)
+  (declare (ignore result))
+  (if (profile suite)
+      (with-profile-report ((format nil "~a-~a" 
+				    (testsuite-name suite) name) 
+			    (profile suite))
+	(call-next-method))
+      (call-next-method)))
+
 (defmethod lift-test :around ((suite test-mixin) name)
   (if (profile suite)
       (with-profile-report ((format nil "~a-~a" 

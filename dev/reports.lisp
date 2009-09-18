@@ -116,6 +116,8 @@ lift::(progn
 	     (%test-result-report-stream result stream format)))
 	  ((streamp output)
 	   (%test-result-report-stream result output format))
+	  ((eq output t)
+	   (%test-result-report-stream result *standard-output* format))
 	  (t
 	   (error "Don't know how to send a report to ~s" output)))))
 
@@ -211,7 +213,7 @@ lift::(progn
 (defmethod summarize-test-result (result stream (format (eql :html)))
   (format stream "~&<div id=\"summary\">")
   (format stream "~&<h1>Test results for: ")
-  (cond ((probe-file (results-for result))
+  (cond ((ignore-errors (probe-file (results-for result)))
 	 (let ((config-html (merge-pathnames "config.html" stream)))
 	   (save-configuration-file result config-html)
 	   (format stream "<a href=\"config.html\">~a</a>"
@@ -559,7 +561,73 @@ lift::(progn
 
 (defmethod summarize-tests-run (result stream (format (eql :describe)))
   (declare (ignore result stream))
-  )
+  (format stream "~&## Tests Run:")
+  (let ((tests (tests-run result))
+	(current-suite nil))
+    (loop for rest = (sort 
+		      ;; FIXME - this is a hack intended to show tests
+		      ;; in the order they were run (even if it works, it's
+		      ;; bound to be fragile)
+		      (copy-list tests)
+		      #+(or) (nreverse (copy-list tests))
+		      'string-lessp :key 'first) then (rest rest) 
+       while rest
+       for (suite test-name datum) = (first rest) do
+       (unless (eq current-suite suite)
+	 (when current-suite
+	   (format stream "~%~%"))
+	 (setf current-suite suite)
+	 (let* ((this-suite-end (or 
+				 (position-if 
+				  (lambda (datum)
+				    (not (eq current-suite (first datum))))
+				  rest)
+				 (length rest)))
+		(error-count (count-if 
+			      (lambda (datum)
+				(and (getf (third datum) :problem)
+				     (typep (getf (third datum) :problem)
+					    'test-error)))
+			      rest
+			      :end this-suite-end))
+		(failure-count (count-if 
+				(lambda (datum)
+				  (and (getf (third datum) :problem)
+				       (typep (getf (third datum) :problem)
+					      'test-failure)))
+				rest
+				:end this-suite-end))
+		(extra-class (cond ((and (= error-count 0) (= failure-count 0))
+				    'testsuite-all-passed)
+				   ((> error-count 0)
+				    'testsuite-some-errors)
+				   (t
+				    'testsuite-some-failures))))
+	   (format stream "~%### ~a, ~d tests ~&" 
+		   suite (test-case-count current-suite))
+	   (cond ((and (= error-count 0) (= failure-count 0))
+		  (format stream "all passed"))
+		 (t
+		  (format stream "~[~:;~:*~:d failure~:p~]" 
+			  failure-count)
+		  (when (and (> error-count 0) (> failure-count 0))
+		    (format stream ", "))
+		  (format stream  "~[~:;~:*~a error~:p~]" 
+			  error-count)))))
+	 (let ((problem (getf datum :problem)))
+	   (cond ((typep problem 'test-failure)
+		  (format stream "~&failure" ))
+		 ((typep problem 'test-error)
+		  (format stream "~&error"))
+		 (t
+		  (format stream "~&~a" test-name)
+		  (let ((seconds (getf datum :seconds))
+			(conses (getf datum :conses)))
+		    (when seconds 
+		      (format stream "~15,3f" seconds))
+		    (when conses 
+		      (format stream "~15:d" conses)))))))))
+
   
 ;;;;;
 
