@@ -327,3 +327,42 @@ and nil otherwise."
 (defun strip-whitespace (string &key (start 0) (end (length string)))
   (string-trim-if
    #'whitespacep string :start start :end end))
+
+(defun lisp-version-string ()
+  ;; shared with many other projects... sigh
+  #+cmu       (substitute #\- #\/ 
+			  (substitute #\_ #\Space 
+				      (lisp-implementation-version)))
+  #+scl       (lisp-implementation-version)
+  #+sbcl      (lisp-implementation-version)
+  #+ecl       (reduce (lambda (x str) (substitute #\_ str x))
+		      '(#\Space #\: #\( #\)) 
+		      :initial-value (lisp-implementation-version))
+  #+gcl       (let ((s (lisp-implementation-version))) (subseq s 4))
+  #+openmcl   (format nil "~d.~d~@[-~d~]"
+                      ccl::*openmcl-major-version* 
+                      ccl::*openmcl-minor-version*
+                      #+ppc64-target 64 
+                      #-ppc64-target nil)
+  #+lispworks (format nil "~A~@[~A~]"
+                      (lisp-implementation-version)
+                      (when (member :lispworks-64bit *features*) "-64bit"))
+  #+allegro   (format nil
+                      "~A~A~A~A"
+                      excl::*common-lisp-version-number*
+					; ANSI vs MoDeRn
+		      ;; thanks to Robert Goldman and Charley Cox for
+		      ;; an improvement to my hack
+		      (if (eq excl:*current-case-mode* 
+			      :case-sensitive-lower) "M" "A")
+		      ;; Note if not using International ACL
+		      ;; see http://www.franz.com/support/documentation/8.1/doc/operators/excl/ics-target-case.htm
+		      (excl:ics-target-case
+			(:-ics "8")
+			(:+ics ""))
+                      (if (member :64bit *features*) "-64bit" ""))
+  #+clisp     (let ((s (lisp-implementation-version)))
+                (subseq s 0 (position #\space s)))
+  #+armedbear (lisp-implementation-version)
+  #+cormanlisp (lisp-implementation-version)
+  #+digitool   (subseq (lisp-implementation-version) 8))
