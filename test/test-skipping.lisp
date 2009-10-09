@@ -69,7 +69,7 @@
   (run-tests :suite 'test-skipping-helper-a
 	     :skip-tests '(test-skipping-helper-a-2))
   (ensure-same (length (tests-run *test-result*)) 5 :test '=)
-  (ensure-same (length (skipped-test-cases *test-result*)) 2 :test '=))
+  (ensure-same (length (skipped-test-cases *test-result*)) 0 :test '=))
 
 (addtest (test-skipping)
   skip-test-case
@@ -85,16 +85,14 @@
 			   test-skipping-helper-a-1
 			   (test-skipping-helper-a test-2)))
   (ensure-same (length (tests-run *test-result*)) 3 :test '=)
-  (ensure-same (length (skipped-test-cases *test-result*)) 4 :test '=))
+  (ensure-same (length (skipped-test-cases *test-result*)) 2 :test '=))
 
 (addtest (test-skipping)
   skip-subclasses
   (run-tests :suite 'test-skipping-helper
 	     :skip-tests '(test-skipping-helper-a))
   (ensure-same (length (tests-run *test-result*)) 1 :test '=)
-  ;; we only skipped the three test-cases in `test-skipping-helper-a`
-  (ensure-same (length (skipped-test-cases *test-result*)) 3 :test '=)
-  ;; we  skip the suite's subclasses so it is the only one that shows up
+  (ensure-same (length (skipped-test-cases *test-result*)) 0 :test '=)
   (ensure-same (length (skipped-testsuites *test-result*)) 1 :test '=))
 
 ;;;;
@@ -121,7 +119,7 @@
   (setf config-file (write-config "(:skip-tests test-skipping-helper-a-2)"))
   (run-tests :config config-file)
   (ensure-same (length (tests-run *test-result*)) 5 :test '=)
-  (ensure-same (length (skipped-test-cases *test-result*)) 2 :test '=))
+  (ensure-same (length (skipped-test-cases *test-result*)) 0 :test '=))
 
 (addtest (test-skipping-via-config)
   skip-testsuite-2
@@ -129,7 +127,7 @@
 	(write-config "(:skip-testsuites test-skipping-helper-a-2)"))
   (run-tests :config config-file)
   (ensure-same (length (tests-run *test-result*)) 5 :test '=)
-  (ensure-same (length (skipped-test-cases *test-result*)) 2 :test '=))
+  (ensure-same (length (skipped-test-cases *test-result*)) 0 :test '=))
 
 (addtest (test-skipping-via-config)
   skip-testsuite-3
@@ -137,7 +135,7 @@
 	(write-config "(:skip-tests (test-skipping-helper-a-2))"))
   (run-tests :config config-file)
   (ensure-same (length (tests-run *test-result*)) 5 :test '=)
-  (ensure-same (length (skipped-test-cases *test-result*)) 2 :test '=))
+  (ensure-same (length (skipped-test-cases *test-result*)) 0 :test '=))
 
 (addtest (test-skipping-via-config)
   skip-test-case
@@ -155,7 +153,7 @@
 			   (test-skipping-helper-a test-2))"))
   (run-tests :config config-file)
   (ensure-same (length (tests-run *test-result*)) 3 :test '=)
-  (ensure-same (length (skipped-test-cases *test-result*)) 4 :test '=))
+  (ensure-same (length (skipped-test-cases *test-result*)) 2 :test '=))
 
 (addtest (test-skipping-via-config)
   skip-mix-2
@@ -166,4 +164,4 @@
 (:skip-tests (test-skipping-helper-a test-2))"))
   (run-tests :config config-file)
   (ensure-same (length (tests-run *test-result*)) 3 :test '=)
-  (ensure-same (length (skipped-test-cases *test-result*)) 4 :test '=))
+  (ensure-same (length (skipped-test-cases *test-result*)) 2 :test '=))

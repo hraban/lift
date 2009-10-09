@@ -344,7 +344,9 @@ control over where in the test hierarchy the search begins."
 		     :expected-errors? nil)))
     (ecase kind
       (:errors (setf (getf args :errors?) t))
-      (:failures (setf (getf args :failures?) t)))
+      (:failures (setf (getf args :failures?) t))
+      (:expected-failures (setf (getf args :expected-failures?) t))
+      (:expected-errors (setf (getf args :expected-errors?) t)))
     (let ((tests (mapcar (lambda (triple)
 			   (list* (massage-condition-string triple) triple))
 			 (rest (first (apply #'test-results 
