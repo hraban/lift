@@ -350,7 +350,7 @@ lift::(progn
 	   (when (expected-failures result)
 	     (build-issues-report result :expected-failures stream))
 	   (when (expected-errors result)
-	     (build-issues-report result :expected-error stream))
+	     (build-issues-report result :expected-errors stream))
 	   (when (skipped-test-cases result)
 	     (build-issues-report result :skipped-testsuites stream)))	
 	  (t
