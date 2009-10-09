@@ -290,6 +290,49 @@ LIFT during a test run.")
   (:default-initargs 
    :test-problem-kind "Testsuite failure"))
 
+(defclass testcase-skipped (generic-problem)
+  ()
+  (:default-initargs
+   :test-problem-kind "Test case skipped"))
+
+(defclass testsuite-skipped (generic-problem)
+  ()
+  (:default-initargs
+   :test-problem-kind "Testsuite skipped"))
+
+(defmethod accumulate-problem ((problem test-failure) result)
+  (setf (failures result) (append (failures result) (list problem))))
+
+(defmethod accumulate-problem ((problem testsuite-failure) result)
+  (setf (failures result) (append (failures result) (list problem))))
+
+(defmethod accumulate-problem ((problem test-expected-failure) result)
+  (setf (expected-failures result) 
+	(append (expected-failures result) (list problem))))
+
+(defmethod accumulate-problem ((problem test-error) result)
+  (setf (errors result) (append (errors result) (list problem))))
+
+(defmethod accumulate-problem ((problem testsuite-error) result)
+  (setf (errors result) (append (errors result) (list problem))))
+
+(defmethod accumulate-problem ((problem test-serious-condition) result)
+  (setf (errors result) (append (errors result) (list problem))))
+
+(defmethod accumulate-problem ((problem testsuite-serious-condition) result)
+  (setf (errors result) (append (errors result) (list problem))))
+
+(defmethod accumulate-problem ((problem test-expected-error) result)
+  (setf (expected-errors result) 
+	(append (expected-errors result) (list problem))))
+
+(defmethod accumulate-problem ((problem testcase-skipped) result)
+  (setf (skipped-test-cases result) 
+	(append (skipped-test-cases result) (list problem))))
+
+(defmethod accumulate-problem ((problem testsuite-skipped) result)
+  (setf (skipped-testsuites result) 
+	(append (skipped-testsuites result) (list problem))))
 
 
 (defclass process-test-mixin (test-mixin)
@@ -1150,12 +1193,14 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 	   *skip-tests*))
 
 (defmethod skip-test-case (result suite-name test-case-name)
-  (push (list suite-name test-case-name) (skipped-test-cases result))
-  )
+  (declare (ignore suite-name))
+  (report-test-problem 
+   'testcase-skipped result *current-test* test-case-name nil))
 
 (defmethod skip-testsuite (result suite-name)
-  (push suite-name (skipped-testsuites result))
-  )
+  (declare (ignore suite-name))
+  (report-test-problem 
+   'testsuite-skipped result *current-test* nil nil))
 
 (defun testcase-expects-error-p (&optional (test *current-test*))
   (let* ((options (getf (test-data test) :options)))
@@ -1203,7 +1248,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
       (if (find-restart 'ensure-failed)
 	  (invoke-restart 'ensure-failed condition)
 	  (warn condition)))))
-	
+
 (defun report-test-problem (problem-type result suite method condition
 			    &rest args)
   ;; ick
@@ -1233,16 +1278,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 			  :test-condition condition
 			  :test-step (current-step suite) args)))
       (setf (getf (test-data suite) :problem) problem)
-      (etypecase problem
-	((or test-failure testsuite-failure)
-	 (push problem (failures result)))
-	(test-expected-failure 
-	 (push problem (expected-failures result)))
-	((or test-error testsuite-error 
-	     test-serious-condition testsuite-serious-condition)
-	 (push problem (errors result)))
-	(test-expected-error
-	 (push problem (expected-errors result))))
+      (accumulate-problem problem result)
       (when (and *test-maximum-failure-count*
 		 (numberp *test-maximum-failure-count*)
 		 (>= (length (failures result)) *test-maximum-failure-count*))

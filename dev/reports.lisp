@@ -126,7 +126,8 @@ lift::(progn
   (summarize-test-result result stream format)
   (summarize-test-environment result stream format)
   (when (or (failures result) (errors result)
-	    (expected-failures result) (expected-errors result))
+	    (expected-failures result) (expected-errors result)
+	    (skipped-test-cases result))
     (summarize-test-problems result stream format))
   (summarize-tests-run result stream format)
   (end-report-output result stream format)
@@ -287,6 +288,10 @@ lift::(progn
     (summarize-test-problems-of-type 
      (expected-errors result) stream "expected-failure-summary" 
      "Expected Errors" "expected-errors"))
+  (when (skipped-test-cases result)
+    (summarize-test-problems-of-type 
+     (skipped-test-cases result) stream "skipped-cases-summary" 
+     "Skipped tests" "skipped-tests"))
   (format stream "~&</div>"))
 
 (defmethod summarize-test-problems-of-type 
@@ -562,7 +567,7 @@ lift::(progn
 (defmethod summarize-test-result (result stream (format (eql :describe)))
   (describe result stream))
 
-(defmethod summarize-tests-run (result stream (format (eql :describe)))
+(defmethod summarize-tests-run (result stream (format (eql :detail)))
   (format stream "~&## Tests Run:")
   (let ((tests (tests-run result))
 	(current-suite nil))
@@ -662,109 +667,10 @@ lift::(progn
   (setf (test-result-property *test-result* :if-exists) :supersede)
   (test-result-report *test-result* #p"/tmp/report.save" :save))
 
-(defun symbol->turtle (symbol)
-  (let ((upcase? nil))
-    (coerce
-     (loop for char across (string-downcase (symbol-name symbol)) 
-	when (char= char #\-) do (setf upcase? t)
-	else collect (if upcase? 
-			 (prog1 (char-upcase char) 
-			   (setf upcase? nil))
-			 char))
-     'string)))
-
-(defun turtlefy (thing)
-  (typecase thing
-    (string thing)
-    (pathname (namestring thing))
-    (number 
-     (etypecase thing
-       (integer (format nil "\"~a\"^^xsd:integer" thing))
-       (double-float (format nil "\"~f\"^^xsd:double" thing))
-       (single-float (format nil "\"~f\"^^xsd:single" thing))))
-    (symbol (symbol-name thing))
-    (t (format nil "\"~a\"" thing))))
-
 (defun ensure-symbol (thing)
   (etypecase thing
     (symbol thing)
     (string (intern thing))))
-
-#+(or)
-(symbol->turtle 'real-start-time-universal)
-
-(defun date->turtle (&key (datetime (get-universal-time)) (include-time? nil))
-  (multiple-value-bind
-	(second minute hour day month year day-of-the-week)
-      (decode-universal-time datetime)
-    (declare (ignore day-of-the-week))
-    (let ((date-part (format nil "~d-~2,'0d-~2,'0d" year month day))
-	  (time-part (and include-time? 
-			  (format nil "T-~2,'0d:~2,'0d:~2,'0d"
-					hour minute second)))
-	  (data-type (if include-time?
-			 "xsd:dateTime" "xsd:date")))
-      (concatenate 'string "\"" date-part time-part  "\"" "^^" data-type))))
-
-;; http://www.dajobe.org/2004/01/turtle/
-(defmethod summarize-test-result (result stream (format (eql :turtle)))
-  (labels ((convert-value (value type)
-	     (ecase type
-	       (string (turtlefy value))
-	       (symbol (ensure-symbol value))
-	       (date (date->turtle :datetime value))
-	       (dateTime (date->turtle :datetime value :include-time? t))))
-	   (add-property (name type)
-	     (let ((value (slot-value result name)))
-	       (when value
-		 (format stream "~&:~a ~s ;" 
-			 (symbol->turtle name)
-			 (convert-value value type))))))
-    (format stream 
-	    "~&@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .~%")
-    (format stream 
-	    "~&@prefix : <http://www.metabang.com/2007/04/lift#> .~%")
-    (format stream "\[~%")
-    (add-property 'results-for 'string)
-    (add-property 'real-start-time 'dateTime)
-    (add-property 'start-time 'dateTime)
-    (add-property 'end-time 'dateTime)
-    (add-property 'real-end-time 'dateTime)
-    (format stream "~&\:testsRun (")
-    (loop for (suite name data) in 
-       ;; FIXME - this is a hack intended to show tests
-       ;; in the order they were run (even if it works, it's
-       ;; bound to be fragile)
-	 (copy-list (tests-run result))
-	 #+(or)
-	 (nreverse (copy-list (tests-run result))) do
-	 (labels ((write-datum (name type &key (source data))
-		    (let* ((key (intern (symbol-name name) :keyword))
-			   (value (getf source key)))
-		      (when value
-			(format stream "~&  :~a ~a ;" 
-				(symbol->turtle name)
-				(convert-value value type)))))
-		  (prop (name type)
-		    (write-datum name type :source (getf data :properties))))
-	   (format stream "~&\[ ")
-	   (format stream ":testSuite ~s ;" (symbol-name suite))
-	   (format stream "~&  :testName ~s ;" (symbol-name name))
-	   ;; FIXME - we could make these extensible
-	   (write-datum 'start-time 'dateTime)
-	   (write-datum 'end-time 'dateTime)
-	   (write-datum 'result 'string)
-	   (write-datum 'seconds 'string)
-	   (write-datum 'conses 'string)
-	   (loop for stuff in (getf data :properties) by #'cddr do
-		(prop stuff 'string))
-	   (format stream " \]")))
-    (format stream " ) ~&\] . ")))
-  
-#+(or)
-(progn
-  (setf (test-result-property *test-result* :if-exists) :supersede)
-  (test-result-report *test-result*  #p"/tmp/report.n3" :turtle))
 
 ;;;;
 
@@ -1087,3 +993,10 @@ lift::(progn
 		      suite (details-link stream suite name) name)))
        (format out "~&</ul>~%"))
     (html-footer out)))
+
+(defun test-case-skipped-p (result suite-name case-name)
+  (or (find suite-name (skipped-testsuites result))
+      (find-if (lambda (couplet)
+		 (and (eq (first couplet) suite-name)
+		      (eq (second couplet) case-name)))
+	       (skipped-test-cases result))))
