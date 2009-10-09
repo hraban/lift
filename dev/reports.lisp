@@ -251,6 +251,18 @@ lift::(progn
 	      (length (expected-errors result)))
       (format stream "</h3>~%"))
 
+    (when (or (skipped-test-cases result) (skipped-testsuites result))
+      (format stream "~&<h3>")
+      (when (skipped-test-cases result)
+	(format stream "~:d Skipped test cases" 
+		(length (skipped-test-cases result)))
+	(when (skipped-testsuites result)
+	  (format stream ", ")))
+      (when (skipped-testsuites result)
+	(format stream "~:d Skipped test suites" 
+		(length (skipped-testsuites result))))
+      (format stream "</h3>~%"))
+
     (when (and (slot-boundp result 'end-time-universal)
 	       (numberp (end-time-universal result))
 	       (numberp (start-time-universal result)))
@@ -334,7 +346,13 @@ lift::(progn
 	   (when (errors result)
 	     (build-issues-report result :errors stream))
 	   (when (failures result)
-	     (build-issues-report result :failures stream)))	
+	     (build-issues-report result :failures stream))
+	   (when (expected-failures result)
+	     (build-issues-report result :expected-failures stream))
+	   (when (expected-errors result)
+	     (build-issues-report result :expected-error stream))
+	   (when (skipped-test-cases result)
+	     (build-issues-report result :skipped-testsuites stream)))	
 	  (t
 	   (doit stream)))))
 
@@ -571,13 +589,7 @@ lift::(progn
   (format stream "~&## Tests Run:")
   (let ((tests (tests-run result))
 	(current-suite nil))
-    (loop for rest = (sort 
-		      ;; FIXME - this is a hack intended to show tests
-		      ;; in the order they were run (even if it works, it's
-		      ;; bound to be fragile)
-		      (copy-list tests)
-		      #+(or) (nreverse (copy-list tests))
-		      'string-lessp :key 'first) then (rest rest) 
+    (loop for rest = tests
        while rest
        for (suite test-name datum) = (first rest) do
        (unless (eq current-suite suite)
@@ -654,9 +666,6 @@ lift::(progn
     (add-property 'real-end-time-universal)
     (format stream "~&\(:tests-run ")
     (loop for (suite name data) in
-       ;; FIXME - this is a hack intended to show tests
-       ;; in the order they were run (even if it works, it's
-       ;; bound to be fragile)
 	 (copy-list (tests-run result)) do
 	 (summarize-single-test format suite name data :stream stream))
     (format stream "~&\)")
@@ -700,6 +709,8 @@ lift::(progn
     (out :error-count (length (errors result)))
     (out :expected-failure-count (length (expected-failures result)))
     (out :expected-error-count (length (expected-errors result)))
+    (out :skipped-testsuites-count (length (skipped-testsuites result)))
+    (out :skipped-test-cases-count (length (skipped-test-cases result)))
     (out :start-time-universal (start-time-universal result))
     (when (slot-boundp result 'end-time-universal)
       (out :end-time-universal (end-time-universal result)))
@@ -709,6 +720,10 @@ lift::(progn
 	 (collect-testsuite-summary result :expected-errors))
     (out :expected-failures 
 	 (collect-testsuite-summary result :expected-failures))
+    (out :skipped-testsuites 
+	 (collect-testsuite-summary result :skipped-testsuites))
+    (out :skipped-test-cases	 
+	 (collect-testsuite-summary result :skipped-test-cases))
     (loop for hook in *lift-report-footer-hook* do
 	 (funcall hook out result))
     (format out "~&\)~%")))
@@ -767,12 +782,14 @@ lift::(progn
 	     (cons (symbol-name symbol) 
 		   (package-name (symbol-package symbol)))))
       (mapcar (lambda (glitch)
-		(list (encode-symbol (type-of (testsuite glitch)))
-		      (encode-symbol (test-method glitch))))
+		(if (test-method glitch)
+		    (list (encode-symbol (type-of (testsuite glitch)))
+			  (encode-symbol (test-method glitch)))
+		    (encode-symbol (type-of (testsuite glitch)))))
 	      list))))
 
 #+(or)
-(collect-testsuite-summary lift:*test-result* :failures)
+(collect-testsuite-summary lift:*test-result* :skipped-testsuites)
 
 ;;;;;
 

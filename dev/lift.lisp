@@ -248,9 +248,10 @@ LIFT during a test run.")
 		  :accessor failure-documentation)))
 
 (defclass test-expected-failure (expected-problem-mixin generic-problem)
-  ()
-  (:default-initargs 
-   :test-problem-kind "Expected failure"))
+  ())
+
+(defmethod test-problem-kind ((problem test-expected-failure))
+  "Expected failure")
 
 (defclass test-failure (generic-problem)
   ()
