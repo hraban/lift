@@ -158,7 +158,9 @@
 	(let* ((*lift-report-pathname*
 		(cond ((null report-pathname) nil)
 		      ((eq report-pathname t)
-		       (report-summary-pathname))))
+		       (report-summary-pathname))
+		      (t
+		       report-pathname)))
 	       (*test-run-subsuites?* do-children?)
 	       (*skip-tests* skip-tests)
 	       (*print-readably* nil)
@@ -228,27 +230,40 @@ nor configuration file options were specified.")))))
 	(setf *test-result* result)))
 
 (defmethod testsuite-run ((testsuite test-mixin) (result test-result))
-  (unless (start-time result)
-    (setf (start-time result) (get-internal-real-time)
-	  (start-time-universal result) (get-universal-time)))
-  (unwind-protect
-       (let* ((methods (testsuite-methods testsuite))
-	      (suite-name (class-name (class-of testsuite)))
-	      (*current-testsuite-name* suite-name))
-	 (loop for method in methods do
-	      (if (skip-test-case-p result suite-name method)
-		  (skip-test-case result suite-name method)
-		  (run-test-internal testsuite method result)))
-	 (when *test-run-subsuites?*
-	   (if (skip-test-suite-children-p result suite-name)
-	       (skip-testsuite result suite-name)
-	       (loop for subclass in (direct-subclasses (class-of testsuite))	
-		  when (and (testsuite-p subclass)
-			    (not (member (class-name subclass) 
-					 (suites-run result)))) do
-		  (run-tests-internal (class-name subclass)
-				      :result result)))))
-    (setf (end-time result) (get-universal-time))))
+  (let* ((methods (testsuite-methods testsuite))
+	 (suite-name (class-name (class-of testsuite)))
+	 (*current-testsuite-name* suite-name))
+    (cond ((skip-test-suite-children-p result suite-name)
+	   (skip-testsuite result suite-name))
+	  (t
+	   (unless (start-time result)
+	     (setf (start-time result) (get-internal-real-time)
+		   (start-time-universal result) (get-universal-time)))
+	   (unwind-protect
+		(progn
+		  (loop for method in methods do
+		       (let ((data nil))
+			 (cond ((skip-test-case-p result suite-name method)
+				(setf data 
+				      `(:problem ,(skip-test-case
+						   result suite-name method))))
+			       (t
+				(setf data (run-test-internal
+					    testsuite method result))))
+			 (when *lift-report-pathname*
+			   (summarize-single-test  
+			    :save suite-name method data
+			    :stream *lift-report-pathname*))))
+		  (when *test-run-subsuites?*
+		    (if (skip-test-suite-children-p result suite-name)
+			(skip-testsuite result suite-name)
+			(loop for subclass in (direct-subclasses (class-of testsuite))	
+			   when (and (testsuite-p subclass)
+				     (not (member (class-name subclass) 
+						  (suites-run result)))) do
+			   (run-tests-internal (class-name subclass)
+					       :result result)))))
+	     (setf (end-time result) (get-universal-time)))))))
 
 (defmethod run-test-internal ((suite symbol) (name symbol) result
 			       &rest args &key &allow-other-keys)
@@ -344,15 +359,10 @@ nor configuration file options were specified.")))))
 			     *current-test-case-name*))
 	     (go :test-start)))
        :test-end)
-      (maybe-push-result))
-    (when *lift-report-pathname*
-      (let ((current (first (tests-run result))))
-	(summarize-single-test  
-	 :save (first current) (second current) (third current)
-	 :stream *lift-report-pathname*))))
+      (maybe-push-result)))
   (setf *current-test-case-name* name
-	*test-result* result))
-
+	*test-result* result)
+  (third (first (tests-run result))))
 
 (defun handle-error-while-testing (condition error-class suite result)
   (let ((*in-middle-of-failure?* nil))
