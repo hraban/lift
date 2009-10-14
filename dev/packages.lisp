@@ -135,6 +135,8 @@
        #:start-periodic-profiling
        #:stop-periodic-profiling
        #:periodic-profilers
+
+       #:setup-test
        ))))
 
 (unless (and (find-package :asdf)
