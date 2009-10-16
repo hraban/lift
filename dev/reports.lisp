@@ -1130,7 +1130,6 @@ lift::(progn
 	  (results-for result)))
 
 (defmethod summarize-test-environment (result stream (format (eql :brief)))
-  (declare (ignore result))
   (format stream "~&Lisp: ~a" (lisp-version-string))
   (format stream ", Machine: ~a ~a ~a, Date: ~a"  
 	  (machine-type) (machine-version) (machine-instance)
