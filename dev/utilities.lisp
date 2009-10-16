@@ -387,12 +387,12 @@ and nil otherwise."
   (when (and *test-print-test-case-names*
 	     (eq (test-mode result) :multiple))
     (if (eq *test-print-test-case-names* :brief)
-	(print-lift-message #\.)
+	(print-lift-message ".")
 	(print-lift-message "~&  run: ~a" name))))
 
 (defun %start-test-suite (name result)
   (when (and *test-print-testsuite-names*
 	     (eq (test-mode result) :multiple))
     (if (eq *test-print-testsuite-names* :brief)
-	(print-lift-message #\*)
+	(print-lift-message "*")
 	(print-lift-message "~&Start: ~a" name))))
