@@ -282,12 +282,13 @@ control over where in the test hierarchy the search begins."
 	 nil)))
 
 (defun suite-tested-p (suite &key (result *test-result*))
-  (and result
-       (typep *test-result* 'test-result)
-       (slot-exists-p result 'suites-run)
-       (slot-boundp result 'suites-run)
-       (consp (suites-run result))
-       (find suite (suites-run result))))
+  (let ((suite (find-testsuite suite)))
+    (and result
+	 (typep *test-result* 'test-result)
+	 (slot-exists-p result 'suites-run)
+	 (slot-boundp result 'suites-run)
+	 (consp (suites-run result))
+	 (find suite (suites-run result)))))
 
 (defun test-results (&key (result *test-result*) (failures? t)
                     (errors? t) (successes? nil)

@@ -38,10 +38,6 @@ if greater than or equal to its value. Setting this to some small
 value can help prevent running lengthly test-suites when there are many
 failures. See also [\\*test-maximum-error-count\\*][].")
 
-(defvar *lift-debug-output* *debug-io*
-  "Messages from LIFT will be sent to this stream. It can set to nil or 
-to an output stream. It defaults to *debug-io*.")
-
 (defvar *test-maximum-time* 2
   "Maximum number of seconds a process test is allowed to run before we give up.")
 
@@ -72,12 +68,6 @@ the test is running. Note that this may interact oddly with ensure-warning.")
   "The print-length in effect when LIFT prints test results. It works exactly like `*print-length*` except that it can also take on the value :follow-print. In this case, it will be set to the value of  `*print-length*`.")
 (defvar *test-print-level* :follow-print
   "The print-level in effect when LIFT prints test results. It works exactly like `*print-level*` except that it can also take on the value :follow-print. In this case, it will be set to whatever `*print-level*` is.")
-
-(defvar *test-print-testsuite-names* t
-  "If true, LIFT will print the name of each test suite to *debug-io* before it begins to run the suite. See also: *test-print-test-case-names*.")
-
-(defvar *test-print-test-case-names* nil
-  "If true, LIFT will print the name of each test-case before it runs. See also: *test-print-testsuite-names*.")
 
 (defparameter *skip-tests* nil
   "A lift of test-suites and (testsuite test-case) pairs that LIFT will ignore
@@ -607,9 +597,6 @@ LIFT during a test run.")
   (values))
 
 (defmethod testsuite-setup :before ((testsuite test-mixin) (result test-result))
-  (when (and *test-print-testsuite-names*
-	     (eq (test-mode result) :multiple))
-    (print-lift-message "~&Start: ~a" (type-of testsuite)))
   (push (type-of testsuite) (suites-run result))
   (setf (current-step testsuite) :testsuite-setup))
 
@@ -657,11 +644,6 @@ LIFT during a test run.")
 
 (defun (setf test-result-property) (value result property)
   (setf (getf (test-result-properties result) property) value))
-
-(defun print-lift-message (message &rest args)
-  (apply #'format *lift-debug-output* message args)
-  (force-output *lift-debug-output*))
-
 
 (defmethod write-profile-information ((suite t))
   )

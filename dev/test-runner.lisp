@@ -80,6 +80,7 @@
 			     (go :test-end))))
 	     (unwind-protect
 		  (let ((*lift-equality-test* (equality-test suite)))
+		    (%start-test-suite (type-of suite) result)
 		    (testsuite-setup suite result)
 		    (call-next-method)
 		    result)
@@ -299,9 +300,7 @@ nor configuration file options were specified.")))))
 		     (t
 		      ;; replace
 		      (setf (first (tests-run result)) datum))))))
-      (when (and *test-print-test-case-names*
-		 (eq (test-mode result) :multiple))
-	(print-lift-message "~&  run: ~a" name))
+      (%start-test-case name result)
       (tagbody 
        :test-start
 	 (restart-case
