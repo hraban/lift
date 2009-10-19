@@ -658,6 +658,9 @@ LIFT during a test run.")
 (defmethod setup-test ((test test-mixin))
   (values))
 
+(defmethod setup-test ((test symbol))
+  (setup-test (make-testsuite test nil)))
+
 (defmethod test-case-teardown progn ((test test-mixin) (result test-result))
   (values))
 
