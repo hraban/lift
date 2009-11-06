@@ -456,7 +456,8 @@ lift::(progn
        while rest
        for (suite test-name datum) = (first rest) do
 	 (unless (eq current-suite suite)
-	   (report-test-suite-by-suite format stream rest current-suite suite))
+	   (report-test-suite-by-suite format stream rest current-suite suite)
+	   (setf current-suite suite))
 	 (report-test-case-by-suite format stream suite test-name datum))
     (finish-report-tests-by-suite format stream current-suite)))
 
