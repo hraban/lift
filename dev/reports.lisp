@@ -986,7 +986,7 @@ lift::(progn
 
 (defun write-profile-report (pathname name style body seconds conses
 			     error count-calls-p)
-  (format t "~&Profiling output being sent to ~a" pathname)
+  (format *lift-debug-output* "~&Profiling output being sent to ~a" pathname)
   (with-open-file (output pathname
 			  :direction :output
 			  :if-does-not-exist :create
