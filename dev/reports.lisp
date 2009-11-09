@@ -895,6 +895,14 @@ lift::(progn
 ;;;;;
 
 
+#-allegro
+(defun cancel-current-profile (&key force?)
+  (declare (ignore force?))
+  )
+
+#-allegro
+(defun current-profile-sample-count ()
+  )
 
 #+allegro
 (defun cancel-current-profile (&key force?)
@@ -943,6 +951,14 @@ lift::(progn
 #-allegro
 (defun show-call-counts (output)
   (format output "~%~%Call counts: unavailable for this Lisp~%"))
+
+#-allegro
+(defun with-profile-report-fn 
+    (name style fn body &key
+     (log-name *benchmark-log-path*)
+     (count-calls-p *count-calls-p*)
+     (timeout nil))
+  (declare (ignore name style fn body log-name count-calls-p timeout)))
 
 #+allegro
 (defun with-profile-report-fn 

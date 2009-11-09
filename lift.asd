@@ -33,7 +33,7 @@
 			     (:file "classes" :depends-on ("generics"))))
 	       (:module 
 		"dev" 
-		:depends-on ("setup")
+		:depends-on ("setup" "api")
 		:components 
 		((:static-file "notes.text")
 		 (:file "lift"

@@ -1293,14 +1293,12 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
     (if (eq foo :follow-print) *print-level* foo)))
 
 (defun record-start-times (suite) 
-  (declare (ignore name))
   (setf (current-step suite) :start-test
 	(test-data suite) 
 	`(:start-time ,(get-internal-real-time)
 	  :start-time-universal ,(get-universal-time))))
 
 (defun record-end-times (result suite)
-  (declare (ignore name))
   (setf (current-step suite) :end-test
 	(getf (test-data suite) :end-time) (get-internal-real-time)
 	(end-time result) (get-internal-real-time)
