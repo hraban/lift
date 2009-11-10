@@ -297,36 +297,6 @@ See file COPYING for license
 	     :report-pathname nil)
   (ensure-same *test-notepad* '(:b-1 :b)))
 
-
-;; helpers
-(deftestsuite test-ss&t-helper ()
-  ()
-  (:setup    (push :s *test-notepad*))
-  (:teardown (push :t *test-notepad*))
-  (:run-setup :once-per-suite))
-
-(deftestsuite test-ss&t-child-a (test-ss&t-helper) () 
-  (:setup    (push :a-s *test-notepad*))
-  (:teardown (push :a-t *test-notepad*))
-  (:test (test-1 (push :a-1 *test-notepad*) (ensure t)))
-  (:test (test-2 (push :a-2 *test-notepad*) (ensure t))))
-
-(deftestsuite test-ss&t-child-b (test-ss&t-helper) () 
-  (:setup    (push :b-s *test-notepad*))
-  (:teardown (push :b-t *test-notepad*))
-  (:test (test-1 (push :b-1 *test-notepad*) (ensure t)))
-  (:test (test-2 (push :b-2 *test-notepad*) (ensure t))))
-
-(addtest (test-single-setup)
-  ss&t-1
-  (setf *test-notepad* nil)
-  (lift:run-tests  :suite 'test-ss&t-helper 
-		   :report-pathname nil
-		   :result (make-test-result 'test-singe-setup :multiple)
-		   )
-  (ensure-same '(:s :b-s :b-1 :b-2 :b-t :a-s :a-1 :a-2 :a-t :t)
-	       (reverse *test-notepad*)))
-
 ;;; ---------------------------------------------------------------------------
 ;;; warning behavior
 ;;; ---------------------------------------------------------------------------

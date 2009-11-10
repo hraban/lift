@@ -203,8 +203,7 @@ can be :supersede, :append, or :error.")
    (start-time-universal :accessor start-time-universal :initform nil)
    (end-time-universal :accessor end-time-universal)
    (real-end-time-universal :accessor real-end-time-universal)
-   (properties :initform nil :accessor test-result-properties)
-   (session-data :initform (make-hash-table) :accessor session-data))
+   (properties :initform nil :accessor test-result-properties))
   (:documentation 
 "A `test-result` instance contains all of the information collectd by 
 LIFT during a test run.")
@@ -652,21 +651,9 @@ LIFT during a test run.")
 (defmethod equality-test ((suite test-mixin))
   #'equal)
 
-(defun do-setup-test (suite)
+(defmethod setup-test :before ((test test-mixin))
   (setf *test-scratchpad* nil
-	(current-step suite) :test-setup)
-  (let ((session-data (session-data *test-result*)))
-    (loop for class in (reverse 
-			(clos:class-precedence-list
-			 (class-of (find-testsuite suite)))) do
-	 (let ((class-name (class-name class)))
-	   (when (subtypep class-name 'test-mixin)
-	     (let ((test (or (gethash class-name session-data)
-			     (setf (gethash class-name session-data)
-				   (make-instance class-name)))))
-	       (when (run-setup-p test)
-		 (setup-test test)
-		 (setf (slot-value test 'done-setup?) t))))))))
+	(current-step test) :test-setup))
 
 (defmethod setup-test ((test test-mixin))
   (values))
@@ -1309,12 +1296,14 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
     (if (eq foo :follow-print) *print-level* foo)))
 
 (defun record-start-times (suite) 
+  (declare (ignore name))
   (setf (current-step suite) :start-test
 	(test-data suite) 
 	`(:start-time ,(get-internal-real-time)
 	  :start-time-universal ,(get-universal-time))))
 
 (defun record-end-times (result suite)
+  (declare (ignore name))
   (setf (current-step suite) :end-test
 	(getf (test-data suite) :end-time) (get-internal-real-time)
 	(end-time result) (get-internal-real-time)
@@ -1639,7 +1628,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 	  (%gather-up-initforms)
 	(when (or setup slots)
 	  `(progn
-	     (defmethod setup-test ((testsuite ,test-name))
+	     (defmethod setup-test :after ((testsuite ,test-name))
 	       (with-test-slots
 		 ,@(when slots
 			 `((let ((,ginitargs (suite-initargs testsuite)))
@@ -1662,6 +1651,11 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 	 (push (getf (rest spec) :initform) initforms)
 	 (push (first spec) slot-names))
     (values (nreverse slot-names) (nreverse initforms))))    
+
+(defmethod setup-test :around ((test test-mixin))
+  (when (run-setup-p test)
+    (call-next-method)
+    (setf (slot-value test 'done-setup?) t)))
 
 (defun run-setup-p (testsuite)
   (case (run-setup testsuite)

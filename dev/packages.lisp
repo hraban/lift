@@ -136,7 +136,7 @@
        #:stop-periodic-profiling
        #:periodic-profilers
 
-       #:setup-test                                  
+       #:setup-test
        )
       (:export
        #:timeout-error))))

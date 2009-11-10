@@ -396,15 +396,3 @@ and nil otherwise."
     (if (eq *test-print-testsuite-names* :brief)
 	(print-lift-message "*")
 	(print-lift-message "~&Start: ~a" name))))
-
-(defun safe-find-symbol (symbol package)
-  (and (find-package package)
-       (find-symbol (etypecase symbol
-		      (string symbol)
-		      (symbol (symbol-name symbol))) package)))
-
-(defun symbol-apply (symbol package &rest args)
-  (let* ((symbol (safe-find-symbol symbol package))
-	 (function (and symbol (symbol-function symbol))))
-    (when function
-      (apply function args))))

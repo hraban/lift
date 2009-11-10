@@ -105,7 +105,6 @@ The accuracy can be no greater than {hs internal-time-units-per-second}.")
 			  :direction :output
 			  :if-does-not-exist :create
 			  :if-exists :append)
-    (declare (type stream output))
     (with-standard-io-syntax
       (let ((*print-readably* nil))
 	(terpri output)

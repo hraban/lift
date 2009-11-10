@@ -325,7 +325,7 @@ nor configuration file options were specified.")))))
 	       (record-start-times suite)
 	       (unwind-protect
 		    (progn
-		      (do-setup-test suite)
+		      (setup-test suite)
 		      (setf (current-step suite) :testing)
 		      (multiple-value-bind (result measures error-condition)
 			  (while-measuring (t measure-space measure-seconds)
