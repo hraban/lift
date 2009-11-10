@@ -99,7 +99,14 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
   (unique-filename (generate-report-summary-pathname)))
 
 (defmethod generate-report-summary-pathname ()
-  (lift-relative-pathname "test-results/summary.sav"))
+  (let ((basepath (lift-relative-pathname "test-results/summary.sav"))
+	(relative (symbol-apply
+		   (symbol-name 'implementation-specific-directory-name)
+		   :asdf)))
+    (if relative
+	(merge-pathnames
+	 (make-pathname :directory `(:relative ,relative)) basepath)
+	basepath)))
 
 #+(or)
 (generate-report-summary-pathname)
@@ -144,7 +151,7 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
       				  form path c)
       			     (pprint (get-backtrace c))
       			     (invoke-debugger c))))
-	   (format t "~&handle config: ~s" form)
+	   (format *lift-debug-output* "~&handle config: ~s" form)
       	   (destructuring-bind
       		 (name &rest args)
       	       form
@@ -357,7 +364,7 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
 	    ((or (streamp dest) 
 		 (ensure-directories-exist dest)
 		 (writable-directory-p dest))
-	     (format *debug-io* "~&Sending report (format ~s) to ~a" 
+	     (format *lift-debug-output* "~&Sending report (format ~s) to ~a" 
 		     format dest)
 	     (test-result-report
 	      *test-result* dest format))

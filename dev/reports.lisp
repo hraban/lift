@@ -456,7 +456,8 @@ lift::(progn
        while rest
        for (suite test-name datum) = (first rest) do
 	 (unless (eq current-suite suite)
-	   (report-test-suite-by-suite format stream rest current-suite suite))
+	   (report-test-suite-by-suite format stream rest current-suite suite)
+	   (setf current-suite suite))
 	 (report-test-case-by-suite format stream suite test-name datum))
     (finish-report-tests-by-suite format stream current-suite)))
 
@@ -1001,7 +1002,7 @@ lift::(progn
 
 (defun write-profile-report (pathname name style body seconds conses
 			     error count-calls-p)
-  (format t "~&Profiling output being sent to ~a" pathname)
+  (format *lift-debug-output* "~&Profiling output being sent to ~a" pathname)
   (with-open-file (output pathname
 			  :direction :output
 			  :if-does-not-exist :create
