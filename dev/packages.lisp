@@ -137,7 +137,9 @@
        #:periodic-profilers
 
        #:setup-test
-       ))))
+       )
+      (:export
+       #:timeout-error))))
 
 (unless (and (find-package :asdf)
 	     (find-symbol (symbol-name 'system-relative-pathname) :asdf)

@@ -1,5 +1,16 @@
 (in-package #:lift)
 
+(defvar *lift-debug-output* *debug-io*
+  "Messages from LIFT will be sent to this stream. It can set to nil or 
+to an output stream. It defaults to *debug-io*.")
+
+(defvar *test-print-testsuite-names* t
+  "If true, LIFT will print the name of each test suite to *debug-io* before it begins to run the suite. See also: *test-print-test-case-names*.")
+
+(defvar *test-print-test-case-names* nil
+  "If true, LIFT will print the name of each test-case before it runs. See also: *test-print-testsuite-names*.")
+
+
 ;; stolen from metatilities
 (defun form-symbol-in-package (package &rest names)
     "Finds or interns a symbol in package whose name is formed by concatenating the pretty printed representation of the names together."
@@ -366,3 +377,34 @@ and nil otherwise."
   #+armedbear (lisp-implementation-version)
   #+cormanlisp (lisp-implementation-version)
   #+digitool   (subseq (lisp-implementation-version) 8))
+
+(defun print-lift-message (message &rest args)
+  (declare (dynamic-extent args))
+  (apply #'format *lift-debug-output* message args)
+  (force-output *lift-debug-output*))
+
+(defun %start-test-case (name result)
+  (when (and *test-print-test-case-names*
+	     (eq (test-mode result) :multiple))
+    (if (eq *test-print-test-case-names* :brief)
+	(print-lift-message ".")
+	(print-lift-message "~&  run: ~a" name))))
+
+(defun %start-test-suite (name result)
+  (when (and *test-print-testsuite-names*
+	     (eq (test-mode result) :multiple))
+    (if (eq *test-print-testsuite-names* :brief)
+	(print-lift-message "*")
+	(print-lift-message "~&Start: ~a" name))))
+
+(defun safe-find-symbol (symbol package)
+  (and (find-package package)
+       (find-symbol (etypecase symbol
+		      (string symbol)
+		      (symbol (symbol-name symbol))) package)))
+
+(defun symbol-apply (symbol package &rest args)
+  (let* ((symbol (safe-find-symbol symbol package))
+	 (function (and symbol (symbol-function symbol))))
+    (when function
+      (apply function args))))
