@@ -48,6 +48,23 @@ lift::(progn
 |#
 
 
+(defvar *log-header-hooks* nil)
+(defvar *log-footer-hooks* nil)
+(defvar *log-detail-hooks* nil)
+
+(defvar *report-hooks* nil)
+
+(defun report-hooks-for (mode)
+  (cdr (assoc mode *report-hooks*)))
+
+(defun (setf report-hooks-for) (value mode)
+  (setf *report-hooks* (remove mode *report-hooks* :key 'car))
+  (push (cons mode value) *report-hooks*)
+  value)
+
+(defun add-report-hook-for (mode hook)
+  (setf (report-hooks-for mode) (push hook (report-hooks-for mode))))
+
 (defgeneric start-report-output (result stream format)
   )
 
@@ -64,7 +81,7 @@ lift::(progn
     (format problems stream id heading name)
   )
 
-(defgeneric summarize-single-test 
+(defgeneric write-log-test 
     (format suite-name test-case-name data &key stream)
   )
 
@@ -148,11 +165,16 @@ lift::(progn
 			(length (errors result)))))))
 
 (defmethod summarize-test-environment (result stream format)
-  (declare (ignore result format))
-  (format stream "~&Lisp: ~a" (lisp-version-string))
-  (format stream "~&      ~a" (lisp-implementation-version))
+  (format stream "~&Lisp: ~a (~a)" 
+	  (lisp-version-string) (lisp-implementation-version))
   (format stream "~&On  : ~a ~a ~a" 
-	  (machine-type) (machine-version) (machine-instance)))
+	  (machine-type) (machine-version) (machine-instance))
+  (terpri stream)
+  (let ((*standard-output* stream))
+    (loop for hook in (report-hooks-for :summarize-environment) do
+	 (funcall hook result format)))
+  (terpri stream)
+  )
 
 (defmethod summarize-test-problems (result stream format)
   (declare (ignore result stream format))
@@ -769,7 +791,7 @@ lift::(progn
     (format stream "~&\(:tests-run ")
     (loop for (suite name data) in
 	 (copy-list (tests-run result)) do
-	 (summarize-single-test format suite name data :stream stream))
+	 (write-log-test format suite name data :stream stream))
     (format stream "~&\)")
     (format stream "~&\)")))
 
@@ -785,24 +807,18 @@ lift::(progn
 
 ;;;;
 
-(defvar *lift-report-header-hook* nil)
-
-(defvar *lift-report-footer-hook* nil)
-
-(defvar *lift-report-detail-hook* nil)
-
-(defun write-report-header (stream result args)
+(defun write-log-header (stream result args)
   (append-to-report (out stream)
     (format out "~&\(")
     (out :results-for (results-for result))
     (out :arguments args)
     (out :features (copy-list *features*))
     (out :datetime (get-universal-time))
-    (loop for hook in *lift-report-header-hook* do
+    (loop for hook in *log-header-hooks* do
 	 (funcall hook out result))
     (format out "~&\)~%")))
 
-(defun write-report-footer (stream result)
+(defun write-log-footer (stream result)
   (append-to-report (out stream)
     (format out "~&\(")
     (out :test-case-count (length (tests-run result)))
@@ -816,26 +832,26 @@ lift::(progn
     (out :start-time-universal (start-time-universal result))
     (when (slot-boundp result 'end-time-universal)
       (out :end-time-universal (end-time-universal result)))
-    (out :errors (collect-testsuite-summary result :errors))
-    (out :failures (collect-testsuite-summary result :failures))
+    (out :errors (collect-testsuite-summary-for-log result :errors))
+    (out :failures (collect-testsuite-summary-for-log result :failures))
     (out :expected-errors
-	 (collect-testsuite-summary result :expected-errors))
+	 (collect-testsuite-summary-for-log result :expected-errors))
     (out :expected-failures 
-	 (collect-testsuite-summary result :expected-failures))
+	 (collect-testsuite-summary-for-log result :expected-failures))
     (out :skipped-testsuites 
-	 (collect-testsuite-summary result :skipped-testsuites))
+	 (collect-testsuite-summary-for-log result :skipped-testsuites))
     (out :skipped-test-cases	 
-	 (collect-testsuite-summary result :skipped-test-cases))
-    (loop for hook in *lift-report-footer-hook* do
+	 (collect-testsuite-summary-for-log result :skipped-test-cases))
+    (loop for hook in *log-footer-hooks* do
 	 (funcall hook out result))
     (format out "~&\)~%")))
 
-(defmethod summarize-single-test :around
+(defmethod write-log-test :around
     (format suite-name test-case-name data &key stream)
   (append-to-report (out stream)
     (call-next-method format suite-name test-case-name data :stream out)))
 
-(defmethod summarize-single-test 
+(defmethod write-log-test 
     ((format (eql :save)) suite-name test-case-name data
      &key (stream *standard-output*))
   (labels ((out (key value)
@@ -871,13 +887,13 @@ lift::(progn
 	       (out :problem-backtrace (backtrace problem)))))
 	  (t
 	   (out :result t)))
-    (loop for hook in *lift-report-detail-hook* do
+    (loop for hook in *log-detail-hooks* do
 	 (funcall hook stream data))
     (format stream "\)~%")))
 
 ;;;;
 
-(defun collect-testsuite-summary (result kind)
+(defun collect-testsuite-summary-for-log (result kind)
   (let ((list (slot-value result (intern (symbol-name kind) 
 					 (find-package :lift)))))
     (flet ((encode-symbol (symbol)
@@ -891,7 +907,7 @@ lift::(progn
 	      list))))
 
 #+(or)
-(collect-testsuite-summary lift:*test-result* :skipped-testsuites)
+(collect-testsuite-summary-for-log lift:*test-result* :skipped-testsuites)
 
 ;;;;;
 
@@ -994,7 +1010,6 @@ lift::(progn
     (format output "~&Profile data for ~a" name)
     (format output "~&Date: ~a" (date-stamp :include-time? t))
     (summarize-test-environment nil output nil)
-    (format output "~&Lisp: ~a" (lisp-version-string))
     (format output "~&  Total time: ~,2F; Total space: ~:d \(~:*~d\)"
 	    seconds conses)
     (format output "~%~%")

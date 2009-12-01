@@ -17,9 +17,10 @@
        #:class-precedence-list)
       (:export
        #:*benchmark-log-path*
-       #:*lift-report-detail-hook*
-       #:*lift-report-header-hook*
-       #:*lift-report-footer-hook*
+       #:*log-detail-hooks*
+       #:*log-header-hooks*
+       #:*log-footer-hooks*
+       #:report-hooks-for
        #:with-profile-report
        #:describe-test-result
        #:count-repetitions

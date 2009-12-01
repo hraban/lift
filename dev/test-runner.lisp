@@ -177,7 +177,7 @@ but not both."))
 		   (setf result
 			 (apply #'make-test-result config :multiple args)))
 		 (when report-pathname
-		   (write-report-header report-pathname result args-copy))
+		   (write-log-header report-pathname result args-copy))
 		 (let* ((*test-result* result))
 		   (setf result (run-tests-from-file config))))
 		((or suite (setf suite *current-testsuite-name*))
@@ -185,7 +185,7 @@ but not both."))
 		   (setf result
 			 (apply #'make-test-result suite :multiple args)))
 		 (when report-pathname
-		   (write-report-header report-pathname result args-copy))
+		   (write-log-header report-pathname result args-copy))
 		 (let* ((*test-break-on-errors?* break-on-errors?)
 			(*test-break-on-failures?* break-on-failures?)
 			(*test-result* result)
@@ -223,7 +223,7 @@ but not both."))
 		   ;; FIXME -- ugh!
 		   (setf (tests-run result) (reverse (tests-run result)))
 		   (when report-pathname
-		     (write-report-footer report-pathname result))
+		     (write-log-footer report-pathname result))
 		   (values result)))
 		(t
 		 (error "There is not a current test suite and neither suite 
@@ -252,7 +252,7 @@ nor configuration file options were specified.")))))
 				(setf data (run-test-internal
 					    testsuite method result))))
 			 (when *lift-report-pathname*
-			   (summarize-single-test  
+			   (write-log-test  
 			    :save suite-name method data
 			    :stream *lift-report-pathname*))))
 		  (when *test-run-subsuites?*
