@@ -133,7 +133,8 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
       						  :direction :input
       						  :if-does-not-exist :error)
     (let ((form nil)
-      	  (run-tests-p t))
+      	  (run-tests-p t)
+	  (*lift-report-pathname* (report-summary-pathname)))
       (loop while (not (eq (setf form (read *current-configuration-stream* 
       					    nil :eof nil)) :eof)) 
       	 collect
@@ -172,15 +173,6 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
 					  path))
 			(declare (ignore result))
 			(values nil t)))
-      		    #+(or)
-		    (with-simple-restart (cancel-testing-from-configuration
-      					  "Cancel testing from file ~a" path)
-		      (if (find-testsuite name :errorp nil)
-			  (run-tests :suite name 
-				     :result *test-result* 
-				     :testsuite-initargs args)
-			  (show-test-warning
-			   "~&Warning: testsuite ~s not found, skipping" name)))
       		  (declare (ignore _))
       		  ;; no more testing; continue to process commands
       		  (when restartedp 
