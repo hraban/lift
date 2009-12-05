@@ -108,23 +108,24 @@
 
 (defmethod run-tests-internal ((suite symbol) &rest args
 			       &key &allow-other-keys)
-  (let ((*current-test* (make-testsuite suite args))
+  (let ((suite (make-testsuite suite args))
 	(passthrough-arguments nil))
     (loop for arg in '(:result :do-children?) 
        when (getf args arg) do
 	 (push (getf args arg) passthrough-arguments)
 	 (push arg passthrough-arguments))
-    (apply #'run-tests-internal *current-test* passthrough-arguments)))
+    (apply #'run-tests-internal suite passthrough-arguments)))
 
 (defmethod run-tests-internal 
-    ((case test-mixin) &key 
-     (result (make-test-result (class-of case) :multiple))
+    ((suite test-mixin) &key 
+     (result (make-test-result (class-of suite) :multiple))
      (do-children? *test-run-subsuites?*))
-  (let ((*test-run-subsuites?* do-children?))
+  (let ((*current-test* suite)
+	(*test-run-subsuites?* do-children?))
     (do-testing-in-environment
-	case result
+	suite result
 	(lambda ()
-	  (testsuite-run case result)))
+	  (testsuite-run suite result)))
     (setf *test-result* result)))
 
 (defun run-tests (&rest args &key 
@@ -262,8 +263,11 @@ nor configuration file options were specified.")))))
 			   when (and (testsuite-p subclass)
 				     (not (member (class-name subclass) 
 						  (suites-run result)))) do
-			   (run-tests-internal (class-name subclass)
-					       :result result)))))
+			   (run-tests-internal 
+			    (make-testsuite (class-name subclass) 
+					    (testsuite-initargs testsuite))
+			    :result result 
+			    )))))
 	     (setf (end-time result) (get-universal-time)))))))
 
 (defmethod run-test-internal ((suite symbol) (name symbol) result

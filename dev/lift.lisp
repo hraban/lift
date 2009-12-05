@@ -170,7 +170,8 @@ can be :supersede, :append, or :error.")
 		       :reader expected-problem-p)
    (suite-initargs
     :initform nil
-    :accessor suite-initargs)
+    :accessor suite-initargs
+    :accessor testsuite-initargs)
    (profile 
     :initform nil
     :initarg :profile
@@ -985,15 +986,16 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 				       (special 
 					,@(mapcar 
 					   #'car (def :dynamic-variables))))
-			      (cond ((done-dynamics? suite)
-				     (call-next-method))
-				    (t
-				     (setf (slot-value suite 'done-dynamics?) t)
-				     (let* (,@(def :dynamic-variables))
-				       (declare (special 
-						 ,@(mapcar 
-						    #'car (def :dynamic-variables))))
-				       (call-next-method)))))))
+			      (with-test-slots
+				(cond ((done-dynamics? suite)
+				       (call-next-method))
+				      (t
+				       (setf (slot-value suite 'done-dynamics?) t)
+				       (let* (,@(def :dynamic-variables))
+					 (declare (special 
+						   ,@(mapcar 
+						      #'car (def :dynamic-variables))))
+					 (call-next-method))))))))
 		  ;; tests
 		  ,@(when test-list
 			  `((let ((*test-evaluate-when-defined?* nil))
@@ -1156,10 +1158,13 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 
 
 (defun make-testsuite (suite-name args)
-  (let ((testsuite (find-testsuite suite-name :errorp t)))
+  (let ((testsuite (find-testsuite suite-name :errorp t))
+	result)
     (if testsuite
-	(apply #'make-instance testsuite args)
-	(error "Testsuite ~a not found." suite-name))))
+	(setf result (apply #'make-instance testsuite args))
+	(error "Testsuite ~a not found." suite-name))
+    (setf (testsuite-initargs result) args)
+    result))
 
 
 (defun skip-test-case-p (result suite-name test-case-name)
