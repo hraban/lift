@@ -880,3 +880,72 @@ these cancel testing instead.)"))
 )
 
 |#
+
+(deftestsuite test-default-initargs-abstract (lift-test)
+  ())
+
+(deftestsuite test-default-initargs-parent (test-default-initargs-abstract)
+  (a (b 1))
+  (:default-initargs
+      :a :parent
+    :b 3
+    :c :inherit))
+
+(addtest (test-default-initargs-parent)
+  no-initform
+  (ensure-same a :parent))
+
+(addtest (test-default-initargs-parent)
+  with-initform
+  (ensure-same b 1))
+
+(deftestsuite test-default-initargs-child (test-default-initargs-parent)
+  (c)
+  (:default-initargs
+      :a :child))
+
+(addtest (test-default-initargs-child)
+  no-initform-1
+  (ensure-same a :child))
+
+(addtest (test-default-initargs-child)
+  no-initform-2
+  (ensure-same c :inherit))
+
+(defvar *test-default-initargs-helper-var* nil)
+
+(deftestsuite test-default-initargs-helper ()
+  (a)
+  (:default-initargs
+      :a 1))
+
+(addtest (test-default-initargs-helper)
+  test-1
+  (ensure-same a *test-default-initargs-helper-var*))
+
+(deftestsuite test-default-initargs (test-default-initargs-abstract)
+  ())
+
+(addtest (test-default-initargs)
+  test-1
+  (let ((*test-default-initargs-helper-var* 1)
+	(r (make-test-result 'test-default-initargs-helper :multiple)))
+    (lift:run-tests :suite 'test-default-initargs-helper
+		    :result r
+		    :report-pathname nil)
+    (ensure-null (errors r))
+    (ensure-null (failures r))))
+
+(addtest (test-default-initargs)
+  test-2
+  (let ((*test-default-initargs-helper-var* 2)
+	(r (make-test-result 'test-default-initargs-helper :multiple)))
+    (lift:run-tests :suite 'test-default-initargs-helper
+		    :result r
+		    :report-pathname nil
+		    :testsuite-initargs '(:a 2))
+    (ensure-null (errors r))
+    (ensure-null (failures r))))
+
+
+

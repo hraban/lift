@@ -408,3 +408,17 @@ and nil otherwise."
 	 (function (and symbol (symbol-function symbol))))
     (when function
       (apply function args))))
+
+(defun form-groups (list size)
+  (let ((result nil)
+	(count 0)
+	(sub-result nil))
+    (flet ((add-one ()
+	     (push (nreverse sub-result) result)
+	     (setf sub-result nil count 0)))
+      (loop for a in list do
+	   (when (= count size) (add-one))
+	   (push a sub-result) 
+	   (incf count))
+      (when (= count size) (add-one))
+      (values (nreverse result) (nreverse sub-result)))))

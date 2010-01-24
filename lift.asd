@@ -23,7 +23,11 @@
 		 (:file "utilities" 
 			:depends-on ("packages" "macros"))
 		 (:file "macros"
-			:depends-on ("packages"))))
+			:depends-on ("packages"))
+		 (:file "definitions"
+			:depends-on ("packages"))
+		 (:file "class-defs"
+			:depends-on ("definitions"))))
 	       (:module 
 		"api"
 		:pathname "dev/"

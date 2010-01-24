@@ -2,294 +2,6 @@
 
 (in-package #:lift)
 
-;;; ---------------------------------------------------------------------------
-;;; global environment thingies
-;;; ---------------------------------------------------------------------------
-
-(defparameter *make-testsuite-arguments*
-  '(:run-setup :test-slot-names :equality-test :log-file :timeout
-    :default-initargs :profile :expected-failure :expected-error))
-
-(defvar *current-testsuite-name* nil)
-(defvar *current-test-case-name* nil)
-
-(defvar *test-is-being-defined?* nil)
-(defvar *test-is-being-compiled?* nil)
-(defvar *test-is-being-loaded?* nil)
-(defvar *test-is-being-executed?* nil)
-
-(defvar *test-maximum-error-count* nil
-  "The maximum numbers of errors to allow during a [run-tests][].
-
-If `*test-maximum-error-count*` is nil, then a call to run-tests 
-will continue regardless of the number of errors. If it a positive
-integer, then run-tests will stop as soon as the number of test-errors
-if greater than or equal to its value. Setting this to some small 
-value can help prevent running lengthly test-suites when there are many
-errors. See also [\\*test-maximum-failure-count\\*][].")
-
-(defvar *test-maximum-failure-count* nil
-  "The maximum numbers of failures to allow during a [run-tests][].
-
-If `*test-maximum-failure-count*` is nil, then a call to run-tests 
-will continue regardless of the number of failures. If it a positive
-integer, then run-tests will stop as soon as the number of test-failures
-if greater than or equal to its value. Setting this to some small 
-value can help prevent running lengthly test-suites when there are many
-failures. See also [\\*test-maximum-error-count\\*][].")
-
-(defvar *test-maximum-time* 2
-  "Maximum number of seconds a process test is allowed to run before we give up.")
-
-(defvar *test-break-on-errors?* nil)
-(defvar *test-break-on-failures?* nil)
-(defvar *test-run-subsuites?* t)
-
-(defparameter *test-ignore-warnings?* nil
-  "If true, LIFT will not cause a test to fail if a warning occurs while
-the test is running. Note that this may interact oddly with ensure-warning.")
-(defparameter *test-print-when-defined?* nil)
-(defparameter *test-evaluate-when-defined?* t)
-(defparameter *test-scratchpad* nil
-  "A place to put things. This is set to nil before every test.")
-(defparameter *test-notepad* nil
-  "Another place to put things \(see {ref *test-scratchpad*}\).")
-
-(defparameter *lift-equality-test* 'equal
-  "The function used in ensure-same to test if two things are equal. If metatilities is loaded, then you might want to use samep.")
-
-(defvar *test-describe-if-not-successful?* nil
-  ;; Was t, but this behavior was extremely annoying since each
-  ;; time a test-restul appears in a stack backtrace it is printed
-  ;; over many unstructured lines.
-  "If true, then a complete test description is printed when there are any test warnings or failures. Otherwise, one would need to explicity call describe.")
-
-(defvar *test-print-length* :follow-print
-  "The print-length in effect when LIFT prints test results. It works exactly like `*print-length*` except that it can also take on the value :follow-print. In this case, it will be set to the value of  `*print-length*`.")
-(defvar *test-print-level* :follow-print
-  "The print-level in effect when LIFT prints test results. It works exactly like `*print-level*` except that it can also take on the value :follow-print. In this case, it will be set to whatever `*print-level*` is.")
-
-(defparameter *skip-tests* nil
-  "A lift of test-suites and (testsuite test-case) pairs that LIFT will ignore
-during calls to run-tests.")
-
-(defvar *test-result* nil
-  "Set to the most recent test result by calls to run-test or run-tests.")
-
-(defvar *test-environment* nil)
-
-(defvar *test-metadata* (list)
-  "A place for LIFT to put stuff.")
-
-(defvar *current-test* nil
-  "The current testsuite.")
-
-(defvar *testsuite-test-count* nil
-  "Temporary variable used to 'communicate' between deftestsuite and addtest.")
-
-(defvar *lift-dribble-pathname* nil
-  "If bound, then test output from run-tests will be sent to this file in  
-in addition to *lift-standard-output*. It can be set to nil or to a pathname.")
-
-(defvar *lift-report-pathname* nil
-  "If bound to a pathname or stream, then a summary of test information will
-be written to it for later processing. It can be set to:
-
-* `nil` - generate no output
-* pathname designator - send output to this pathname
-* `t` - send output to a pathname constructed from the name of the system 
-being tested (this only works if ASDF is being used to test the system).
-
-As an example of the last case, if LIFT is testing a system named ...
-")
-
-(defvar *lift-standard-output* *standard-output*
-  "Output from tests will be sent to this stream. If can set to nil or 
-to an output stream. It defaults to *standard-output*.")
-
-(defvar *lift-if-dribble-exists* :append
-  "Specifies what to do to any existing file at *lift-dribble-pathname*. It 
-can be :supersede, :append, or :error.")
-
-(defvar *test-show-expected-p* t)
-
-(defvar *test-show-details-p* t)
-
-(defvar *test-show-code-p* t)
- 
-
-;;; ---------------------------------------------------------------------------
-;;; Error messages and warnings
-;;; ---------------------------------------------------------------------------
-
-(defparameter +lift-test-name-not-supplied-with-test-class+
-  "if you specify a test-class, you must also specify a test-name.")
-
-(defparameter +lift-test-class-not-found+
-  "test class '~S' not found.")
-
-(defparameter +lift-confused-about-arguments+
-  "I'm confused about what you said?!")
-
-(defparameter +lift-no-current-test-class+
-  "There is no current-test-class to use as a default.")
-
-(defparameter +lift-could-not-find-test+
-  "Could not find test: ~S.~S")
-
-(defparameter +run-tests-null-test-case+
-  "There is no current testsuite (possibly because 
-   none have been defined yet?). You can specify the 
-   testsuite to test by evaluating (run-tests :suite <suitename>).")
-
-(defparameter +lift-unable-to-parse-test-name-and-class+ 
-  "")
-
-
-;;; ---------------------------------------------------------------------------
-;;; classes
-;;; ---------------------------------------------------------------------------
-
-(defclass test-mixin ()
-  ((name :initform nil :initarg :name :accessor name :reader testsuite-name)
-   (run-setup :reader run-setup :initarg :run-setup)
-   (done-setup? :initform nil :reader done-setup?)
-   (done-dynamics? :initform nil :reader done-dynamics?)
-   (test-slot-names :initform nil :initarg :test-slot-names 
-		    :reader test-slot-names)
-   (current-step :initform :created :accessor current-step)
-   (current-method :initform nil :accessor current-method)
-   (save-equality-test :initform nil  :reader save-equality-test)
-   (log-file :initform nil :initarg :log-file :reader log-file)
-   (test-data :initform nil :accessor test-data)
-   (expected-failure-p :initform nil :initarg :expected-failure-p
-		       :reader expected-failure-p)
-   (expected-error-p :initform nil :initarg :expected-error-p
-		     :reader expected-error-p)
-   (expected-problem-p :initform nil :initarg :expected-problem-p
-		       :reader expected-problem-p)
-   (suite-initargs
-    :initform nil
-    :accessor suite-initargs)
-   (profile 
-    :initform nil
-    :initarg :profile
-    :accessor profile))
-  (:documentation "A test suite")
-  (:default-initargs
-    :run-setup :once-per-test-case))
-
-(defclass test-result ()
-  ((results-for :initform nil 
-		:initarg :results-for 
-		:accessor results-for)
-   (tests-run :initform nil :accessor tests-run)
-   (suites-run :initform nil :accessor suites-run)
-   (failures :initform nil :accessor failures)
-   (expected-failures :initform nil :accessor expected-failures)
-   (errors :initform nil :accessor errors)
-   (expected-errors :initform nil :accessor expected-errors)
-   (skipped-test-cases :initform nil :accessor skipped-test-cases)
-   (skipped-testsuites :initform nil :accessor skipped-testsuites)
-   (test-mode :initform :single :initarg :test-mode :accessor test-mode)
-   (test-interactive? :initform nil 
-                      :initarg :test-interactive? :accessor test-interactive?)
-   (real-start-time :initarg :real-start-time :reader real-start-time)
-   (start-time :accessor start-time :initform nil)
-   (end-time :accessor end-time)
-   (real-end-time :accessor real-end-time)
-   (real-start-time-universal
-    :initarg :real-start-time-universal :reader real-start-time-universal)
-   (start-time-universal :accessor start-time-universal :initform nil)
-   (end-time-universal :accessor end-time-universal)
-   (real-end-time-universal :accessor real-end-time-universal)
-   (properties :initform nil :accessor test-result-properties))
-  (:documentation 
-"A `test-result` instance contains all of the information collectd by 
-LIFT during a test run.")
-  (:default-initargs
-    :test-interactive? *test-is-being-defined?*
-    :real-start-time (get-internal-real-time)
-    :real-start-time-universal (get-universal-time)))
-
-(defclass test-problem-mixin ()
-  ((testsuite :initform nil :initarg :testsuite :reader testsuite)
-   (test-method :initform nil :initarg :test-method :reader test-method)
-   (test-condition :initform nil
-		   :initarg :test-condition 
-		   :reader test-condition)
-   (test-problem-kind :reader test-problem-kind :allocation :class)
-   (test-step :initform nil :initarg :test-step :reader test-step)))
-
-(defmethod print-object ((problem test-problem-mixin) stream)
-  (print-unreadable-object (problem stream)
-    (format stream "TEST-~@:(~A~): ~A in ~A" 
-            (test-problem-kind problem) 
-            (name (testsuite problem))
-	    (test-method problem))))
-
-(defclass generic-problem (test-problem-mixin)
-  ((test-problem-kind :initarg :test-problem-kind
-		      :allocation :class)))
-
-(defclass expected-problem-mixin ()
-  ((documentation :initform nil 
-		  :initarg :documentation
-		  :accessor failure-documentation)))
-
-(defclass test-expected-failure (expected-problem-mixin generic-problem)
-  ())
-
-(defmethod test-problem-kind ((problem test-expected-failure))
-  "Expected failure")
-
-(defclass test-failure (generic-problem)
-  ()
-  (:default-initargs 
-   :test-problem-kind "failure"))
-
-(defclass test-error-mixin (generic-problem) 
-  ((backtrace :initform nil :initarg :backtrace :reader backtrace)))
-  
-(defclass test-expected-error (expected-problem-mixin test-error-mixin)
-  ()
-  (:default-initargs 
-   :test-problem-kind "Expected error"))
-
-(defclass test-error (test-error-mixin)
-  ()
-  (:default-initargs 
-   :test-problem-kind "Error"))
-
-(defclass test-serious-condition (test-error-mixin)
-  ()
-  (:default-initargs 
-   :test-problem-kind "Serious condition"))
-
-(defclass testsuite-error (test-error-mixin)
-  ()
-  (:default-initargs 
-   :test-problem-kind "Testsuite error"))
-
-(defclass testsuite-serious-condition (test-error-mixin)
-  ()
-  (:default-initargs 
-   :test-problem-kind "Testsuite serious condition"))
-
-(defclass testsuite-failure (generic-problem)
-  ()
-  (:default-initargs 
-   :test-problem-kind "Testsuite failure"))
-
-(defclass testcase-skipped (generic-problem)
-  ()
-  (:default-initargs
-   :test-problem-kind "Test case skipped"))
-
-(defclass testsuite-skipped (generic-problem)
-  ()
-  (:default-initargs
-   :test-problem-kind "Testsuite skipped"))
 
 (defmethod accumulate-problem ((problem test-failure) result)
   (setf (failures result) (append (failures result) (list problem))))
@@ -324,16 +36,6 @@ LIFT during a test run.")
 (defmethod accumulate-problem ((problem testsuite-skipped) result)
   (setf (skipped-testsuites result) 
 	(append (skipped-testsuites result) (list problem))))
-
-
-(defclass process-test-mixin (test-mixin)
-  ((maximum-time :initform *test-maximum-time* 
-                 :accessor maximum-time
-                 :initarg :maximum-time)))
-
-(defclass test-timeout-failure (test-failure)
-  ((test-problem-kind :initform "Timeout" :allocation :class)))
-
 
 ;;; ---------------------------------------------------------------------------
 ;;; test conditions
@@ -684,10 +386,6 @@ LIFT during a test run.")
 ;;; macros
 ;;; ---------------------------------------------------------------------------
 
-(defvar *current-definition* nil
-  "An associative-container which saves interesting information about
-the thing being defined.")
-
 (defun initialize-current-definition ()
   (setf *current-definition* nil))
 
@@ -704,8 +402,6 @@ the thing being defined.")
 
 (defun (setf def) (value name)
   (set-definition name value))
-
-(defvar *code-blocks* nil)
 
 (defstruct (code-block (:type list) (:conc-name nil))
   block-name (priority 0) filter code operate-when)
@@ -728,10 +424,6 @@ the thing being defined.")
     (setf *code-blocks* (sort *code-blocks* #'< 
 			      :key (lambda (name.cb)
 				     (priority (cdr name.cb))))))
-
-(defvar *deftest-clauses*
-  '(:setup :teardown :test :documentation :tests :export-p :export-slots
-    :run-setup :dynamic-variables :equality-test :categories :function))
 
 (defmacro deftest (testsuite-name superclasses slots &rest
                                   clauses-and-options) 
@@ -985,15 +677,16 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 				       (special 
 					,@(mapcar 
 					   #'car (def :dynamic-variables))))
-			      (cond ((done-dynamics? suite)
-				     (call-next-method))
-				    (t
-				     (setf (slot-value suite 'done-dynamics?) t)
-				     (let* (,@(def :dynamic-variables))
-				       (declare (special 
-						 ,@(mapcar 
-						    #'car (def :dynamic-variables))))
-				       (call-next-method)))))))
+			      (with-test-slots
+				(cond ((done-dynamics? suite)
+				       (call-next-method))
+				      (t
+				       (setf (slot-value suite 'done-dynamics?) t)
+				       (let* (,@(def :dynamic-variables))
+					 (declare (special 
+						   ,@(mapcar 
+						      #'car (def :dynamic-variables))))
+					 (call-next-method))))))))
 		  ;; tests
 		  ,@(when test-list
 			  `((let ((*test-evaluate-when-defined?* nil))
@@ -1156,10 +849,13 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 
 
 (defun make-testsuite (suite-name args)
-  (let ((testsuite (find-testsuite suite-name :errorp t)))
+  (let ((testsuite (find-testsuite suite-name :errorp t))
+	result)
     (if testsuite
-	(apply #'make-instance testsuite args)
-	(error "Testsuite ~a not found." suite-name))))
+	(setf result (apply #'make-instance testsuite args))
+	(error "Testsuite ~a not found." suite-name))
+    (setf (testsuite-initargs result) args)
+    result))
 
 
 (defun skip-test-case-p (result suite-name test-case-name)
@@ -1612,6 +1308,47 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
                  (when (run-teardown-p testsuite :testsuite)
 		   ,@test-code))))))))
 
+
+(defun build-setup-test-method ()
+  (let ((test-name (def :testsuite-name))
+        (setup (def :setup)))
+    ;;?? ewww, this smells bad
+    (when setup
+      (unless (consp setup)
+        (setf setup (list setup)))
+      (when (length-1-list-p setup)
+        (setf setup (list setup)))
+      (when (symbolp (first setup))
+        (setf setup (list setup))))
+    (when (or setup (def :direct-slot-names) (def :default-initargs))
+      `(defmethod setup-test :after ((testsuite ,test-name))
+	 (with-test-slots
+	   ,@(when (or (def :direct-slot-names) (def :default-initargs))
+		   (let ((ginitargs (gensym "initargs-"))
+			 (defaults (copy-list (def :default-initargs))))
+		     `((let ((,ginitargs (suite-initargs testsuite)))
+			 (declare (ignorable ,ginitargs))
+			 ,@(loop for slot-name in (def :direct-slot-names)
+			      for keyword =  (form-keyword slot-name)
+			      for slot-spec = (assoc slot-name (def :slot-specs))
+			      for initform = (getf (rest slot-spec) :initform)
+			      for default = (getf defaults keyword)
+			      collect
+			      (prog1
+				  `(setf (test-environment-value ',slot-name)
+					 (or (getf ,ginitargs ,keyword)
+					     ,@(when initform `(,initform))
+					     ,@(when (and default (null initform))
+						     `(,default))))
+				(remf defaults keyword)))
+			 ,@(when defaults
+				 (loop for (keyword default) in (form-groups defaults 2)
+				    for slot-name = (read-from-string (symbol-name keyword)) collect
+				    `(setf (test-environment-value ',slot-name)
+					   ,default)))))))
+	   ,@setup)))))
+
+#+(or)
 (defun build-setup-test-method ()
   (let ((test-name (def :testsuite-name))
         (setup (def :setup)))
@@ -1642,6 +1379,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 					       ,initform))))))
 		 ,@setup))))))))
 
+#+(or)
 (defun %gather-up-initforms ()
   (let ((initforms nil)
         (slot-names nil)
