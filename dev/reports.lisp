@@ -330,7 +330,7 @@ lift::(progn
   (report-tests-by-suite 
    format  
    (mapcar (lambda (problem)
-	     `(,(type-of (testsuite problem))
+	     `(,(testsuite problem)
 		,(test-method problem)
 		(:problem ,problem)))
 	   problems)
@@ -901,9 +901,9 @@ lift::(progn
 		   (package-name (symbol-package symbol)))))
       (mapcar (lambda (glitch)
 		(if (test-method glitch)
-		    (list (encode-symbol (type-of (testsuite glitch)))
+		    (list (encode-symbol (testsuite glitch))
 			  (encode-symbol (test-method glitch)))
-		    (encode-symbol (type-of (testsuite glitch)))))
+		    (encode-symbol (testsuite glitch))))
 	      list))))
 
 #+(or)
@@ -977,14 +977,11 @@ lift::(progn
     (unwind-protect
 	 (multiple-value-bind (result measures errorp)
 	     (while-measuring (t measure-seconds measure-space)
-	       (handler-case
-		   (with-timeout (timeout)
-		     (funcall profile-fn style count-calls-p))
-		 (timeout-error 
-		     (c)
-		   (declare (ignore c)))
-		 (error (c)
-		   (error c))))
+	       (handler-bind
+		   ((timeout-error (lambda (_) (declare (ignore _))))
+		    (error (lambda (c) (error c))))
+		 (with-timeout (timeout)
+		   (funcall profile-fn style count-calls-p))))
 	   (setf seconds (first measures) conses (second measures) 
 		 results result error errorp))
       ;; cleanup / ensure we get report
@@ -1181,7 +1178,7 @@ lift::(progn
 	 (report-tests-by-suite 
 	  format  
 	  (mapcar (lambda (problem)
-		    `(,(type-of (testsuite problem))
+		    `(,(testsuite problem)
 		       ,(test-method problem)
 		       (:problem ,problem)))
 		  cases)

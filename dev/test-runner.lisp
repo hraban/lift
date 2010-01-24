@@ -2,130 +2,90 @@
 
 (defvar *in-middle-of-failure?* t)
 
-(defun run-test (&rest args
-		 &key (test-case *current-test-case-name*)
-		 (name test-case name-supplied-p)
-		 (suite *current-testsuite-name*) 
+(defun run-test (&key
+		 (name *last-test-case-name*)
+		 (suite *last-testsuite-name*) 
 		 (break-on-errors? *test-break-on-errors?*)
 		 (break-on-failures? *test-break-on-failures?*)
-		 (do-children? *test-run-subsuites?*)
 		 (result nil)
 		 (profile nil)
                  (testsuite-initargs nil))
-  "Run a single testcase in a test suite. Will run the most recently defined or run testcase unless the name and suite arguments are used to override them."
-  (when name-supplied-p
-    (setf test-case name))
+  "Run a single test-case in a testsuite. Will run the most recently
+defined or run testcase unless the name and suite arguments are used
+to override them."
   (assert suite nil "Test suite could not be determined.")
-  (assert test-case nil "Test-case could not be determined.")
-  (let ((args-copy (copy-list args)))
-    (declare (ignore args-copy))
-    (remf args :suite)
-    (remf args :break-on-errors?)
-    (remf args :break-on-failures?)
-    (remf args :run-setup)
-    (remf args :dribble)
-    (remf args :config)
-    (remf args :report-pathname)
-    (remf args :do-children?)
-    (remf args :skip-tests)
-    (remf args :testsuite-initargs)
-    (let* ((*test-break-on-errors?* break-on-errors?)
-	   (*test-break-on-failures?* break-on-failures?)
-	   (*test-run-subsuites?* do-children?)
-	   (*current-test*
-	    (make-testsuite 
-	     suite 
-	     (if (find :profile testsuite-initargs)
-		 testsuite-initargs
-		 (setf testsuite-initargs
-		       `(:profile ,profile ,@testsuite-initargs))))))
-      (unless result
-	(setf result (make-test-result suite :single)))
-      (prog1
-	  (let ((*current-test-case-name* (find-test-case suite test-case))
-		(*current-testsuite-name* suite)
-		(*test-result* result))
-	    (do-testing-in-environment
-		*current-test* result 
-		(lambda () 
-		  (apply #'run-test-internal
-		   *current-test* *current-test-case-name* result nil))))
-	(setf *test-result* result)
-	(setf *current-test-case-name* (find-test-case suite test-case)
-	      *current-testsuite-name* suite)))))
+  (assert name nil "Test-case could not be determined.")
+  (when profile
+    (push profile testsuite-initargs)
+    (push :profile testsuite-initargs))
+  (let* ((*test-break-on-errors?* break-on-errors?)
+	 (*test-break-on-failures?* break-on-failures?))
+    (unless result
+      (setf result (make-test-result 
+		    suite :single :testsuite-initargs testsuite-initargs)))
+    (prog1
+	(let ((*current-test-case-name* (find-test-case suite name))
+	      (*test-result* result))
+	  (do-testing-in-environment
+	      suite result 
+	      (lambda () 
+		(run-test-internal *current-test* *current-test-case-name* result))))
+      (setf *test-result* result)
+      (setf *last-test-case-name* (find-test-case suite name)
+	    *last-testsuite-name* suite))))
 
-(defmethod do-testing-in-environment :around ((suite test-mixin) result fn)
-  (declare (ignore fn))
-  (catch :test-end
-    (tagbody 
-     :test-start
-       (restart-case
-	   (handler-bind ((warning #'muffle-warning)       
+(defun do-testing-in-environment (suite-name result fn)
+  (let ((suite nil)
+	(*current-testsuite-name* suite-name))
+    (catch :test-end
+      (tagbody 
+       :test-start
+	 (restart-case
+	     (handler-bind ((warning #'muffle-warning)       
 					; ignore warnings... 
-			  #+(and allegro)
-			  (excl:interrupt-signal 
-			   (lambda (_)
-			     (declare (ignore _))
-			     (cancel-testing :interrupt)))
-			  (error 
-			   (lambda (condition)
-			     (handle-error-while-testing
-			      condition 'testsuite-error suite result)
-			     (go :test-end)))
-			  (serious-condition 
-			   (lambda (condition)
-			     (handle-error-while-testing
-			      condition 'testsuite-serious-condition
-			      suite result)
-			     (go :test-end))))
-	     (unwind-protect
-		  (let ((*lift-equality-test* (equality-test suite)))
-		    (%start-test-suite (type-of suite) result)
-		    (testsuite-setup suite result)
-		    (call-next-method)
-		    result)
-	       ;; cleanup
-	       (testsuite-teardown suite result)))
-	 (ensure-failed (condition) 
-	   :test (lambda (c) (declare (ignore c)) *in-middle-of-failure?*)
-	   (report-test-problem
-	    'testsuite-failure result suite 
-	    *current-test-case-name* condition))
-	 (retry-test () 
-	   :report (lambda (s) (format s "Re-run testsuite ~a"
-			     *current-testsuite-name*))
-	   (go :test-start)))
-     :test-end))
-  (values result))
-
-(defmethod do-testing-in-environment ((suite test-mixin) result fn)
-  (do-testing suite result fn)
+			    #+(and allegro)
+			    (excl:interrupt-signal 
+			     (lambda (_)
+			       (declare (ignore _))
+			       (cancel-testing :interrupt)))
+			    (error 
+			     (lambda (condition)
+			       (handle-error-while-testing
+				condition 'testsuite-error suite-name result)
+			       (go :test-end)))
+			    (serious-condition 
+			     (lambda (condition)
+			       (handle-error-while-testing
+				condition 'testsuite-serious-condition
+				suite-name result)
+			       (go :test-end))))
+	       (setf (current-step result) :create)
+	       (setf suite (make-testsuite 
+			    suite-name (testsuite-initargs result)))
+	       (let ((*current-test* suite))
+		 (unwind-protect
+		      (let ((*lift-equality-test* (equality-test suite)))
+			(%start-test-suite (type-of suite) result)
+			(testsuite-setup suite result)
+			(do-testing suite result fn)
+			result)
+		   ;; cleanup
+		   (testsuite-teardown suite result))))
+	   (ensure-failed (condition) 
+	     :test (lambda (c) (declare (ignore c)) *in-middle-of-failure?*)
+	     (report-test-problem
+	      'testsuite-failure result suite-name 
+	      *current-test-case-name* condition))
+	   (retry-test () 
+	     :report (lambda (s) (format s "Re-run testsuite ~a"
+					 *current-testsuite-name*))
+	     (go :test-start)))
+       :test-end)))
   (values result))
 
 (defmethod do-testing ((suite test-mixin) result fn)
   (funcall fn)
-  (values result))
-
-(defmethod run-tests-internal ((suite symbol) &rest args
-			       &key &allow-other-keys)
-  (let ((*current-test* (make-testsuite suite args))
-	(passthrough-arguments nil))
-    (loop for arg in '(:result :do-children?) 
-       when (getf args arg) do
-	 (push (getf args arg) passthrough-arguments)
-	 (push arg passthrough-arguments))
-    (apply #'run-tests-internal *current-test* passthrough-arguments)))
-
-(defmethod run-tests-internal 
-    ((case test-mixin) &key 
-     (result (make-test-result (class-of case) :multiple))
-     (do-children? *test-run-subsuites?*))
-  (let ((*test-run-subsuites?* do-children?))
-    (do-testing-in-environment
-	case result
-	(lambda ()
-	  (testsuite-run case result)))
-    (setf *test-result* result)))
+  result)
 
 (defun run-tests (&rest args &key 
 		  (suite nil)
@@ -142,7 +102,6 @@
 		  result
 		  &allow-other-keys)
   "Run all of the tests in a suite." 
-  (declare (ignore profile))
   (prog1
       (let ((args-copy (copy-list args)))
 	(remf args :suite)
@@ -156,6 +115,9 @@
 	(remf args :do-children?)
 	(remf args :testsuite-initargs)
 	(remf args :profile)
+	(when profile
+	  (push profile testsuite-initargs)
+	  (push :profile testsuite-initargs))
 	(let* ((*lift-report-pathname*
 		(cond ((null report-pathname) nil)
 		      ((eq report-pathname t)
@@ -163,10 +125,9 @@
 		      (t
 		       report-pathname)))
 	       (*test-run-subsuites?* do-children?)
-	       (*skip-tests* skip-tests)
+	       (*skip-tests* (canonize-skip-tests skip-tests))
 	       (*print-readably* nil)
 	       (report-pathname *lift-report-pathname*))
-	  (canonize-skip-tests)
 	  (when report-pathname
 	    (ensure-directories-exist report-pathname))
 	  (cond ((and suite config)
@@ -180,10 +141,12 @@ but not both."))
 		   (write-log-header report-pathname result args-copy))
 		 (let* ((*test-result* result))
 		   (setf result (run-tests-from-file config))))
-		((or suite (setf suite *current-testsuite-name*))
+		((or suite (setf suite *last-testsuite-name*))
 		 (unless result
 		   (setf result
-			 (apply #'make-test-result suite :multiple args)))
+			 (apply #'make-test-result suite 
+				:multiple 
+				:testsuite-initargs testsuite-initargs args)))
 		 (when report-pathname
 		   (write-log-header report-pathname result args-copy))
 		 (let* ((*test-break-on-errors?* break-on-errors?)
@@ -204,13 +167,7 @@ but not both."))
 				     *debug-io* dribble-stream)))
 		   (unwind-protect
 			(restart-case
-			    (dolist (testsuite (if (consp suite) 
-						   suite (list suite)))
-			      (let ((*current-testsuite-name* testsuite))
-				(apply #'run-tests-internal testsuite
-				       :result result
-				       testsuite-initargs))
-			      (setf *current-testsuite-name* testsuite))
+			    (run-tests-internal suite result)
 			   (cancel-testing (&optional (result *test-result*))
 			     :report (lambda (stream) 
 				       (format stream "Cancel testing of ~a"
@@ -230,7 +187,18 @@ but not both."))
 nor configuration file options were specified.")))))
 	(setf *test-result* result)))
 
-(defmethod testsuite-run ((testsuite test-mixin) (result test-result))
+(defun run-tests-internal (suite-name result)
+  (dolist (suite-name (if *test-run-subsuites?* 
+			  (collect-testsuites suite-name)
+			  (list suite-name)))
+    (do-testing-in-environment
+	suite-name result
+	(lambda ()
+	  (testsuite-run *current-test* result)))
+    (setf *test-result* result)))
+
+(defun testsuite-run (testsuite result)
+  "Run the cases in `testsuite`"
   (let* ((methods (testsuite-methods testsuite))
 	 (suite-name (class-name (class-of testsuite)))
 	 (*current-testsuite-name* suite-name))
@@ -241,41 +209,18 @@ nor configuration file options were specified.")))))
 	     (setf (start-time result) (get-internal-real-time)
 		   (start-time-universal result) (get-universal-time)))
 	   (unwind-protect
-		(progn
-		  (loop for method in methods do
-		       (let ((data nil))
-			 (cond ((skip-test-case-p result suite-name method)
-				(setf data 
-				      `(:problem ,(skip-test-case
-						   result suite-name method))))
-			       (t
-				(setf data (run-test-internal
-					    testsuite method result))))
-			 (when *lift-report-pathname*
-			   (write-log-test  
-			    :save suite-name method data
-			    :stream *lift-report-pathname*))))
-		  (when *test-run-subsuites?*
-		    (if (skip-test-suite-children-p result suite-name)
-			(skip-testsuite result suite-name)
-			(loop for subclass in (direct-subclasses (class-of testsuite))	
-			   when (and (testsuite-p subclass)
-				     (not (member (class-name subclass) 
-						  (suites-run result)))) do
-			   (run-tests-internal (class-name subclass)
-					       :result result)))))
-	     (setf (end-time result) (get-universal-time)))))))
-
-(defmethod run-test-internal ((suite symbol) (name symbol) result
-			       &rest args &key &allow-other-keys)
-  (let ((*current-test* (make-testsuite suite args))
-	(passthrough-arguments nil))
-    (loop for arg in '(:result :do-children?) 
-       when (getf args arg) do
-	 (push (getf args arg) passthrough-arguments)
-	 (push arg passthrough-arguments))
-    (apply #'run-test-internal 
-	   *current-test* name result passthrough-arguments)))
+		(loop for method in methods do
+		     (let ((data 
+			    (if (skip-test-case-p result suite-name method)
+				`(:problem ,(skip-test-case
+					     result suite-name method))
+				(run-test-internal testsuite method result))))
+		       (when *lift-report-pathname*
+			 (write-log-test  
+			  :save suite-name method data
+			  :stream *lift-report-pathname*))))
+	     (setf (end-time result) (get-universal-time)))))
+    (setf *last-testsuite-name* suite-name)))
 
 (defmethod do-test ((suite test-mixin) name result)
   (declare (ignore result))
@@ -285,22 +230,25 @@ nor configuration file options were specified.")))))
 	(funcall fn suite)
 	(error "expected to find ~a test for ~a but didn't" name suite-name))))
 
-(defmethod run-test-internal ((suite test-mixin) (name symbol) result
-			      &rest _)
-  (declare (ignore _))
-  (let ((result-pushed? nil)
-	(*current-test-case-name* name)
-	(error nil))
+(defun run-test-internal (suite test-case-name result)
+  (let* ((result-pushed? nil)
+	 (suite-name (class-name (class-of suite)))
+	 (*current-test-case-name* test-case-name)
+	 (*current-testsuite-name* suite-name)
+	 (error nil))
+    (loop for case in (ensure-list
+		       (test-case-option suite-name test-case-name :depends-on))
+       unless (test-case-tested-p suite-name case) do
+	 (run-test-internal suite case result))
     (flet ((maybe-push-result ()
-	     (let ((datum (list (type-of suite)
-				*current-test-case-name* (test-data suite))))
+	     (let ((datum (list suite-name test-case-name (test-data suite))))
 	       (cond ((null result-pushed?)
 		      (setf result-pushed? t)
 		      (push datum (tests-run result)))
 		     (t
 		      ;; replace
 		      (setf (first (tests-run result)) datum))))))
-      (%start-test-case name result)
+      (%start-test-case test-case-name result)
       (tagbody 
        :test-start
 	 (restart-case
@@ -314,22 +262,23 @@ nor configuration file options were specified.")))))
 			    (error 
 			     (lambda (condition)
 			       (handle-error-while-testing
-				condition 'test-error suite result)
+				condition 'test-error suite-name result)
 			       (go :test-end)))
 			    (serious-condition 
 			     (lambda (condition)
 			       (handle-error-while-testing
-				condition 'test-serious-condition suite result)
+				condition 'test-serious-condition
+				suite-name result)
 			       (go :test-end))))
-	       (setf (current-method suite) name)
-	       (record-start-times suite)
+	       (setf (current-method suite) test-case-name)
+	       (record-start-times result suite)
 	       (unwind-protect
 		    (progn
 		      (setup-test suite)
-		      (setf (current-step suite) :testing)
+		      (setf (current-step result) :testing)
 		      (multiple-value-bind (result measures error-condition)
 			  (while-measuring (t measure-space measure-seconds)
-			    (do-test suite name result))
+			    (do-test suite test-case-name result))
 			(declare (ignore result))
 			(setf error error-condition)
 			(destructuring-bind (space seconds) measures
@@ -337,7 +286,7 @@ nor configuration file options were specified.")))))
 				(getf (test-data suite) :conses) space)))
 		      (when error
 			(error error))
-		      (check-for-surprises suite))
+		      (check-for-surprises suite-name test-case-name))
 		 ;; cleanup
 		 (maybe-push-result)
 		 (test-case-teardown suite result)
@@ -346,10 +295,11 @@ nor configuration file options were specified.")))))
 	     :test (lambda (c) (declare (ignore c)) 
 			   *in-middle-of-failure?*)
 	     (report-test-problem
-	      'test-failure result suite 
+	      'test-failure result suite-name
 	      *current-test-case-name* condition)
 	     (if (and *test-break-on-failures?*
-		      (not (testcase-expects-failure-p)))
+		      (not (test-case-expects-failure-p 
+			    suite-name test-case-name)))
 		 (let ((*in-middle-of-failure?* nil))
 		   (invoke-debugger condition))
 		 (go :test-end)))
@@ -359,18 +309,18 @@ nor configuration file options were specified.")))))
 	     (go :test-start)))
        :test-end)
       (maybe-push-result)))
-  (setf *current-test-case-name* name
-	*test-result* result)
+  (setf *current-test-case-name* test-case-name	*test-result* result)
   (third (first (tests-run result))))
 
-(defun handle-error-while-testing (condition error-class suite result)
+(defun handle-error-while-testing (condition error-class suite-name result)
   (let ((*in-middle-of-failure?* nil))
     (report-test-problem
-     error-class result suite
+     error-class result suite-name
      *current-test-case-name* condition
      :backtrace (get-backtrace condition))
     (when (and *test-break-on-errors?*
-	       (not (testcase-expects-error-p)))
+	       (not (test-case-expects-error-p 
+		     *current-testsuite-name* *current-test-case-name*)))
       (invoke-debugger condition))))
 
 (defun maybe-add-dribble (stream dribble-stream)

@@ -37,8 +37,14 @@
 marked as special in the global environment.")
   (:dynamic-variables *unknown-dynamic-variable*))
 
+#+(or)
 (deftestsuite dynamic-variables-helper-2 (dynamic-variables-helper-1)
   ((my-slot *unknown-dynamic-variable*)))
+
+(deftestsuite dynamic-variables-helper-2 (dynamic-variables-helper-1)
+  (my-slot)
+  (:setup
+   (setf my-slot *unknown-dynamic-variable*)))
 
 (addtest (dynamic-variables-helper-2)
   try-it

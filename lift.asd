@@ -23,7 +23,11 @@
 		 (:file "utilities" 
 			:depends-on ("packages" "macros"))
 		 (:file "macros"
-			:depends-on ("packages"))))
+			:depends-on ("packages"))
+		 (:file "definitions"
+			:depends-on ("packages"))
+		 (:file "class-defs"
+			:depends-on ("definitions"))))
 	       (:module 
 		"api"
 		:pathname "dev/"
@@ -72,12 +76,3 @@
 (defmethod operation-done-p 
            ((o test-op) (c (eql (find-system 'lift))))
   (values nil))
-
-(when (find-system 'asdf-system-connections nil)
-  (asdf:operate 'asdf:load-op 'asdf-system-connections))
-
-#+asdf-system-connections
-(asdf:defsystem-connection lift-report-locations
-  :requires (:lift :asdf-binary-locations)
-  :components ((:module "dev"
-			:components ((:file "report-locations")))))

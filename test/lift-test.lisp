@@ -8,7 +8,11 @@ See file COPYING for license
 
 (in-package #:lift-test)
 
-(deftestsuite lift-test () ())
+(deftestsuite lift-test () 
+  ()
+  (:dynamic-variables
+   (*test-break-on-errors?* nil)
+   (*test-break-on-failures?* nil)))
 
 ;;; ---------------------------------------------------------------------------
 ;;; lift-test-ensure
@@ -327,27 +331,6 @@ See file COPYING for license
   (run-test :suite 'test-ignore-warnings-helper-no-warning :name 'do-it)
   (ensure-same *test-scratchpad* '(:b :a)))
 
-;;; ---------------------------------------------------------------------------
-;;; test-environment stays clean
-;;; ---------------------------------------------------------------------------
-
-(deftestsuite lift-test-environment-pristine (lift-test) ()
-  (:setup (setf *test-environment* nil)))
-
-(deftestsuite lift-test-environment-pristine-helper ()
-  ((a 2)
-   (b (* a a))))
-
-(addtest (lift-test-environment-pristine-helper)
-  do-it
-  (ensure-same (* a a) b))
-
-(addtest (lift-test-environment-pristine
-	  :expected-failure "This is no longer guarenteed; I'm not sure yet whether or not this is a good thing.")
-  test-1
-  (run-test :suite 'lift-test-environment-pristine-helper :name 'do-it)
-  (ensure (null *test-environment*)))
-
 
 ;;; ---------------------------------------------------------------------------
 ;;; test-creating-multiple-tests
@@ -368,29 +351,29 @@ See file COPYING for license
 
 ;;;;;
 
-(defvar *dynamics-before-setup* :dbs)
+(defvar *dynamics-after-setup* :das)
 
-(deftestsuite dynamics-before-setup (lift-test)
+(deftestsuite dynamics-after-setup (lift-test)
   ()
   :setup (setf *test-notepad* nil))
 
-(deftestsuite dynamics-before-setup-helper ()
+(deftestsuite dynamics-after-setup-helper ()
   ((slot (progn (push :slot *test-notepad*) :slot)))
-  :dynamic-variables (*dynamics-before-setup* 
+  :dynamic-variables (*dynamics-after-setup* 
 		      (progn (push :dynamics *test-notepad*) :dynamics))
   (:setup (push :setup *test-notepad*) (print (list :tn *test-notepad*))))
 
-(addtest (dynamics-before-setup-helper)
+(addtest (dynamics-after-setup-helper)
   test-1
   (push :test *test-notepad*)
-  (ensure-same *dynamics-before-setup* :dynamics))
+  (ensure-same *dynamics-after-setup* :dynamics))
 
-(addtest (dynamics-before-setup)
+(addtest (dynamics-after-setup)
   test-1
-  (run-test :suite 'dynamics-before-setup-helper
+  (run-test :suite 'dynamics-after-setup-helper
 	    :name 'test-1)
   (ensure-same (reverse *test-notepad*)
-	       '(:dynamics :slot :setup :test)))
+	       '(:slot :dynamics :setup :test)))
 
 
 ;;;;;
@@ -425,7 +408,7 @@ See file COPYING for license
 
 
 ;;;;;
-;;; slot initialization takes place with every setup
+;;; slot initialization takes place ONCE
 
 (deftestsuite test-initialize-slots-helper ()
   ((slot (incf *test-notepad*))))
@@ -447,7 +430,7 @@ See file COPYING for license
   (let ((tr (run-tests :suite 'test-initialize-slots-helper
 		       :report-pathname nil)))
     (ensure-same (length (tests-run tr)) 2)
-    (ensure-same *test-notepad* 2 :test '=)))
+    (ensure-same *test-notepad* 1 :test '=)))
 
 ;;;;;
 ;;; errors during tests are reported in the test result
@@ -469,7 +452,8 @@ See file COPYING for license
   helper-slot-init
   (let ((result (run-test :suite 'test-error-catching-helper-slot-init
 			  :name 'slot-init)))
-    (ensure-same 1 (length (lift::suites-run result)) :report "tests run")
+    ;;?? test not run because error occurred during setup
+    (ensure-same 0 (length (lift::suites-run result)) :report "tests run")
     (ensure-same 1 (length (errors result)) :report "errors counted")))
 
 ;;;
@@ -572,10 +556,10 @@ See file COPYING for license
   run-test-sets-values
   (run-test :suite 'lift-test-ensure-helper :name 'simple-ensure-test-3)
   (ensure-same 
-   (symbol-name lift::*current-test-case-name*)
+   (symbol-name lift::*last-test-case-name*)
    (symbol-name 'simple-ensure-test-3))
   (ensure-same 
-   (symbol-name lift::*current-testsuite-name*)
+   (symbol-name lift::*last-testsuite-name*)
    (symbol-name 'lift-test-ensure-helper)))
 
 (addtest (test-interaction)
@@ -583,26 +567,29 @@ See file COPYING for license
   (run-tests :suite 'lift-test-ensure-helper
 	     :report-pathname nil)
   (ensure-same 
-   (symbol-name lift::*current-testsuite-name*)
+   (symbol-name lift::*last-testsuite-name*)
    (symbol-name 'lift-test-ensure-helper))
   (ensure-same 
-   (symbol-name lift::*current-test-case-name*)
+   (symbol-name lift::*last-test-case-name*)
    (symbol-name 'simple-ensure-test-3)))
 
 (addtest (test-interaction)
   run-test-sets-values-nested
-  (run-test :suite 'test-interaction :test-case 'run-tests-sets-values)
+  (run-test :suite 'test-interaction :name 'run-tests-sets-values)
   (ensure-same 
-   (symbol-name lift::*current-testsuite-name*)
+   (symbol-name lift::*last-testsuite-name*)
    (symbol-name 'test-interaction))
   (ensure-same 
-   (symbol-name lift::*current-test-case-name*)
+   (symbol-name lift::*last-test-case-name*)
    (symbol-name 'run-tests-sets-values)))
 
 ;;;;
 
 (deftestsuite test-expected-errors (lift-test)
-  ())
+  ()  
+  (:dynamic-variables
+   (*test-break-on-errors?* nil)
+   (*test-break-on-failures?* nil)))
 
 (deftestsuite test-expected-errors-helper ()
   ())
@@ -688,13 +675,13 @@ See file COPYING for license
 
 (addtest (test-scratchpad-resets)
   run-once-have-one
-  (run-test :suite 'test-scratchpad-resets-helper :test-case 'test-3)
+  (run-test :suite 'test-scratchpad-resets-helper :name 'test-3)
   (ensure-same '(:test) *test-scratchpad*))
 
 (addtest (test-scratchpad-resets)
   run-twice-have-one
-  (run-test :suite 'test-scratchpad-resets-helper :test-case 'test-3)
-  (run-test :suite 'test-scratchpad-resets-helper :test-case 'test-3)
+  (run-test :suite 'test-scratchpad-resets-helper :name 'test-3)
+  (run-test :suite 'test-scratchpad-resets-helper :name 'test-3)
   (ensure-same '(:test) *test-scratchpad*))
  
 (addtest (test-scratchpad-resets)
@@ -790,7 +777,10 @@ See file COPYING for license
   (:documentation 
    "LIFT should keep running tests even when a testcase gets a
 serious condition. (though maybe there should be an option that
-these cancel testing instead.)"))
+these cancel testing instead.)")
+  (:dynamic-variables
+   (*test-break-on-errors?* nil)
+   (*test-break-on-failures?* nil)))
 
 (deftestsuite handle-serious-condition-helper ()
   ())
@@ -878,5 +868,177 @@ these cancel testing instead.)"))
   initial-properties-are-null
   (ensure-null (lift::test-result-properties result))
 )
+
+|#
+
+(deftestsuite test-default-initargs-abstract (lift-test)
+  ())
+
+(deftestsuite test-default-initargs-parent (test-default-initargs-abstract)
+  (a (b 1))
+  (:default-initargs
+      :a :parent
+    :c :inherit))
+
+(addtest (test-default-initargs-parent)
+  no-initform
+  (ensure-same a :parent))
+
+(addtest (test-default-initargs-parent)
+  with-initform
+  (ensure-same b 1))
+
+(deftestsuite test-default-initargs-child (test-default-initargs-parent)
+  (c)
+  (:default-initargs
+      :a :child))
+
+(addtest (test-default-initargs-child)
+  no-initform-1
+  (ensure-same a :child))
+
+(addtest (test-default-initargs-child)
+  no-initform-2
+  (ensure-same c :inherit))
+
+(defvar *test-default-initargs-helper-var* nil)
+
+(deftestsuite test-default-initargs-helper ()
+  (a)
+  (:default-initargs
+      :a 1))
+
+(addtest (test-default-initargs-helper)
+  test-1
+  (ensure-same a *test-default-initargs-helper-var*))
+
+(deftestsuite test-default-initargs (test-default-initargs-abstract)
+  ())
+
+(addtest (test-default-initargs)
+  test-1
+  (let* ((*test-default-initargs-helper-var* 1)
+	 (r (lift:run-tests :suite 'test-default-initargs-helper
+			    :report-pathname nil)))
+    (ensure-null (errors r))
+    (ensure-null (failures r))))
+
+(addtest (test-default-initargs)
+  test-2
+  (let* ((*test-default-initargs-helper-var* 2)
+	(r (lift:run-tests :suite 'test-default-initargs-helper
+			   :report-pathname nil
+			   :testsuite-initargs '(:a 2))))
+    (ensure-null (errors r))
+    (ensure-null (failures r))))
+
+;;;;
+
+
+(deftestsuite test-dependencies (lift-test)
+  ())
+
+(deftestsuite test-dependencies-helper ()
+  ()
+  )
+
+(addtest (test-dependencies-helper)
+  test-a
+  (push :a *test-notepad*))
+
+(addtest (test-dependencies-helper)
+  test-b
+  (push :b *test-notepad*))
+
+(addtest (test-dependencies-helper :depends-on 'test-b)
+  test-c
+  (push :c *test-notepad*))
+
+(addtest (test-dependencies-helper :depends-on 'test-c)
+  test-d
+  (push :d *test-notepad*))
+
+(addtest (test-dependencies)
+  test-run-tests
+  (setf *test-notepad* nil)
+  (let ((r (lift:run-tests :suite 'test-dependencies-helper 
+			  :report-pathname nil)))
+    (ensure (every (lambda (name)
+		     (lift::test-case-tested-p 
+		      'test-dependencies-helper name :result r))
+		   (list 'test-a 'test-b 'test-c 'test-d)))
+    (ensure-same (length *test-notepad*) 4)
+    (ensure-same *test-notepad* '(:a :b :c :d) :test 'set-equal)))
+
+(addtest (test-dependencies)
+  test-run-test-b
+  (setf *test-notepad* nil)
+  (let ((r (lift:run-test :suite 'test-dependencies-helper 
+			  :name 'test-b)))
+    (ensure (every (lambda (name)
+		     (lift::test-case-tested-p 
+		      'test-dependencies-helper name :result r))
+		   (list 'test-b)))
+    (ensure-same *test-notepad* '(:b) :test 'set-equal)))
+
+(addtest (test-dependencies)
+  test-run-test-c
+  (setf *test-notepad* nil)
+  (let ((r (lift:run-test :suite 'test-dependencies-helper 
+			  :name 'test-c)))
+    (ensure (every (lambda (name)
+		     (lift::test-case-tested-p 
+		      'test-dependencies-helper name :result r))
+		   (list 'test-b 'test-c)))
+    (ensure-same *test-notepad* '(:c :b) :test 'set-equal)))
+
+(addtest (test-dependencies)
+  test-run-test-d
+  (setf *test-notepad* nil)
+  (let ((r (lift:run-test :suite 'test-dependencies-helper 
+			  :name 'test-d)))
+    (ensure-same (length *test-notepad*) 3)
+    (ensure (every (lambda (name)
+		     (lift::test-case-tested-p 
+		      'test-dependencies-helper name :result r))
+		   (list 'test-b 'test-c 'test-d)))
+    (ensure-same *test-notepad* '(:c :b :d) :test 'set-equal)))
+
+;;;;
+
+#|
+(deftestsuite this-testsuite-fails (lift-test)
+  ())
+
+(addtest (this-testsuite-fails)
+  test-1
+  (ensure-same (+ 2 2) 3))
+
+(deftestsuite this-testsuite-errors (lift-test)
+  ())
+
+(addtest (this-testsuite-errors)
+  test-1
+  (let ((x 0))
+    (ensure (/ (* (+ 2 2) 3) x))))
+
+(deftestsuite this-testsuite-is-generally-bad (lift-test)
+  ())
+
+(addtest (this-testsuite-is-generally-bad)
+  test-1
+  (let ((x 0))
+    (ensure (/ (* (+ 2 2) 3) x))))
+
+(addtest (this-testsuite-is-generally-bad)
+  test-2
+  (ensure-same (+ 2 2) 3))
+
+(deftestsuite this-testsuite-cannot-be-made (lift-test)
+  ((x (error "dang"))))
+
+(addtest (this-testsuite-cannot-be-made)
+  test-1
+  (ensure-same 1 1))
 
 |#

@@ -10,7 +10,10 @@
 	 (run-tests :suite name :report-pathname nil)
        (lift::cancel-testing-from-configuration (result)
 	 :test (lambda (c) (declare (ignore c)) t)
-	 result)))))
+	 result))))
+  (:dynamic-variables
+   (*test-break-on-errors?* nil)
+   (*test-break-on-failures?* nil)))
 
 (addtest (test-maximum-problems) 
   all-nil

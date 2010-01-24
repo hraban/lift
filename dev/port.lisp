@@ -58,6 +58,7 @@ returns a string with the corresponding backtrace.")
 
 #+allegro
 (defun get-backtrace-as-string (error)
+  (declare (ignore error))
   (with-output-to-string (s)
     (with-standard-io-syntax
       (let ((*print-readably* nil)
@@ -66,6 +67,7 @@ returns a string with the corresponding backtrace.")
             (tpl:*zoom-print-circle* t)
             (tpl:*zoom-print-level* nil)
             (tpl:*zoom-print-length* nil))
+	#+(or)
         (cl:ignore-errors
           (format *terminal-io* "~&~@<An unhandled error condition has been signalled:~3I ~a~I~:@>~%~%"
                   error))
