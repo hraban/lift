@@ -977,14 +977,11 @@ lift::(progn
     (unwind-protect
 	 (multiple-value-bind (result measures errorp)
 	     (while-measuring (t measure-seconds measure-space)
-	       (handler-case
-		   (with-timeout (timeout)
-		     (funcall profile-fn style count-calls-p))
-		 (timeout-error 
-		     (c)
-		   (declare (ignore c)))
-		 (error (c)
-		   (error c))))
+	       (handler-bind
+		   ((timeout-error (lambda (_) (declare (ignore _))))
+		    (error (lambda (c) (error c))))
+		 (with-timeout (timeout)
+		   (funcall profile-fn style count-calls-p))))
 	   (setf seconds (first measures) conses (second measures) 
 		 results result error errorp))
       ;; cleanup / ensure we get report

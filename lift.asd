@@ -76,12 +76,3 @@
 (defmethod operation-done-p 
            ((o test-op) (c (eql (find-system 'lift))))
   (values nil))
-
-(when (find-system 'asdf-system-connections nil)
-  (asdf:operate 'asdf:load-op 'asdf-system-connections))
-
-#+asdf-system-connections
-(asdf:defsystem-connection lift-report-locations
-  :requires (:lift :asdf-binary-locations)
-  :components ((:module "dev"
-			:components ((:file "report-locations")))))
