@@ -331,6 +331,7 @@ See file COPYING for license
 ;;; test-environment stays clean
 ;;; ---------------------------------------------------------------------------
 
+#|
 (deftestsuite lift-test-environment-pristine (lift-test) ()
   (:setup (setf *test-environment* nil)))
 
@@ -347,7 +348,7 @@ See file COPYING for license
   test-1
   (run-test :suite 'lift-test-environment-pristine-helper :name 'do-it)
   (ensure (null *test-environment*)))
-
+|#
 
 ;;; ---------------------------------------------------------------------------
 ;;; test-creating-multiple-tests
@@ -888,7 +889,6 @@ these cancel testing instead.)"))
   (a (b 1))
   (:default-initargs
       :a :parent
-    :b 3
     :c :inherit))
 
 (addtest (test-default-initargs-parent)

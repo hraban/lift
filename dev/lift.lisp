@@ -361,7 +361,9 @@
   (values))
 
 (defmethod setup-test ((test symbol))
-  (setup-test (make-testsuite test nil)))
+  (let ((it (make-testsuite test nil)))
+    (setup-test it)
+    it))
 
 (defmethod test-case-teardown progn ((test test-mixin) (result test-result))
   (values))
@@ -1231,9 +1233,17 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 		(not (length-1-list-p classes-removed)))))))
 
 (defun (setf test-environment-value) (value name)
+  (setf (slot-value *current-test* name) value))
+
+(defun test-environment-value (name)
+  (slot-value *current-test* name))
+
+#+(or)
+(defun (setf test-environment-value) (value name)
   (push (cons name value) *test-environment*)
   (values value))
 
+#+(or)
 (defun test-environment-value (name)
   (cdr (assoc name *test-environment*)))
 
@@ -1325,9 +1335,11 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 	 (with-test-slots
 	   ,@(when (or (def :direct-slot-names) (def :default-initargs))
 		   (let ((ginitargs (gensym "initargs-"))
+			 #+(or)
 			 (defaults (copy-list (def :default-initargs))))
 		     `((let ((,ginitargs (suite-initargs testsuite)))
 			 (declare (ignorable ,ginitargs))
+			 #+(or)
 			 ,@(loop for slot-name in (def :direct-slot-names)
 			      for keyword =  (form-keyword slot-name)
 			      for slot-spec = (assoc slot-name (def :slot-specs))
@@ -1341,6 +1353,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 					     ,@(when (and default (null initform))
 						     `(,default))))
 				(remf defaults keyword)))
+			 #+(or)
 			 ,@(when defaults
 				 (loop for (keyword default) in (form-groups defaults 2)
 				    for slot-name = (read-from-string (symbol-name keyword)) collect
@@ -1501,7 +1514,10 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
     (pushnew 'test-mixin (def :superclasses)))
   ;; build basic class and standard class
   `(defclass ,(def :testsuite-name) (,@(def :superclasses))
-     nil
+     ,(loop for name in (def :direct-slot-names) collect
+	    (let ((it (find name (def :slot-specs) :key #'car)))
+	      (assert it)
+	      it))
      ,@(when (def :documentation)
 	     `((:documentation ,(def :documentation))))
      (:default-initargs

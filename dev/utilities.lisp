@@ -201,8 +201,9 @@ the class itself is not included in the mapping. Proper? defaults to nil."
 		      slot)))))
     (unless (null (cddr slot-spec))
       (error "Slot-spec must be a symbol or a list of length one or two. `~s` has too many elements." slot)) 
-    `(,(first slot-spec) ,@(when (second slot-spec) 
-				 `(:initform ,(second slot-spec))))))
+    `(,(first slot-spec) 
+       :initarg ,(form-keyword (first slot-spec))
+       ,@(when (second slot-spec) `(:initform ,(second slot-spec))))))
 
 (defun convert-clauses-into-lists (clauses-and-options clauses-to-convert)
   ;; This is useful (for me at least!) for writing macros
