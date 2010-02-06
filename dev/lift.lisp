@@ -234,11 +234,6 @@
 	(gb (gensym "b-"))
 	(gtest (gensym "test-")))
     `(block ,gblock
-       #+(or)
-       (when *current-test*
-	 (when (atom (current-step *current-test*))
-	   (setf (current-step *current-test*) (list (current-step *current-test*))))
-	 (push :comparison (current-step *current-test*)))
        (flet ((,gtest (,ga ,gb)
 		(,@(cond (test-specified-p
 			  (if (atom test) 
@@ -259,9 +254,6 @@
 			 ,(if test-specified-p (list 'quote test) '*lift-equality-test*)
 			 ,report ,@arguments)
 		       (return-from ,gblock nil))))
-       #+(or)
-       (when *current-test*
-	 (setf (current-step *current-test*) (second (current-step *current-test*))))
        (values t))))
 
 (defun maybe-raise-not-same-condition (value-1 value-2 test 
@@ -300,7 +292,7 @@
 
 (defmethod testsuite-setup :before ((testsuite test-mixin) (result test-result))
   (push (type-of testsuite) (suites-run result))
-  (setf (current-step testsuite) :testsuite-setup))
+  (setf (current-step result) :testsuite-setup))
 
 (defmethod testsuite-expects-error ((testsuite test-mixin))
     nil)
@@ -314,32 +306,30 @@
 
 (defmethod testsuite-teardown :after
     ((testsuite test-mixin) (result test-result))
-  (setf (current-step testsuite) :testsuite-teardown
+  (setf (current-step result) :testsuite-teardown
 	(real-end-time result) (get-internal-real-time)
 	(real-end-time-universal result) (get-universal-time)))
 
 ;;;;
 
-(defun canonize-skip-tests ()
-  (when *skip-tests*
-    (setf *skip-tests*
-	  (mapcar
-	   (lambda (datum)
-	     (cond ((or (atom datum)
-			(and (= (length datum) 1)
-			     (setf datum (first datum)))
-			(and (= (length datum) 2) (null (second datum))
-			     (setf datum (first datum))))
-		    (cons (find-testsuite datum :errorp t) nil))
-		   ((= (length datum) 2)
-		    (cons (find-testsuite (first datum) :errorp t)
-			  (or (and (keywordp (second datum)) (second datum))
-			      (find-test-case (find-testsuite (first datum))
-					      (second datum) :errorp t))))
-		   (t
-		    (warn "Unable to interpret skip datum ~a. Ignoring." 
-			  datum))))
-	   *skip-tests*))))
+(defun canonize-skip-tests (skip-tests)
+  (mapcar
+   (lambda (datum)
+     (cond ((or (atom datum)
+		(and (= (length datum) 1)
+		     (setf datum (first datum)))
+		(and (= (length datum) 2) (null (second datum))
+		     (setf datum (first datum))))
+	    (cons (find-testsuite datum :errorp t) nil))
+	   ((= (length datum) 2)
+	    (cons (find-testsuite (first datum) :errorp t)
+		  (or (and (keywordp (second datum)) (second datum))
+		      (find-test-case (find-testsuite (first datum))
+				      (second datum) :errorp t))))
+	   (t
+	    (warn "Unable to interpret skip datum ~a. Ignoring." 
+		  datum))))
+   skip-tests))
 
 (defun test-result-property (result property &optional default)
   (getf (test-result-properties result) property default))
@@ -354,8 +344,7 @@
   #'equal)
 
 (defmethod setup-test :before ((test test-mixin))
-  (setf *test-scratchpad* nil
-	(current-step test) :test-setup))
+  (setf *test-scratchpad* nil))
 
 (defmethod setup-test ((test test-mixin))
   (values))
@@ -369,7 +358,7 @@
   (values))
 
 (defmethod test-case-teardown :around ((test test-mixin) (result test-result))
-  (setf (current-step test) :test-teardown)
+  (setf (current-step result) :test-teardown)
   (call-next-method))
 
 (defmethod initialize-instance :after ((testsuite test-mixin) &rest initargs 
@@ -960,8 +949,9 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 			  :testsuite suite
 			  :test-method method 
 			  :test-condition condition
-			  :test-step (current-step suite) args)))
-      (setf (getf (test-data suite) :problem) problem)
+			  :test-step (current-step result) args)))
+      (when suite
+	(setf (getf (test-data suite) :problem) problem))
       (accumulate-problem problem result)
       (when (and *test-maximum-failure-count*
 		 (numberp *test-maximum-failure-count*)
@@ -993,16 +983,14 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
   (let ((foo *test-print-level*))
     (if (eq foo :follow-print) *print-level* foo)))
 
-(defun record-start-times (suite) 
-  (declare (ignore name))
-  (setf (current-step suite) :start-test
+(defun record-start-times (result suite) 
+  (setf (current-step result) :start-test
 	(test-data suite) 
 	`(:start-time ,(get-internal-real-time)
 	  :start-time-universal ,(get-universal-time))))
 
 (defun record-end-times (result suite)
-  (declare (ignore name))
-  (setf (current-step suite) :end-test
+  (setf (current-step result) :end-test
 	(getf (test-data suite) :end-time) (get-internal-real-time)
 	(end-time result) (get-internal-real-time)
 	(getf (test-data suite) :end-time-universal) (get-universal-time)
@@ -1318,7 +1306,6 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
                  (when (run-teardown-p testsuite :testsuite)
 		   ,@test-code))))))))
 
-
 (defun build-setup-test-method ()
   (let ((test-name (def :testsuite-name))
         (setup (def :setup)))
@@ -1330,78 +1317,10 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
         (setf setup (list setup)))
       (when (symbolp (first setup))
         (setf setup (list setup))))
-    (when (or setup (def :direct-slot-names) (def :default-initargs))
+    (when setup
       `(defmethod setup-test :after ((testsuite ,test-name))
 	 (with-test-slots
-	   ,@(when (or (def :direct-slot-names) (def :default-initargs))
-		   (let ((ginitargs (gensym "initargs-"))
-			 #+(or)
-			 (defaults (copy-list (def :default-initargs))))
-		     `((let ((,ginitargs (suite-initargs testsuite)))
-			 (declare (ignorable ,ginitargs))
-			 #+(or)
-			 ,@(loop for slot-name in (def :direct-slot-names)
-			      for keyword =  (form-keyword slot-name)
-			      for slot-spec = (assoc slot-name (def :slot-specs))
-			      for initform = (getf (rest slot-spec) :initform)
-			      for default = (getf defaults keyword)
-			      collect
-			      (prog1
-				  `(setf (test-environment-value ',slot-name)
-					 (or (getf ,ginitargs ,keyword)
-					     ,@(when initform `(,initform))
-					     ,@(when (and default (null initform))
-						     `(,default))))
-				(remf defaults keyword)))
-			 #+(or)
-			 ,@(when defaults
-				 (loop for (keyword default) in (form-groups defaults 2)
-				    for slot-name = (read-from-string (symbol-name keyword)) collect
-				    `(setf (test-environment-value ',slot-name)
-					   ,default)))))))
-	   ,@setup)))))
-
-#+(or)
-(defun build-setup-test-method ()
-  (let ((test-name (def :testsuite-name))
-        (setup (def :setup)))
-    ;;?? ewww, this smells bad
-    (when setup
-      (unless (consp setup)
-        (setf setup (list setup)))
-      (when (length-1-list-p setup)
-        (setf setup (list setup)))
-      (when (symbolp (first setup))
-        (setf setup (list setup))))
-    (let ((ginitargs (gensym "initargs-")))
-      (multiple-value-bind (slots initforms)
-	  (%gather-up-initforms)
-	(when (or setup slots)
-	  `(progn
-	     (defmethod setup-test :after ((testsuite ,test-name))
-	       (with-test-slots
-		 ,@(when slots
-			 `((let ((,ginitargs (suite-initargs testsuite)))
-			     ,@(loop for slot-name in slots
-				  for initform in initforms
-				  for keyword = (intern (symbol-name slot-name)
-							:keyword) 
-				  collect
-				    `(setf (test-environment-value ',slot-name)
-					   (or (getf ,ginitargs ,keyword)
-					       ,initform))))))
-		 ,@setup))))))))
-
-#+(or)
-(defun %gather-up-initforms ()
-  (let ((initforms nil)
-        (slot-names nil)
-        (slot-specs (def :slot-specs)))
-    (loop for slot in (def :direct-slot-names)
-       for spec = (assoc slot slot-specs) do
-	 (push (getf (rest spec) :initform) initforms)
-	 (push (first spec) slot-names))
-    (values (nreverse slot-names) (nreverse initforms))))    
+	   ,@setup)))))    
 
 (defmethod setup-test :around ((test test-mixin))
   (when (run-setup-p test)

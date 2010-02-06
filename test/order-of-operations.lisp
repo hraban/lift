@@ -45,9 +45,8 @@
 		     'order-of-operations-helper-subclass :single))
   (ensure-same 
    (reverse *test-notepad*)
-   (list :slot-init-parent
-	 :setup-parent
-	 :slot-init-child 
+   (list :slot-init-child
+	 :setup-parent 
 	 :setup-child 
 	 :run-test-child
 	 :teardown-child

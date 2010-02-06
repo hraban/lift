@@ -327,28 +327,6 @@ See file COPYING for license
   (run-test :suite 'test-ignore-warnings-helper-no-warning :name 'do-it)
   (ensure-same *test-scratchpad* '(:b :a)))
 
-;;; ---------------------------------------------------------------------------
-;;; test-environment stays clean
-;;; ---------------------------------------------------------------------------
-
-#|
-(deftestsuite lift-test-environment-pristine (lift-test) ()
-  (:setup (setf *test-environment* nil)))
-
-(deftestsuite lift-test-environment-pristine-helper ()
-  ((a 2)
-   (b (* a a))))
-
-(addtest (lift-test-environment-pristine-helper)
-  do-it
-  (ensure-same (* a a) b))
-
-(addtest (lift-test-environment-pristine
-	  :expected-failure "This is no longer guarenteed; I'm not sure yet whether or not this is a good thing.")
-  test-1
-  (run-test :suite 'lift-test-environment-pristine-helper :name 'do-it)
-  (ensure (null *test-environment*)))
-|#
 
 ;;; ---------------------------------------------------------------------------
 ;;; test-creating-multiple-tests
@@ -369,29 +347,29 @@ See file COPYING for license
 
 ;;;;;
 
-(defvar *dynamics-before-setup* :dbs)
+(defvar *dynamics-after-setup* :das)
 
-(deftestsuite dynamics-before-setup (lift-test)
+(deftestsuite dynamics-after-setup (lift-test)
   ()
   :setup (setf *test-notepad* nil))
 
-(deftestsuite dynamics-before-setup-helper ()
+(deftestsuite dynamics-after-setup-helper ()
   ((slot (progn (push :slot *test-notepad*) :slot)))
-  :dynamic-variables (*dynamics-before-setup* 
+  :dynamic-variables (*dynamics-after-setup* 
 		      (progn (push :dynamics *test-notepad*) :dynamics))
   (:setup (push :setup *test-notepad*) (print (list :tn *test-notepad*))))
 
-(addtest (dynamics-before-setup-helper)
+(addtest (dynamics-after-setup-helper)
   test-1
   (push :test *test-notepad*)
-  (ensure-same *dynamics-before-setup* :dynamics))
+  (ensure-same *dynamics-after-setup* :dynamics))
 
-(addtest (dynamics-before-setup)
+(addtest (dynamics-after-setup)
   test-1
-  (run-test :suite 'dynamics-before-setup-helper
+  (run-test :suite 'dynamics-after-setup-helper
 	    :name 'test-1)
   (ensure-same (reverse *test-notepad*)
-	       '(:dynamics :slot :setup :test)))
+	       '(:slot :dynamics :setup :test)))
 
 
 ;;;;;
@@ -426,7 +404,7 @@ See file COPYING for license
 
 
 ;;;;;
-;;; slot initialization takes place with every setup
+;;; slot initialization takes place ONCE
 
 (deftestsuite test-initialize-slots-helper ()
   ((slot (incf *test-notepad*))))
@@ -448,7 +426,7 @@ See file COPYING for license
   (let ((tr (run-tests :suite 'test-initialize-slots-helper
 		       :report-pathname nil)))
     (ensure-same (length (tests-run tr)) 2)
-    (ensure-same *test-notepad* 2 :test '=)))
+    (ensure-same *test-notepad* 1 :test '=)))
 
 ;;;;;
 ;;; errors during tests are reported in the test result
@@ -470,7 +448,8 @@ See file COPYING for license
   helper-slot-init
   (let ((result (run-test :suite 'test-error-catching-helper-slot-init
 			  :name 'slot-init)))
-    (ensure-same 1 (length (lift::suites-run result)) :report "tests run")
+    ;;?? test not run because error occurred during setup
+    (ensure-same 0 (length (lift::suites-run result)) :report "tests run")
     (ensure-same 1 (length (errors result)) :report "errors counted")))
 
 ;;;
@@ -928,22 +907,18 @@ these cancel testing instead.)"))
 
 (addtest (test-default-initargs)
   test-1
-  (let ((*test-default-initargs-helper-var* 1)
-	(r (make-test-result 'test-default-initargs-helper :multiple)))
-    (lift:run-tests :suite 'test-default-initargs-helper
-		    :result r
-		    :report-pathname nil)
+  (let* ((*test-default-initargs-helper-var* 1)
+	 (r (lift:run-tests :suite 'test-default-initargs-helper
+			    :report-pathname nil)))
     (ensure-null (errors r))
     (ensure-null (failures r))))
 
 (addtest (test-default-initargs)
   test-2
-  (let ((*test-default-initargs-helper-var* 2)
-	(r (make-test-result 'test-default-initargs-helper :multiple)))
-    (lift:run-tests :suite 'test-default-initargs-helper
-		    :result r
-		    :report-pathname nil
-		    :testsuite-initargs '(:a 2))
+  (let* ((*test-default-initargs-helper-var* 2)
+	(r (lift:run-tests :suite 'test-default-initargs-helper
+			   :report-pathname nil
+			   :testsuite-initargs '(:a 2))))
     (ensure-null (errors r))
     (ensure-null (failures r))))
 

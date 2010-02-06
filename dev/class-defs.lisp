@@ -13,7 +13,6 @@
    (done-dynamics? :initform nil :reader done-dynamics?)
    (test-slot-names :initform nil :initarg :test-slot-names 
 		    :reader test-slot-names)
-   (current-step :initform :created :accessor current-step)
    (current-method :initform nil :accessor current-method)
    (save-equality-test :initform nil  :reader save-equality-test)
    (log-file :initform nil :initarg :log-file :reader log-file)
@@ -60,7 +59,13 @@
    (start-time-universal :accessor start-time-universal :initform nil)
    (end-time-universal :accessor end-time-universal)
    (real-end-time-universal :accessor real-end-time-universal)
-   (properties :initform nil :accessor test-result-properties))
+   (properties :initform nil :accessor test-result-properties)
+   (current-step :initform :created :accessor current-step)
+   (testsuite-initargs 
+    :initform nil
+    :initarg :testsuite-initargs
+    :accessor suite-initargs
+    :accessor testsuite-initargs))
   (:documentation 
 "A `test-result` instance contains all of the information collectd by 
 LIFT during a test run.")

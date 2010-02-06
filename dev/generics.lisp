@@ -13,9 +13,6 @@
   (:documentation 
    "Returns whether or not the testsuite as a whole expects to fail."))
 
-(defgeneric testsuite-run (testsuite result)
-  (:documentation "Run the cases in this suite and it's children."))
-
 (defgeneric testsuite-teardown (testsuite result)
   (:documentation "Cleanup at the testsuite level."))
 
@@ -30,14 +27,7 @@
   (:documentation "Returns a list of the test methods defined for test. I.e.,
 the methods that should be run to do the tests for this test."))
 
-(defgeneric do-testing (testsuite result fn)
-  (:documentation ""))
-
 (defgeneric run-test-internal (suite name result &rest args)
-  (:documentation ""))
-
-(defgeneric run-tests-internal (suite &rest args
- 			       &key &allow-other-keys)
   (:documentation ""))
 
 (defgeneric test-report-code (testsuite method)
@@ -57,9 +47,6 @@ the methods that should be run to do the tests for this test."))
 
 (defgeneric equality-test (testsuite)
   (:documentation ""))
-
-(defgeneric do-testing-in-environment (testsuite result function)
-  (:documentation ""))  
 
 ;;?? probably just defuns (since they are hard to specialize on in any case)
 ;;?? or change signature to take testsuite instead of suite-name

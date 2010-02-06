@@ -89,11 +89,11 @@
 
 (addtest (test-skipping)
   skip-subclasses
-  (run-tests :suite 'test-skipping-helper
-	     :skip-tests '(test-skipping-helper-a))
-  (ensure-same (length (tests-run *test-result*)) 1 :test '=)
-  (ensure-same (length (skipped-test-cases *test-result*)) 0 :test '=)
-  (ensure-same (length (skipped-testsuites *test-result*)) 1 :test '=))
+  (let ((r (run-tests :suite 'test-skipping-helper
+		      :skip-tests '(test-skipping-helper-a))))
+    (ensure-same (length (tests-run r)) 1 :test '=)
+    (ensure-same (length (skipped-test-cases r)) 0 :test '=)
+    (ensure-same (length (skipped-testsuites r)) 3 :test '=)))
 
 ;;;;
 
