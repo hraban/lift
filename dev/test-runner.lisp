@@ -121,11 +121,17 @@
      (result (make-test-result (class-of suite) :multiple))
      (do-children? *test-run-subsuites?*))
   (let ((*current-test* suite)
-	(*test-run-subsuites?* do-children?))
-    (do-testing-in-environment
-	suite result
-	(lambda ()
-	  (testsuite-run suite result)))
+	(*test-run-subsuites?* do-children?)
+	(suites (if *test-run-subsuites?* 
+		    (mapcar (lambda (sub-suite)
+			      (make-testsuite sub-suite (testsuite-initargs suite)))
+			    (collect-testsuites suite))
+		    (list suite))))
+    (dolist (suite suites)
+      (do-testing-in-environment
+	  suite result
+	  (lambda ()
+	    (testsuite-run suite result))))
     (setf *test-result* result)))
 
 (defun run-tests (&rest args &key 
@@ -255,19 +261,7 @@ nor configuration file options were specified.")))))
 			 (when *lift-report-pathname*
 			   (write-log-test  
 			    :save suite-name method data
-			    :stream *lift-report-pathname*))))
-		  (when *test-run-subsuites?*
-		    (if (skip-test-suite-children-p result suite-name)
-			(skip-testsuite result suite-name)
-			(loop for subclass in (direct-subclasses (class-of testsuite))	
-			   when (and (testsuite-p subclass)
-				     (not (member (class-name subclass) 
-						  (suites-run result)))) do
-			   (run-tests-internal 
-			    (make-testsuite (class-name subclass) 
-					    (testsuite-initargs testsuite))
-			    :result result 
-			    )))))
+			    :stream *lift-report-pathname*)))))
 	     (setf (end-time result) (get-universal-time)))))))
 
 (defmethod run-test-internal ((suite symbol) (name symbol) result

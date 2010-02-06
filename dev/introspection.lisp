@@ -168,7 +168,7 @@ control over where in the test hierarchy the search begins."
 
 (defmethod find-testsuite ((suite test-mixin) &key (errorp nil))
   (declare (ignore errorp))
-  suite)
+  (class-name (class-of suite)))
 
 (defmethod find-testsuite ((suite symbol) &key (errorp nil))
   (or (testsuite-p suite)

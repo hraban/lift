@@ -361,9 +361,9 @@
   (values))
 
 (defmethod setup-test ((test symbol))
-  (let ((it (make-testsuite test nil)))
-    (setup-test it)
-    it))
+  (let ((*current-test* (make-testsuite test nil)))
+    (setup-test *current-test*)
+    *current-test*))
 
 (defmethod test-case-teardown progn ((test test-mixin) (result test-result))
   (values))
