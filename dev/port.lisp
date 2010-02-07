@@ -58,6 +58,7 @@ returns a string with the corresponding backtrace.")
 
 #+allegro
 (defun get-backtrace-as-string (error)
+  (declare (ignore error))
   (with-output-to-string (s)
     (with-standard-io-syntax
       (let ((*print-readably* nil)
