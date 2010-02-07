@@ -1003,3 +1003,54 @@ these cancel testing instead.)")
 		      'test-dependencies-helper name :result r))
 		   (list 'test-b 'test-c 'test-d)))
     (ensure-same *test-notepad* '(:c :b :d) :test 'set-equal)))
+
+;;;;
+
+#|
+(deftestsuite this-testsuite-fails (lift-test)
+  ())
+
+(addtest (this-testsuite-fails)
+  test-1
+  (ensure-same (+ 2 2) 3))
+
+(deftestsuite this-testsuite-errors (lift-test)
+  ())
+
+(addtest (this-testsuite-errors)
+  test-1
+  (let ((x 0))
+    (ensure (/ (* (+ 2 2) 3) x))))
+
+(deftestsuite this-testsuite-is-generally-bad (lift-test)
+  ()
+  (:documentation "And that's OK."))
+
+(addtest (this-testsuite-is-generally-bad :documentation "What happens here")
+  test-1
+;  (:documentation "What happens here")
+  (let ((x 0))
+    (ensure (/ (* (+ 2 2) 3) x))))
+
+(addtest (this-testsuite-is-generally-bad)
+  test-2
+  (ensure-same (+ 2 2) 3))
+
+(deftestsuite this-testsuite-cannot-be-made (lift-test)
+  ((x (error "dang")))
+  (:documentation "And that's the way we like it."))
+
+(addtest (this-testsuite-cannot-be-made :documentation "What happens to this?")
+  test-1
+  (ensure-same 1 1))
+
+(deftestsuite test-conditions (lift-test)
+  ())
+
+(addtest (test-conditions)
+  test-1
+  (signal 'excl:socket-chunking-end-of-file)
+  (ensure-same 1 1))
+
+|#
+

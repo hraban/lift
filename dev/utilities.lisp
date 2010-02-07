@@ -426,3 +426,17 @@ and nil otherwise."
 	   (incf count))
       (when (= count size) (add-one))
       (values (nreverse result) (nreverse sub-result)))))
+
+(defun test-function-name (test-function)
+  (cond ((eq test-function #'eq)
+	 "eq")
+	((eq test-function #'eql)
+	 "eql")
+	((eq test-function #'equal)
+	 "equal")
+	((eq test-function #'equalp)
+	 "equalp")
+	((eq test-function #'=)
+	 "=")
+	(t
+	 (princ-to-string test-function))))

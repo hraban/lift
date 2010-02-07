@@ -24,7 +24,7 @@ to override them."
       (setf result (make-test-result 
 		    suite :single :testsuite-initargs testsuite-initargs)))
     (prog1
-	(let ((*current-test-case-name* (find-test-case suite name))
+	(let ((*current-test-case-name* (find-test-case suite name :errorp t))
 	      (*test-result* result))
 	  (do-testing-in-environment
 	      suite result 
@@ -51,14 +51,15 @@ to override them."
 			    (error 
 			     (lambda (condition)
 			       (handle-error-while-testing
-				condition 'testsuite-error suite result)
+				condition 'testsuite-error suite-name result)
 			       (go :test-end)))
 			    (serious-condition 
 			     (lambda (condition)
 			       (handle-error-while-testing
 				condition 'testsuite-serious-condition
-				suite result)
+				suite-name result)
 			       (go :test-end))))
+	       (setf (current-step result) :create)
 	       (setf suite (make-testsuite 
 			    suite-name (testsuite-initargs result)))
 	       (let ((*current-test* suite))
@@ -73,7 +74,7 @@ to override them."
 	   (ensure-failed (condition) 
 	     :test (lambda (c) (declare (ignore c)) *in-middle-of-failure?*)
 	     (report-test-problem
-	      'testsuite-failure result suite 
+	      'testsuite-failure result suite-name 
 	      *current-test-case-name* condition))
 	   (retry-test () 
 	     :report (lambda (s) (format s "Re-run testsuite ~a"
@@ -144,8 +145,8 @@ but not both."))
 		 (unless result
 		   (setf result
 			 (apply #'make-test-result suite 
-				:multiple 
-				:testsuite-initargs testsuite-initargs args)))
+				:multiple args)))
+		 (setf (testsuite-initargs result) testsuite-initargs)
 		 (when report-pathname
 		   (write-log-header report-pathname result args-copy))
 		 (let* ((*test-break-on-errors?* break-on-errors?)
@@ -261,14 +262,16 @@ nor configuration file options were specified.")))))
 			    (error 
 			     (lambda (condition)
 			       (handle-error-while-testing
-				condition 'test-error suite result)
+				condition 'test-error suite-name result)
 			       (go :test-end)))
 			    (serious-condition 
 			     (lambda (condition)
 			       (handle-error-while-testing
-				condition 'test-serious-condition suite result)
+				condition 'test-serious-condition
+				suite-name result)
 			       (go :test-end))))
 	       (setf (current-method suite) test-case-name)
+	       (set-test-case-options suite-name test-case-name)
 	       (record-start-times result suite)
 	       (unwind-protect
 		    (progn
@@ -293,7 +296,7 @@ nor configuration file options were specified.")))))
 	     :test (lambda (c) (declare (ignore c)) 
 			   *in-middle-of-failure?*)
 	     (report-test-problem
-	      'test-failure result suite 
+	      'test-failure result suite-name
 	      *current-test-case-name* condition)
 	     (if (and *test-break-on-failures?*
 		      (not (test-case-expects-failure-p 
@@ -310,10 +313,10 @@ nor configuration file options were specified.")))))
   (setf *current-test-case-name* test-case-name	*test-result* result)
   (third (first (tests-run result))))
 
-(defun handle-error-while-testing (condition error-class suite result)
+(defun handle-error-while-testing (condition error-class suite-name result)
   (let ((*in-middle-of-failure?* nil))
     (report-test-problem
-     error-class result suite
+     error-class result suite-name
      *current-test-case-name* condition
      :backtrace (get-backtrace condition))
     (when (and *test-break-on-errors?*

@@ -67,13 +67,16 @@ LIFT during a test run.")
 		   :initarg :test-condition 
 		   :reader test-condition)
    (test-problem-kind :reader test-problem-kind :allocation :class)
-   (test-step :initform nil :initarg :test-step :reader test-step)))
+   (test-step :initform nil :initarg :test-step :reader test-step)
+   (testsuite-initargs 
+    :initform nil :initarg :testsuite-initargs
+    :reader testsuite-initargs)))
 
 (defmethod print-object ((problem test-problem-mixin) stream)
   (print-unreadable-object (problem stream)
     (format stream "TEST-~@:(~A~): ~A in ~A" 
             (test-problem-kind problem) 
-            (name (testsuite problem))
+            (testsuite problem)
 	    (test-method problem))))
 
 (defclass generic-problem (test-problem-mixin)

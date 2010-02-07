@@ -122,7 +122,8 @@ For example, compile without cross-reference information."
     ((name style &key 
 	   (log-name *benchmark-log-path* ln-supplied?)
 	   (count-calls-p *count-calls-p* ccp-supplied?)
-	   (timeout nil timeout-supplied?))
+	   (timeout nil timeout-supplied?)
+	   (destination nil distination-supplied?))
      &body body)
   `(with-profile-report-fn 
        ,name ,style 
@@ -133,7 +134,9 @@ For example, compile without cross-reference information."
        ,@(when ln-supplied?
 	       `(:log-name ,log-name))
        ,@(when (and timeout-supplied? timeout)
-	       `(:timeout ,timeout))))
+	       `(:timeout ,timeout))
+       ,@(when distination-supplied?
+	       `(:destination ,destination))))
 
 (defmacro while-counting-repetitions ((&optional (delay 1.0)) &body body)
   "Execute `body` repeatedly for `delay` seconds. Returns the number
@@ -409,6 +412,19 @@ is generated instead of a warning"
 	       (warn condition)))
 	 ;; return true if we're happy
 	 t))))
+
+#+(or)
+(defmacro ensure-member
+    (form values &key (test nil test-specified-p)  
+     (report nil) (arguments nil))
+  "`ensure-member` checks to see if `form` is a member of `values`.
+
+`test` is used as an argument to `member`. If `form` is not a
+`member`, then ensure-member raises a warning which uses `report` as a
+format string and `arguments` as arguments to that string (if report
+and arguments are supplied). If `ensure-member` is used within a test, a
+test failure is generated instead of a warning"
+)
 
 (defmacro with-test-slots (&body body)
   `(symbol-macrolet ((lift-result (getf (test-data *current-test*) :result)))   

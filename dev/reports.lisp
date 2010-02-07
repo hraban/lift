@@ -330,7 +330,7 @@ lift::(progn
   (report-tests-by-suite 
    format  
    (mapcar (lambda (problem)
-	     `(,(type-of (testsuite problem))
+	     `(,(testsuite problem)
 		,(test-method problem)
 		(:problem ,problem)))
 	   problems)
@@ -443,13 +443,13 @@ lift::(progn
   (let ((problem (getf datum :problem)))
     (cond ((typep problem 'test-failure)
 	   (format stream "~&<span class=\"test-name\"><a href=\"~a\" title=\"details\">~a</a></span>"
-		   (details-link stream suite test-name)
+		   (details-link suite test-name)
 		   test-name)
 	   (format stream 
 		   "~&<span class=\"test-failure\">failure</span>" ))
 	  ((typep problem 'test-error)
 	   (format stream "~&<span class=\"test-name\"><a href=\"~a\" title=\"details\">~a [during ~a]</a></span>"
-		   (details-link stream suite test-name)
+		   (details-link suite test-name)
 		   test-name
 		   (test-step problem))
 	   (format stream "~&<span class=\"test-error\">error</span>"))
@@ -483,89 +483,6 @@ lift::(progn
 	 (report-test-case-by-suite format stream suite test-name datum))
     (finish-report-tests-by-suite format stream current-suite)))
 
-#+(or)
-(defun report-tests-by-suite (tests stream)
-  (let ((current-suite nil))
-    (loop for rest = (sort 
-		      (copy-list tests)
-		      'string-lessp :key 'first) then (rest rest) 
-       while rest
-       for (suite test-name datum) = (first rest) do
-       (unless (eq current-suite suite)
-	 (when current-suite
-	   (format stream "</div>"))
-	 (setf current-suite suite)
-	 (format stream "~&<div class=\"testsuite\">")
-	 (let* ((this-suite-end (or 
-				 (position-if 
-				  (lambda (datum)
-				    (not (eq current-suite (first datum))))
-				  rest)
-				 (length rest)))
-		(error-count (count-if 
-			      (lambda (datum)
-				(and (getf (third datum) :problem)
-				     (typep (getf (third datum) :problem)
-					    'test-error)))
-			      rest
-			      :end this-suite-end))
-		(failure-count (count-if 
-				(lambda (datum)
-				  (and (getf (third datum) :problem)
-				       (typep (getf (third datum) :problem)
-					      'test-failure)))
-				rest
-				:end this-suite-end))
-		(extra-class (cond ((and (= error-count 0) (= failure-count 0))
-				    'testsuite-all-passed)
-				   ((> error-count 0)
-				    'testsuite-some-errors)
-				   (t
-				    'testsuite-some-failures))))
-	   (format stream "~&<div class=\"testsuite-title\"><table class=\"~a\"><tr><td>~a</td>" extra-class suite)
-	   (format stream "<td class=\"testsuite-test-count\">~:d test~:p</td>"
-		   (test-case-count current-suite))
-	   (format stream "<td class=\"testsuite-summary\">")
-	   (cond ((and (= error-count 0) (= failure-count 0))
-		  (format stream "all passed"))
-		 (t
-		  (format stream "~[~:;~:*~:d failure~:p~]" 
-			  failure-count)
-		  (when (and (> error-count 0) (> failure-count 0))
-		    (format stream ", "))
-		  (format stream  "~[~:;~:*~a error~:p~]" 
-			  error-count)))
-	   (format stream "</td></tr></table>")
-	   (format stream "</div>")))
-	 (format stream "~&<div class=\"test-case\">")
-	 (let ((problem (getf datum :problem)))
-	   (cond ((typep problem 'test-failure)
-		  (format stream "~&<span class=\"test-name\"><a href=\"~a\" title=\"details\">~a</a></span>"
-			  (details-link stream suite test-name)
-			  test-name)
-		  (format stream 
-			  "~&<span class=\"test-failure\">failure</span>" ))
-		 ((typep problem 'test-error)
-		  (format stream "~&<span class=\"test-name\"><a href=\"~a\" title=\"details\">~a [during ~a]</a></span>"
-			  (details-link stream suite test-name)
-			  test-name
-			  (test-step problem))
-		  (format stream "~&<span class=\"test-error\">error</span>"))
-		 (t
-		  (format stream "~&<span class=\"test-name\">~a</span>" 
-			  test-name)
-		  (let ((seconds (getf datum :seconds))
-			(conses (getf datum :conses)))
-		    (when seconds 
-		      (format stream "<span class=\"test-time\">~,3f</span>"
-			      seconds))
-		    (when conses 
-		      (format stream "<span class=\"test-space\">~:d</span>"
-			      conses)))))
-	   (format stream "~&</div>")))
-    (when current-suite
-      (format stream "</div>"))))
-
 (defun get-details-links-table ()
   (let ((hash (getf *report-environment* :details-links)))
     (or hash
@@ -575,8 +492,7 @@ lift::(progn
 #+(or)
 (get-details-links-table)
 
-(defun details-link (stream suite name)
-  (declare (ignore stream))
+(defun details-link (suite name)
   (let* ((hash (get-details-links-table)))
     (or (gethash (cons suite name) hash)
 	(progn
@@ -613,10 +529,10 @@ lift::(progn
   (format stream "~&</body></html>"))
 
 (defmethod generate-detailed-reports (result stream (format (eql :html)))
-  (loop for (suite test-name datum)  in (tests-run result)
+  (loop for (suite-name test-name datum) in (tests-run result)
      when (getf datum :problem) do
      (let ((output-pathname (merge-pathnames
-			     (details-link stream suite test-name) 
+			     (details-link suite-name test-name) 
 			     stream)))
        (ensure-directories-exist output-pathname)
        (let ((*print-right-margin* 64)
@@ -630,12 +546,20 @@ lift::(progn
 	    (format nil "Test ~a details | ~a" 
 		    test-name (test-result-property result :title))
 	    (test-result-property result :style-sheet))
-	   (format out "~&<h2>Test ~a details</h2>" test-name)
+	   (format out "~&<h2>Suite ~a, case ~a details</h2>" 
+		   suite-name test-name)
 	   (format out "~&<a href=\"~a\">Back</a>"
 		   (namestring (make-pathname :name (pathname-name stream)
 					      :type (pathname-type stream))))
 	   (format out "~&<p>Problem occurred during ~a.</p>"
 		   (test-step problem))
+	   (format out "~&<p>Reproduce using: <pre>")
+	   (format out "~&  (run-test :suite '~a " suite-name)
+	   (format out "~&            :name '~a" test-name)
+	   (when (testsuite-initargs problem)
+	     (format out "~&            :testsuite-initargs '~s" 
+		     (testsuite-initargs problem)))
+	   (format out ")</pre>.</p>")
 	   (format out "~&<pre>")
 	   (format out "~a"
 		   (wrap-encode-pre 
@@ -901,9 +825,9 @@ lift::(progn
 		   (package-name (symbol-package symbol)))))
       (mapcar (lambda (glitch)
 		(if (test-method glitch)
-		    (list (encode-symbol (type-of (testsuite glitch)))
+		    (list (encode-symbol (testsuite glitch))
 			  (encode-symbol (test-method glitch)))
-		    (encode-symbol (type-of (testsuite glitch)))))
+		    (encode-symbol (testsuite glitch))))
 	      list))))
 
 #+(or)
@@ -966,13 +890,15 @@ lift::(progn
     (name style fn body &key
      (log-name *benchmark-log-path*)
      (count-calls-p *count-calls-p*)
-     (timeout nil))
+     (timeout nil)
+     (destination nil destination-supplied?))
   (assert (member style '(nil :time :space :count-only)))
   (when style
     (cancel-current-profile :force? t))
   (let* ((seconds 0.0) (conses 0) 
 	 error
 	 results
+	 report-string
 	 (profile-fn (make-profiled-function fn)))
     (unwind-protect
 	 (multiple-value-bind (result measures errorp)
@@ -987,73 +913,89 @@ lift::(progn
       ;; cleanup / ensure we get report
       (generate-profile-log-entry log-name name seconds conses results error)
       (when (and style (> (current-profile-sample-count) 0))
-	(let ((pathname (unique-filename
-			 (merge-pathnames
-			  (make-pathname 
-			   :type "prof"
-			   :name (format nil "~a-~a-" name style))
-			  log-name))))
-	  (write-profile-report pathname name style body
-				seconds conses error count-calls-p))))
-    (values-list (if (atom results) (list results) results))))
+	(let ((pathname (if destination-supplied?
+			    destination
+			    (unique-filename
+			     (merge-pathnames
+			      (make-pathname 
+			       :type "prof"
+			       :name (format nil "~a-~a-" name style))
+			      log-name)))))
+	  (setf report-string
+		(write-profile-report pathname name style body
+				      seconds conses error count-calls-p)))))
+    (values results report-string)))
 
 (defun write-profile-report (pathname name style body seconds conses
 			     error count-calls-p)
   (format t "~&Profiling output being sent to ~a" pathname)
-  (with-open-file (output pathname
-			  :direction :output
-			  :if-does-not-exist :create
-			  :if-exists :append)
-    (format output "~&Profile data for ~a" name)
-    (format output "~&Date: ~a" (date-stamp :include-time? t))
-    (summarize-test-environment nil output nil)
-    (format output "~&  Total time: ~,2F; Total space: ~:d \(~:*~d\)"
-	    seconds conses)
-    (format output "~%~%")
-    (when error
-      (format output "~&Error occurred during profiling: ~a~%~%" error))
-    (let ((*standard-output* output))
-      (when *current-test* 
-	(write-profile-information *current-test*)))
-    (when body
-      (format output "~&Profiling: ~%")
-      (let ((*print-length* 10)
-	    (*print-level* 10))
-	(dolist (form body)
-	  (pprint form output)))
-      (format output "~%~%"))
-    (when (or (eq :time style)
-	      (eq :space style))
-      (show-flat-profile output)
-      (show-call-graph output)
-      (when count-calls-p
-	(show-call-counts output)))
-    #+allegro
-    (when *functions-to-profile*
-      (loop for thing in *functions-to-profile* do
-	   (let ((*standard-output* output)
-		 (*print-readably* nil))
-	     (handler-case 
-		 (cond ((thing-names-generic-function-p thing)
-			(format output "~%~%Disassemble generic-function ~s:~%"
-				thing)
-			(prof:disassemble-profile thing)
-			(mapc 
-			 (lambda (m)
-			   (format t "~2%~a~%"
-				   (make-string 60 :initial-element #\-))
-			   (format t "~&Method: ~a~2%" m)
-			   (prof:disassemble-profile (clos:method-function m)))
-			 (clos:generic-function-methods 
-			  (symbol-function thing))))
-		       (t
-			(format output "~%~%Disassemble function ~s:~%"
-				thing)
-			(prof:disassemble-profile thing)))
-	       (error (c)
-		 (format 
-		  output "~2%Error ~a while trying to disassemble-profile ~s~2%"
-		  c thing))))))))
+  (let (report-string
+	(output-stream (cond ((null pathname)
+			      (make-string-output-stream))
+			     ((eq pathname t)
+			      *standard-output*)
+			     (t
+			      (open pathname
+				    :direction :output
+				    :if-does-not-exist :create
+				    :if-exists :append)))))
+    (unwind-protect
+	 (progn
+	   (format output-stream "~&Profile data for ~a" name)
+	   (format output-stream "~&Date: ~a" (date-stamp :include-time? t))
+	   (summarize-test-environment nil output-stream nil)
+	   (format output-stream "~&  Total time: ~,2F; Total space: ~:d \(~:*~d\)"
+		   seconds conses)
+	   (format output-stream "~%~%")
+	   (when error
+	     (format output-stream "~&Error occurred during profiling: ~a~%~%" error))
+	   (let ((*standard-output* output-stream))
+	     (when *current-test* 
+	       (write-profile-information *current-test*)))
+	   (when body
+	     (format output-stream "~&Profiling: ~%")
+	     (let ((*print-length* 10)
+		   (*print-level* 10))
+	       (dolist (form body)
+		 (pprint form output-stream)))
+	     (format output-stream "~%~%"))
+	   (when (or (eq :time style)
+		     (eq :space style))
+	     (show-flat-profile output-stream)
+	     (show-call-graph output-stream)
+	     (when count-calls-p
+	       (show-call-counts output-stream)))
+	   #+allegro
+	   (when *functions-to-profile*
+	     (loop for thing in *functions-to-profile* do
+		  (let ((*standard-output* output-stream)
+			(*print-readably* nil))
+		    (handler-case 
+			(cond ((thing-names-generic-function-p thing)
+			       (format output-stream "~%~%Disassemble generic-function ~s:~%"
+				       thing)
+			       (prof:disassemble-profile thing)
+			       (mapc 
+				(lambda (m)
+				  (format t "~2%~a~%"
+					  (make-string 60 :initial-element #\-))
+				  (format t "~&Method: ~a~2%" m)
+				  (prof:disassemble-profile (clos:method-function m)))
+				(clos:generic-function-methods 
+				 (symbol-function thing))))
+			      (t
+			       (format output-stream "~%~%Disassemble function ~s:~%"
+				       thing)
+			       (prof:disassemble-profile thing)))
+		      (error (c)
+			(format 
+			 output-stream "~2%Error ~a while trying to disassemble-profile ~s~2%"
+			 c thing)))))))
+      (cond ((null pathname)
+	     (setf report-string (get-output-stream-string output-stream)))
+	    ((not (eq pathname t))
+	     (when output-stream (close output-stream)))))
+    report-string))
 
 ;; stolen from cl-markdown and modified
 (defun thing-names-generic-function-p (thing)
@@ -1121,7 +1063,7 @@ lift::(progn
 	    (destructuring-bind (_1 suite name _2) issue
 	      (declare (ignore _1 _2))
 	      (format out "~&<li><span>~a</span> <a href=\"~a\"><span>~a</span></a></li>~&" 
-		      suite (details-link stream suite name) name)))
+		      suite (details-link suite name) name)))
        (format out "~&</ul>~%"))
     (html-footer out)))
 
@@ -1178,7 +1120,7 @@ lift::(progn
 	 (report-tests-by-suite 
 	  format  
 	  (mapcar (lambda (problem)
-		    `(,(type-of (testsuite problem))
+		    `(,(testsuite problem)
 		       ,(test-method problem)
 		       (:problem ,problem)))
 		  cases)
