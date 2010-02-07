@@ -3,7 +3,10 @@
 (defvar *expect-error* nil)
 
 (deftestsuite expect-error (lift-test)
-  ())
+  ()
+  (:dynamic-variables
+   (*test-break-on-errors?* nil)
+   (*test-break-on-failures?* nil)))
 
 (deftestsuite expect-error-helper ()
   ()
@@ -12,6 +15,16 @@
 (addtest (expect-error-helper)
   test-1
   (error "this is an error"))
+
+(deftestsuite expect-error-helper-test-case ()
+  ())
+
+(addtest (expect-error-helper-test-case 
+	  :expected-error (progn (print (list :ee *expect-error*))
+			     *expect-error*))
+  test-1
+  (error "this is an error"))
+
 
 (addtest (expect-error)
   test-expects-error
@@ -25,6 +38,21 @@
   test-does-not-expect-error
   (let* ((*expect-error* nil)
 	 (result (run-tests :suite 'expect-error-helper)))
+    (ensure-same (length (errors result)) 1 :test '=))) 
+
+(addtest (expect-error)
+  test-case-expects-error
+  (let* ((*expect-error* t)
+	 (result (run-tests :suite 'expect-error-helper-test-case)))
+    (ensure-same (lift::suites-run result) '(expect-error-helper-test-case)
+		 :test 'equal)
+    (ensure-same (length (tests-run result)) 1)
+    (ensure-same (length (errors result)) 0 :test '=))) 
+
+(addtest (expect-error)
+  test-case-does-not-expect-error
+  (let* ((*expect-error* nil)
+	 (result (run-tests :suite 'expect-error-helper-test-case)))
     (ensure-same (length (errors result)) 1 :test '=))) 
 
 ;;;;

@@ -10,6 +10,8 @@
 		"setup"
 		:pathname "test/"
 		:components ((:file "packages")
+			     (:file "utilities"
+				    :depends-on ("packages"))
 			     (:file "lift-test"
 				    :depends-on ("packages"))))
 	       (:module 

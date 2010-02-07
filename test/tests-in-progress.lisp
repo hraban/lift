@@ -125,3 +125,15 @@
   (error "error"))
 
 
+;;;
+
+
+
+#|
+
+* make sure dependencies exist (test-dependencies-helper :depends-on 'test-2)
+
+|#
+
+
+*test-notepad*

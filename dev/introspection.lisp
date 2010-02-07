@@ -40,6 +40,28 @@ all suites. This is equivalent to the behavior of [find-test-cases][]."))
 ;;;;;
 ;; some introspection
 
+(defmethod testsuite-p ((classname symbol))
+  (let ((class (find-class classname nil)))
+    (handler-case
+      (and class
+           (typep (allocate-instance class) 'test-mixin)
+	   classname)
+      (error (c) (declare (ignore c)) (values nil)))))
+
+(defmethod testsuite-p ((object standard-object))
+  (testsuite-p (class-name (class-of object))))
+
+(defmethod testsuite-p ((class standard-class))
+  (testsuite-p (class-name class)))
+
+(defmethod testsuite-methods ((classname symbol))
+  (testsuite-tests classname))
+
+(defmethod testsuite-methods ((test test-mixin))
+  (testsuite-methods (class-name (class-of test))))
+
+(defmethod testsuite-methods ((test standard-class))
+  (testsuite-methods (class-name test)))
 
 (defun liftpropos (string &key (include-cases? nil) (start-at 'test-mixin))
   "Returns a list of testsuites whose name contains `string`."
@@ -281,6 +303,17 @@ control over where in the test hierarchy the search begins."
 	(t
 	 nil)))
 
+(defun test-case-tested-p (suite name &key (result *test-result*))
+  (let ((suite-name (find-testsuite suite)))
+    (and result
+	 (typep *test-result* 'test-result)
+	 (slot-exists-p result 'tests-run)
+	 (slot-boundp result 'suites-run)
+	 (third (find-if (lambda (datum)
+			   (and (eq (first datum) suite-name)
+				(eq (second datum) name)))
+			 (tests-run result))))))
+  
 (defun suite-tested-p (suite &key (result *test-result*))
   (let ((suite (find-testsuite suite)))
     (and result
@@ -441,3 +474,4 @@ control over where in the test hierarchy the search begins."
  :suite (lift::suites-in-portion 
 	 (lift::collect-test-cases 'db.agraph.tests)
 	 '(:b)))
+

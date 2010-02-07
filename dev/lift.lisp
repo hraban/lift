@@ -295,7 +295,7 @@
   (setf (current-step result) :testsuite-setup))
 
 (defmethod testsuite-expects-error ((testsuite test-mixin))
-    nil)
+  nil)
 
 (defmethod testsuite-expects-failure ((testsuite test-mixin))
   nil)
@@ -365,9 +365,7 @@
 				       &key &allow-other-keys)
   (when (null (testsuite-name testsuite))
     (setf (slot-value testsuite 'name) 
-	  (symbol-name (type-of testsuite))))
-  ;; FIXME - maybe remove LIFT standard arguments?
-  (setf (suite-initargs testsuite) initargs))
+	  (symbol-name (type-of testsuite)))))
 
 (defmethod print-object ((tc test-mixin) stream)
   (print-unreadable-object (tc stream :identity t :type t)
@@ -427,8 +425,7 @@
 
 (add-code-block
  :setup 1 :methods
- (lambda () 
-   (or (def :setup) (def :direct-slot-names))) 
+ (lambda () t)
  '((setf (def :setup) (cleanup-parsed-parameter value)))
  'build-setup-test-method)
 
@@ -636,8 +633,8 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 	   ,(build-test-class)
 	   (unwind-protect
 		(let ((*test-is-being-defined?* t))
-		  (setf *current-test-case-name* nil)
-		  (setf *current-testsuite-name* ',(def :testsuite-name)
+		  (setf *last-test-case-name* nil)
+		  (setf *last-testsuite-name* ',(def :testsuite-name)
 			(test-slots ',(def :testsuite-name)) 
 			',(def :slot-names)
 			(testsuite-dynamic-variables ',(def :testsuite-name))
@@ -764,8 +761,8 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 	   ;; the 'name' is really part of the test...
 	   (setf body (cons name test))))
     (unless (def :testsuite-name)
-      (when *current-testsuite-name*
-	(setf (def :testsuite-name) *current-testsuite-name*)))
+      (when *last-testsuite-name*
+	(setf (def :testsuite-name) *last-testsuite-name*)))
     (unless (def :testsuite-name)
       (signal-lift-error 'add-test +lift-no-current-test-class+))
     (unless (or (def :deftestsuite) 
@@ -783,7 +780,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 	    (let ((*test-is-being-defined?* t))
 	      (muffle-redefinition-warnings
 		,(build-test-test-method (def :testsuite-name) body options))
-	      (setf *current-testsuite-name* ',(def :testsuite-name))
+	      (setf *last-testsuite-name* ',(def :testsuite-name))
 	      (if *test-evaluate-when-defined?*
 		  (unless (or *test-is-being-compiled?*
 			      *test-is-being-loaded?*)
@@ -831,14 +828,14 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
   ;; FIXME - stub
   nil)
 
-(defun remove-test (&key (test-case *current-test-case-name*)
-                         (suite *current-testsuite-name*))
+(defun remove-test (&key (test-case *last-test-case-name*)
+                         (suite *last-testsuite-name*))
   (assert suite nil "Test suite could not be determined.")
   (assert test-case nil "Test-case could not be determined.")
   (setf (testsuite-tests suite)
 	(remove test-case (testsuite-tests suite))))
 
-
+#+(or)
 (defun make-testsuite (suite-name args)
   (let ((testsuite (find-testsuite suite-name :errorp t))
 	result)
@@ -848,6 +845,13 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
     (setf (testsuite-initargs result) args)
     result))
 
+(defun make-testsuite (suite-name args)
+  (let ((testsuite (find-testsuite suite-name :errorp t))
+	result)
+    (if testsuite
+	(setf result (apply #'make-instance testsuite args))
+	(error "Testsuite ~a not found." suite-name))
+    result))
 
 (defun skip-test-case-p (result suite-name test-case-name)
   (declare (ignore result))
@@ -875,48 +879,41 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
   (report-test-problem 
    'testsuite-skipped result *current-test* nil nil))
 
-(defun testcase-expects-error-p (&optional (test *current-test*))
-  (let* ((options (getf (test-data test) :options)))
-    (or (testsuite-expects-error test)
-	(second (member :expected-error options)))))
+(defun test-case-expects-error-p (suite-name test-case-name)
+  (or (testsuite-expects-error *current-test*)
+      (test-case-option suite-name test-case-name :expected-error)))
 
-(defun testcase-expects-failure-p (&optional (test *current-test*))
-  (let* ((options (getf (test-data test) :options)))
-    (or (testsuite-expects-failure test)
-	(second (member :expected-failure options)))))
+(defun test-case-expects-failure-p (suite-name test-case-name)
+  (or (testsuite-expects-failure *current-test*)
+      (test-case-option suite-name test-case-name :expected-failure)))
 
-(defun testcase-expects-problem-p (&optional (test *current-test*))
-  (let* ((options (getf (test-data test) :options)))
-    (second (member :expected-problem options))))
+(defun test-case-expects-problem-p (suite-name test-case-name)
+  (test-case-option suite-name test-case-name :expected-problem))
 
-(defun check-for-surprises (testsuite)
-  (let* ((expected-failure-p (testcase-expects-failure-p testsuite))
-	 (expected-error-p (testcase-expects-error-p testsuite))
-	 (expected-problem-p (testcase-expects-problem-p testsuite))
+(defun check-for-surprises (suite-name test-case-name)
+  (let* ((expected-failure-p (test-case-expects-failure-p 
+			      suite-name test-case-name))
+	 (expected-error-p (test-case-expects-error-p 
+			    suite-name test-case-name))
+	 (expected-problem-p (test-case-expects-problem-p 
+			      suite-name test-case-name))
 	 (condition nil))
-    (cond 
-      (expected-failure-p
-       (setf (slot-value testsuite 'expected-failure-p) expected-failure-p))
-      (expected-error-p
-       (setf (slot-value testsuite 'expected-error-p) expected-error-p))
-      (expected-problem-p
-       (setf (slot-value testsuite 'expected-problem-p) expected-problem-p)))
     (cond
-      ((expected-failure-p testsuite)
+      (expected-failure-p
        (setf condition 
 	     (make-condition 'unexpected-success-failure
 			     :expected :failure
-			     :expected-more (expected-failure-p testsuite))))
-      ((expected-error-p testsuite)
+			     :expected-more expected-failure-p)))
+      (expected-error-p
        (setf condition 
 	     (make-condition 'unexpected-success-failure
 			     :expected :error
-			     :expected-more (expected-error-p testsuite))))
-      ((expected-problem-p testsuite)
+			     :expected-more expected-error-p)))
+      (expected-problem-p
        (setf condition 
 	     (make-condition 'unexpected-success-failure
 			     :expected :problem
-			     :expected-more (expected-problem-p testsuite)))))
+			     :expected-more expected-problem-p))))
     (when condition
       (if (find-restart 'ensure-failed)
 	  (invoke-restart 'ensure-failed condition)
@@ -926,20 +923,21 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 			    &rest args)
   ;; ick
   (let ((docs nil)
-	(option nil))
+	(option nil)
+	(suite-name (class-name (class-of suite))))
     (declare (ignorable docs option))
     (cond ((and (eq problem-type 'test-failure)
 		(not (typep condition 'unexpected-success-failure))
-		(testcase-expects-failure-p suite))
+		(test-case-expects-failure-p suite-name method))
 	   (setf problem-type 'test-expected-failure 
 		 option :expected-failure))
 	  ((and (eq problem-type 'test-error)
-		(testcase-expects-error-p suite))
+		(test-case-expects-error-p suite-name method))
 	   (setf problem-type 'test-expected-error
 		 option :expected-error))
 	  ((and (or (eq problem-type 'test-failure) 
 		    (eq problem-type 'test-error))
-		(testcase-expects-problem-p suite))
+		(test-case-expects-problem-p suite-name method))
 	   (setf problem-type (or (and (eq problem-type 'test-failure) 
 				       'test-expected-failure)
 				  (and (eq problem-type 'test-error)
@@ -1317,10 +1315,13 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
         (setf setup (list setup)))
       (when (symbolp (first setup))
         (setf setup (list setup))))
-    (when setup
+    (if setup
       `(defmethod setup-test :after ((testsuite ,test-name))
 	 (with-test-slots
-	   ,@setup)))))    
+	   ,@setup))
+      ;; rather use remove-method
+      `(defmethod setup-test :after ((testsuite ,test-name))
+	 ))))    
 
 (defmethod setup-test :around ((test test-mixin))
   (when (run-setup-p test)
@@ -1368,28 +1369,32 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
        (unless (find ',test-name (testsuite-tests ',test-class))
 	 (setf (testsuite-tests ',test-class)
 	       (append (testsuite-tests ',test-class) (list ',test-name))))
+       ;;?? to defer until after compile...?
+       (load-time-value 
+	,@(when options 
+		(list (build-test-case-options 
+		       test-class test-name options))))
        (setf (gethash ',test-name (test-name->methods ',test-class))
 	     (lambda (testsuite)
 	       (declare (ignorable testsuite))
-	       ,@(when options
-		       `((setf (getf (test-data testsuite) :options) 
-			       (list ,@(loop for (k v) on options by #'cddr append
-					    (list k v))))))
+	       ,@(when options 
+		       (list (build-test-case-options 
+			      test-class test-name options)))
 	       (with-test-slots ,@body)))
-       (setf *current-test-case-name* ',test-name)
+       (setf *last-test-case-name* ',test-name)
        (when (and *test-print-when-defined?*
                   (not (or *test-is-being-compiled?*
                            )))
          (format *debug-io* "~&;Test Created: ~(~S.~S~)." 
 		 ',test-class ',test-name))
-       *current-test-case-name*)))
+       *last-test-case-name*)))
 
 (defun parse-test-body (test-body)
   (let ((test-name nil)
         (body nil)
         (parsed-body nil)
         (documentation nil)
-        (test-number (1+ (testsuite-test-count *current-testsuite-name*)))
+        (test-number (1+ (testsuite-test-count *last-testsuite-name*)))
         (name-supplied? nil))
     ;; parse out any documentation
     (loop for form in test-body do
@@ -1405,10 +1410,10 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 		 (intern (format nil "~A" test-name))
                  body (rest test-body)
                  name-supplied? t))
-          ((and (test-code->name-table *current-testsuite-name*)
+          ((and (test-code->name-table *last-testsuite-name*)
                 (setf test-name 
                  (gethash test-body
-			  (test-code->name-table *current-testsuite-name*))))
+			  (test-code->name-table *last-testsuite-name*))))
            (setf body test-body))
           (t
            (setf test-name 
@@ -1440,7 +1445,6 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
      ,@(when (def :documentation)
 	     `((:documentation ,(def :documentation))))
      (:default-initargs
-	 :test-slot-names ',(def :slot-names)
        ,@(def :default-initargs))))
 
 (defun parse-test-slots (slot-specs)
@@ -1451,30 +1455,6 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
               (append (subseq parsed-spec 0 pos)
                       (subseq parsed-spec (+ pos 2))))
             parsed-spec))))
-
-(defmethod testsuite-p ((classname symbol))
-  (let ((class (find-class classname nil)))
-    (handler-case
-      (and class
-           (typep (allocate-instance class) 'test-mixin)
-	   classname)
-      (error (c) (declare (ignore c)) (values nil)))))
-
-(defmethod testsuite-p ((object standard-object))
-  (testsuite-p (class-name (class-of object))))
-
-(defmethod testsuite-p ((class standard-class))
-  (testsuite-p (class-name class)))
-
-(defmethod testsuite-methods ((classname symbol))
-  (testsuite-tests classname))
-
-(defmethod testsuite-methods ((test test-mixin))
-  (testsuite-methods (class-name (class-of test))))
-
-(defmethod testsuite-methods ((test standard-class))
-  (testsuite-methods (class-name test)))
-
 
 ;; some handy properties
 (defclass-property test-slots)
@@ -1562,7 +1542,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 #+Later
 (defmacro with-test (&body forms)
   "Execute forms in the context of the current test class."
-  (let* ((testsuite-name *current-testsuite-name*)
+  (let* ((testsuite-name *last-testsuite-name*)
          (test-case (make-instance test-class)))
     `(eval-when (:execute)
        (prog2
@@ -1570,3 +1550,36 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
         (progn
           (with-test-slots ,@forms))
         (test-case-teardown ,test-case result)))))
+
+(defvar *test-case-options* (make-hash-table))
+
+(defun remove-test-case-options (suite-name)
+  (remhash suite-name *test-case-options*))
+
+(defun test-case-option (suite-name case-name option-name)
+  (let* ((suite-options (gethash suite-name *test-case-options*))
+	 (case-options (and suite-options 
+			    (gethash case-name suite-options))))
+    (getf (car case-options) option-name)))
+
+(defun (setf test-case-option) (value suite-name case-name option-name)
+  (let ((suite-options (gethash suite-name *test-case-options*)))
+    (unless suite-options
+      (setf suite-options (setf (gethash suite-name *test-case-options*)
+				(make-hash-table))))
+    (multiple-value-bind (case-options found?)
+	(gethash case-name suite-options)
+      (unless found?
+	(setf case-options
+	      (setf (gethash case-name suite-options) (cons nil nil))))
+      (setf (getf (car case-options) option-name) value))))
+
+(defun build-test-case-options (suite-name case-name options)
+  (loop for (k v) on options by #'cddr append
+       `(setf (test-case-option ',suite-name ',case-name ,k) ,v)))
+
+#|
+(test-case-option 'test-dependencies-helper 'test-c :depends-on)
+(setf (test-case-option 'test-dependencies-helper 'test-c :depends-on) :test-c)
+(remove-test-case-options 'test-dependencies-helper)
+|#

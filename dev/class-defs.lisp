@@ -11,22 +11,9 @@
    (run-setup :reader run-setup :initarg :run-setup)
    (done-setup? :initform nil :reader done-setup?)
    (done-dynamics? :initform nil :reader done-dynamics?)
-   (test-slot-names :initform nil :initarg :test-slot-names 
-		    :reader test-slot-names)
    (current-method :initform nil :accessor current-method)
-   (save-equality-test :initform nil  :reader save-equality-test)
    (log-file :initform nil :initarg :log-file :reader log-file)
    (test-data :initform nil :accessor test-data)
-   (expected-failure-p :initform nil :initarg :expected-failure-p
-		       :reader expected-failure-p)
-   (expected-error-p :initform nil :initarg :expected-error-p
-		     :reader expected-error-p)
-   (expected-problem-p :initform nil :initarg :expected-problem-p
-		       :reader expected-problem-p)
-   (suite-initargs
-    :initform nil
-    :accessor suite-initargs
-    :accessor testsuite-initargs)
    (profile 
     :initform nil
     :initarg :profile
@@ -64,7 +51,6 @@
    (testsuite-initargs 
     :initform nil
     :initarg :testsuite-initargs
-    :accessor suite-initargs
     :accessor testsuite-initargs))
   (:documentation 
 "A `test-result` instance contains all of the information collectd by 

@@ -27,9 +27,6 @@
   (:documentation "Returns a list of the test methods defined for test. I.e.,
 the methods that should be run to do the tests for this test."))
 
-(defgeneric run-test-internal (suite name result &rest args)
-  (:documentation ""))
-
 (defgeneric test-report-code (testsuite method)
   (:documentation ""))
 

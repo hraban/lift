@@ -8,7 +8,11 @@ See file COPYING for license
 
 (in-package #:lift-test)
 
-(deftestsuite lift-test () ())
+(deftestsuite lift-test () 
+  ()
+  (:dynamic-variables
+   (*test-break-on-errors?* nil)
+   (*test-break-on-failures?* nil)))
 
 ;;; ---------------------------------------------------------------------------
 ;;; lift-test-ensure
@@ -552,10 +556,10 @@ See file COPYING for license
   run-test-sets-values
   (run-test :suite 'lift-test-ensure-helper :name 'simple-ensure-test-3)
   (ensure-same 
-   (symbol-name lift::*current-test-case-name*)
+   (symbol-name lift::*last-test-case-name*)
    (symbol-name 'simple-ensure-test-3))
   (ensure-same 
-   (symbol-name lift::*current-testsuite-name*)
+   (symbol-name lift::*last-testsuite-name*)
    (symbol-name 'lift-test-ensure-helper)))
 
 (addtest (test-interaction)
@@ -563,26 +567,29 @@ See file COPYING for license
   (run-tests :suite 'lift-test-ensure-helper
 	     :report-pathname nil)
   (ensure-same 
-   (symbol-name lift::*current-testsuite-name*)
+   (symbol-name lift::*last-testsuite-name*)
    (symbol-name 'lift-test-ensure-helper))
   (ensure-same 
-   (symbol-name lift::*current-test-case-name*)
+   (symbol-name lift::*last-test-case-name*)
    (symbol-name 'simple-ensure-test-3)))
 
 (addtest (test-interaction)
   run-test-sets-values-nested
-  (run-test :suite 'test-interaction :test-case 'run-tests-sets-values)
+  (run-test :suite 'test-interaction :name 'run-tests-sets-values)
   (ensure-same 
-   (symbol-name lift::*current-testsuite-name*)
+   (symbol-name lift::*last-testsuite-name*)
    (symbol-name 'test-interaction))
   (ensure-same 
-   (symbol-name lift::*current-test-case-name*)
+   (symbol-name lift::*last-test-case-name*)
    (symbol-name 'run-tests-sets-values)))
 
 ;;;;
 
 (deftestsuite test-expected-errors (lift-test)
-  ())
+  ()  
+  (:dynamic-variables
+   (*test-break-on-errors?* nil)
+   (*test-break-on-failures?* nil)))
 
 (deftestsuite test-expected-errors-helper ()
   ())
@@ -668,13 +675,13 @@ See file COPYING for license
 
 (addtest (test-scratchpad-resets)
   run-once-have-one
-  (run-test :suite 'test-scratchpad-resets-helper :test-case 'test-3)
+  (run-test :suite 'test-scratchpad-resets-helper :name 'test-3)
   (ensure-same '(:test) *test-scratchpad*))
 
 (addtest (test-scratchpad-resets)
   run-twice-have-one
-  (run-test :suite 'test-scratchpad-resets-helper :test-case 'test-3)
-  (run-test :suite 'test-scratchpad-resets-helper :test-case 'test-3)
+  (run-test :suite 'test-scratchpad-resets-helper :name 'test-3)
+  (run-test :suite 'test-scratchpad-resets-helper :name 'test-3)
   (ensure-same '(:test) *test-scratchpad*))
  
 (addtest (test-scratchpad-resets)
@@ -770,7 +777,10 @@ See file COPYING for license
   (:documentation 
    "LIFT should keep running tests even when a testcase gets a
 serious condition. (though maybe there should be an option that
-these cancel testing instead.)"))
+these cancel testing instead.)")
+  (:dynamic-variables
+   (*test-break-on-errors?* nil)
+   (*test-break-on-failures?* nil)))
 
 (deftestsuite handle-serious-condition-helper ()
   ())
@@ -922,5 +932,74 @@ these cancel testing instead.)"))
     (ensure-null (errors r))
     (ensure-null (failures r))))
 
+;;;;
 
 
+(deftestsuite test-dependencies (lift-test)
+  ())
+
+(deftestsuite test-dependencies-helper ()
+  ()
+  )
+
+(addtest (test-dependencies-helper)
+  test-a
+  (push :a *test-notepad*))
+
+(addtest (test-dependencies-helper)
+  test-b
+  (push :b *test-notepad*))
+
+(addtest (test-dependencies-helper :depends-on 'test-b)
+  test-c
+  (push :c *test-notepad*))
+
+(addtest (test-dependencies-helper :depends-on 'test-c)
+  test-d
+  (push :d *test-notepad*))
+
+(addtest (test-dependencies)
+  test-run-tests
+  (setf *test-notepad* nil)
+  (let ((r (lift:run-tests :suite 'test-dependencies-helper 
+			  :report-pathname nil)))
+    (ensure (every (lambda (name)
+		     (lift::test-case-tested-p 
+		      'test-dependencies-helper name :result r))
+		   (list 'test-a 'test-b 'test-c 'test-d)))
+    (ensure-same (length *test-notepad*) 4)
+    (ensure-same *test-notepad* '(:a :b :c :d) :test 'set-equal)))
+
+(addtest (test-dependencies)
+  test-run-test-b
+  (setf *test-notepad* nil)
+  (let ((r (lift:run-test :suite 'test-dependencies-helper 
+			  :name 'test-b)))
+    (ensure (every (lambda (name)
+		     (lift::test-case-tested-p 
+		      'test-dependencies-helper name :result r))
+		   (list 'test-b)))
+    (ensure-same *test-notepad* '(:b) :test 'set-equal)))
+
+(addtest (test-dependencies)
+  test-run-test-c
+  (setf *test-notepad* nil)
+  (let ((r (lift:run-test :suite 'test-dependencies-helper 
+			  :name 'test-c)))
+    (ensure (every (lambda (name)
+		     (lift::test-case-tested-p 
+		      'test-dependencies-helper name :result r))
+		   (list 'test-b 'test-c)))
+    (ensure-same *test-notepad* '(:c :b) :test 'set-equal)))
+
+(addtest (test-dependencies)
+  test-run-test-d
+  (setf *test-notepad* nil)
+  (let ((r (lift:run-test :suite 'test-dependencies-helper 
+			  :name 'test-d)))
+    (ensure-same (length *test-notepad*) 3)
+    (ensure (every (lambda (name)
+		     (lift::test-case-tested-p 
+		      'test-dependencies-helper name :result r))
+		   (list 'test-b 'test-c 'test-d)))
+    (ensure-same *test-notepad* '(:c :b :d) :test 'set-equal)))

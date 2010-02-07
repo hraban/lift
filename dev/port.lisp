@@ -66,6 +66,7 @@ returns a string with the corresponding backtrace.")
             (tpl:*zoom-print-circle* t)
             (tpl:*zoom-print-level* nil)
             (tpl:*zoom-print-length* nil))
+	#+(or)
         (cl:ignore-errors
           (format *terminal-io* "~&~@<An unhandled error condition has been signalled:~3I ~a~I~:@>~%~%"
                   error))

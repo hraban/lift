@@ -6,12 +6,11 @@
 ;;; global environment thingies
 ;;; ---------------------------------------------------------------------------
 
-(defparameter *make-testsuite-arguments*
-  '(:run-setup :test-slot-names :equality-test :log-file :timeout
-    :default-initargs :profile :expected-failure :expected-error))
-
 (defvar *current-testsuite-name* nil)
 (defvar *current-test-case-name* nil)
+
+(defvar *last-testsuite-name* nil)
+(defvar *last-test-case-name* nil)
 
 (defvar *test-is-being-defined?* nil)
 (defvar *test-is-being-compiled?* nil)

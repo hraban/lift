@@ -241,6 +241,9 @@ the class itself is not included in the mapping. Proper? defaults to nil."
     (function thing)
     (symbol (symbol-function thing))))
 
+(defun ensure-list (thing)
+  (if (listp thing) thing (list thing)))
+
 ;;;;
 
 (defun version-numbers (version &optional padded)
