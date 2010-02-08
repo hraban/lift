@@ -1033,4 +1033,12 @@ these cancel testing instead.)")
 (addtest (this-testsuite-is-generally-bad)
   test-2
   (ensure-same (+ 2 2) 3))
+
+(deftestsuite this-testsuite-cannot-be-made (lift-test)
+  ((x (error "dang"))))
+
+(addtest (this-testsuite-cannot-be-made)
+  test-1
+  (ensure-same 1 1))
+
 |#

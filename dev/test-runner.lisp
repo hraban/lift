@@ -51,14 +51,15 @@ to override them."
 			    (error 
 			     (lambda (condition)
 			       (handle-error-while-testing
-				condition 'testsuite-error suite result)
+				condition 'testsuite-error suite-name result)
 			       (go :test-end)))
 			    (serious-condition 
 			     (lambda (condition)
 			       (handle-error-while-testing
 				condition 'testsuite-serious-condition
-				suite result)
+				suite-name result)
 			       (go :test-end))))
+	       (setf (current-step result) :create)
 	       (setf suite (make-testsuite 
 			    suite-name (testsuite-initargs result)))
 	       (let ((*current-test* suite))
@@ -261,12 +262,13 @@ nor configuration file options were specified.")))))
 			    (error 
 			     (lambda (condition)
 			       (handle-error-while-testing
-				condition 'test-error suite result)
+				condition 'test-error suite-name result)
 			       (go :test-end)))
 			    (serious-condition 
 			     (lambda (condition)
 			       (handle-error-while-testing
-				condition 'test-serious-condition suite result)
+				condition 'test-serious-condition
+				suite-name result)
 			       (go :test-end))))
 	       (setf (current-method suite) test-case-name)
 	       (record-start-times result suite)
@@ -310,9 +312,8 @@ nor configuration file options were specified.")))))
   (setf *current-test-case-name* test-case-name	*test-result* result)
   (third (first (tests-run result))))
 
-(defun handle-error-while-testing (condition error-class suite result)
-  (let ((*in-middle-of-failure?* nil)
-	(suite-name (class-name (class-of suite))))
+(defun handle-error-while-testing (condition error-class suite-name result)
+  (let ((*in-middle-of-failure?* nil))
     (report-test-problem
      error-class result suite-name
      *current-test-case-name* condition
