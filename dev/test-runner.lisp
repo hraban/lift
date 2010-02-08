@@ -73,7 +73,7 @@ to override them."
 	   (ensure-failed (condition) 
 	     :test (lambda (c) (declare (ignore c)) *in-middle-of-failure?*)
 	     (report-test-problem
-	      'testsuite-failure result suite 
+	      'testsuite-failure result suite-name 
 	      *current-test-case-name* condition))
 	   (retry-test () 
 	     :report (lambda (s) (format s "Re-run testsuite ~a"
@@ -293,7 +293,7 @@ nor configuration file options were specified.")))))
 	     :test (lambda (c) (declare (ignore c)) 
 			   *in-middle-of-failure?*)
 	     (report-test-problem
-	      'test-failure result suite 
+	      'test-failure result suite-name
 	      *current-test-case-name* condition)
 	     (if (and *test-break-on-failures?*
 		      (not (test-case-expects-failure-p 
@@ -311,9 +311,10 @@ nor configuration file options were specified.")))))
   (third (first (tests-run result))))
 
 (defun handle-error-while-testing (condition error-class suite result)
-  (let ((*in-middle-of-failure?* nil))
+  (let ((*in-middle-of-failure?* nil)
+	(suite-name (class-name (class-of suite))))
     (report-test-problem
-     error-class result suite
+     error-class result suite-name
      *current-test-case-name* condition
      :backtrace (get-backtrace condition))
     (when (and *test-break-on-errors?*

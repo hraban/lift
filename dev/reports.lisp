@@ -330,7 +330,7 @@ lift::(progn
   (report-tests-by-suite 
    format  
    (mapcar (lambda (problem)
-	     `(,(type-of (testsuite problem))
+	     `(,(testsuite problem)
 		,(test-method problem)
 		(:problem ,problem)))
 	   problems)
@@ -901,9 +901,9 @@ lift::(progn
 		   (package-name (symbol-package symbol)))))
       (mapcar (lambda (glitch)
 		(if (test-method glitch)
-		    (list (encode-symbol (type-of (testsuite glitch)))
+		    (list (encode-symbol (testsuite glitch))
 			  (encode-symbol (test-method glitch)))
-		    (encode-symbol (type-of (testsuite glitch)))))
+		    (encode-symbol (testsuite glitch))))
 	      list))))
 
 #+(or)
@@ -1178,7 +1178,7 @@ lift::(progn
 	 (report-tests-by-suite 
 	  format  
 	  (mapcar (lambda (problem)
-		    `(,(type-of (testsuite problem))
+		    `(,(testsuite problem)
 		       ,(test-method problem)
 		       (:problem ,problem)))
 		  cases)

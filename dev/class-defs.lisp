@@ -73,7 +73,7 @@ LIFT during a test run.")
   (print-unreadable-object (problem stream)
     (format stream "TEST-~@:(~A~): ~A in ~A" 
             (test-problem-kind problem) 
-            (name (testsuite problem))
+            (testsuite problem)
 	    (test-method problem))))
 
 (defclass generic-problem (test-problem-mixin)

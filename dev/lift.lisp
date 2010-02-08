@@ -870,14 +870,10 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 	   *skip-tests*))
 
 (defmethod skip-test-case (result suite-name test-case-name)
-  (declare (ignore suite-name))
-  (report-test-problem 
-   'testcase-skipped result *current-test* test-case-name nil))
+  (report-test-problem 'testcase-skipped result suite-name test-case-name nil))
 
 (defmethod skip-testsuite (result suite-name)
-  (declare (ignore suite-name))
-  (report-test-problem 
-   'testsuite-skipped result *current-test* nil nil))
+  (report-test-problem 'testsuite-skipped result suite-name nil nil))
 
 (defun test-case-expects-error-p (suite-name test-case-name)
   (or (testsuite-expects-error *current-test*)
@@ -919,12 +915,11 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 	  (invoke-restart 'ensure-failed condition)
 	  (warn condition)))))
 
-(defun report-test-problem (problem-type result suite method condition
+(defun report-test-problem (problem-type result suite-name method condition
 			    &rest args)
   ;; ick
   (let ((docs nil)
-	(option nil)
-	(suite-name (class-name (class-of suite))))
+	(option nil))
     (declare (ignorable docs option))
     (cond ((and (eq problem-type 'test-failure)
 		(not (typep condition 'unexpected-success-failure))
@@ -944,12 +939,12 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 				       'test-expected-error))
 		 option :expected-problem)))
     (let ((problem (apply #'make-instance problem-type
-			  :testsuite suite
+			  :testsuite suite-name
 			  :test-method method 
 			  :test-condition condition
 			  :test-step (current-step result) args)))
-      (when suite
-	(setf (getf (test-data suite) :problem) problem))
+      (when *current-test*
+	(setf (getf (test-data *current-test*) :problem) problem))
       (accumulate-problem problem result)
       (when (and *test-maximum-failure-count*
 		 (numberp *test-maximum-failure-count*)
@@ -1147,19 +1142,18 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 			     show-code-p))))
 
 (defun print-test-problem (prefix report stream show-code-p)
-  (let* ((suite (testsuite report))
+  (let* ((suite-name (testsuite report))
          (method (test-method report))
          (condition (test-condition report))
-         (code (test-report-code suite method))
+         (code (test-report-code suite-name method))
 	 (step (test-step report))
          (testsuite-name method)	 
 	 (*print-level* (get-test-print-level))
 	 (*print-length* (get-test-print-length)))
     (let ((*package* (symbol-package method))
 	  (doc-string (gethash testsuite-name
-			       (test-case-documentation 
-				(class-name (class-of suite))))))
-      (format stream "~&~A~(~A : ~A~)" prefix (type-of suite) testsuite-name)
+			       (test-case-documentation suite-name))))
+      (format stream "~&~A~(~A : ~A~)" prefix suite-name testsuite-name)
       (if show-code-p
 	  (setf code (with-output-to-string (out)
 		       (pprint code out)))
@@ -1176,11 +1170,14 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 ;;; test-reports
 ;;; ---------------------------------------------------------------------------
 
-
+#+(or)
 (defmethod test-report-code ((testsuite test-mixin) (method symbol))
   (let* ((class-name (class-name (class-of testsuite))))
     (gethash method
              (test-name->code-table class-name))))
+
+(defmethod test-report-code ((testsuite symbol) (method symbol))
+  (gethash method (test-name->code-table testsuite)))
 
 ;;; ---------------------------------------------------------------------------
 ;;; utilities
@@ -1520,10 +1517,11 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
     (timeout-error 
 	(c)
       (declare (ignore c))
-      (report-test-problem
-       'test-timeout-failure result testsuite (current-method testsuite)
-       (make-instance 'test-timeout-condition
-		      :maximum-time (maximum-time testsuite))))))     
+      (let ((suite-name (class-name (class-of testsuite))))
+	(report-test-problem
+	 'test-timeout-failure result suite-name (current-method testsuite)
+	 (make-instance 'test-timeout-condition
+			:maximum-time (maximum-time testsuite)))))))
 
 ;;?? might be "cleaner" with a macrolet (cf. lift-result)
 (defun lift-property (name)

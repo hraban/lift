@@ -1003,3 +1003,34 @@ these cancel testing instead.)")
 		      'test-dependencies-helper name :result r))
 		   (list 'test-b 'test-c 'test-d)))
     (ensure-same *test-notepad* '(:c :b :d) :test 'set-equal)))
+
+;;;;
+
+#|
+(deftestsuite this-testsuite-fails (lift-test)
+  ())
+
+(addtest (this-testsuite-fails)
+  test-1
+  (ensure-same (+ 2 2) 3))
+
+(deftestsuite this-testsuite-errors (lift-test)
+  ())
+
+(addtest (this-testsuite-errors)
+  test-1
+  (let ((x 0))
+    (ensure (/ (* (+ 2 2) 3) x))))
+
+(deftestsuite this-testsuite-is-generally-bad (lift-test)
+  ())
+
+(addtest (this-testsuite-is-generally-bad)
+  test-1
+  (let ((x 0))
+    (ensure (/ (* (+ 2 2) 3) x))))
+
+(addtest (this-testsuite-is-generally-bad)
+  test-2
+  (ensure-same (+ 2 2) 3))
+|#
