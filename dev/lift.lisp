@@ -942,7 +942,9 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 			  :testsuite suite-name
 			  :test-method method 
 			  :test-condition condition
-			  :test-step (current-step result) args)))
+			  :test-step (current-step result)
+			  :testsuite-initargs (testsuite-initargs result) 
+			  args)))
       (when *current-test*
 	(setf (getf (test-data *current-test*) :problem) problem))
       (accumulate-problem problem result)
