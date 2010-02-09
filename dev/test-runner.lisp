@@ -145,8 +145,8 @@ but not both."))
 		 (unless result
 		   (setf result
 			 (apply #'make-test-result suite 
-				:multiple 
-				:testsuite-initargs testsuite-initargs args)))
+				:multiple args)))
+		 (setf (testsuite-initargs result) testsuite-initargs)
 		 (when report-pathname
 		   (write-log-header report-pathname result args-copy))
 		 (let* ((*test-break-on-errors?* break-on-errors?)
