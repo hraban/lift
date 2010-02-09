@@ -99,7 +99,10 @@
        #:ensure-warning
        #:ensure-error
        #:ensure-no-warning
-          
+       #:ensure-member
+       #:ensure-some
+       #:ensure-every
+
        ;; test protocol
        #:do-test
 
