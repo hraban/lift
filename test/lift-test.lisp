@@ -1041,4 +1041,12 @@ these cancel testing instead.)")
   test-1
   (ensure-same 1 1))
 
+(deftestsuite test-conditions (lift-test)
+  ())
+
+(addtest (test-conditions)
+  test-1
+  (signal 'excl:socket-chunking-end-of-file)
+  (ensure-same 1 1))
+
 |#

@@ -613,10 +613,10 @@ lift::(progn
   (format stream "~&</body></html>"))
 
 (defmethod generate-detailed-reports (result stream (format (eql :html)))
-  (loop for (suite test-name datum)  in (tests-run result)
+  (loop for (suite-name test-name datum) in (tests-run result)
      when (getf datum :problem) do
      (let ((output-pathname (merge-pathnames
-			     (details-link stream suite test-name) 
+			     (details-link stream suite-name test-name) 
 			     stream)))
        (ensure-directories-exist output-pathname)
        (let ((*print-right-margin* 64)
@@ -630,12 +630,20 @@ lift::(progn
 	    (format nil "Test ~a details | ~a" 
 		    test-name (test-result-property result :title))
 	    (test-result-property result :style-sheet))
-	   (format out "~&<h2>Test ~a details</h2>" test-name)
+	   (format out "~&<h2>Suite ~a, case ~a details</h2>" 
+		   suite-name test-name)
 	   (format out "~&<a href=\"~a\">Back</a>"
 		   (namestring (make-pathname :name (pathname-name stream)
 					      :type (pathname-type stream))))
 	   (format out "~&<p>Problem occurred during ~a.</p>"
 		   (test-step problem))
+	   (format out "~&<p>Reproduce using: <pre>")
+	   (format out "~&  (run-test :suite '~a " suite-name)
+	   (format out "~&            :name '~a" test-name)
+	   (when (testsuite-initargs problem)
+	     (format out "~&            :testsuite-initargs '~s" 
+		     (testsuite-initargs problem)))
+	   (format out ")</pre>.</p>")
 	   (format out "~&<pre>")
 	   (format out "~a"
 		   (wrap-encode-pre 
