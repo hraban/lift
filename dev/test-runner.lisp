@@ -271,6 +271,7 @@ nor configuration file options were specified.")))))
 				suite-name result)
 			       (go :test-end))))
 	       (setf (current-method suite) test-case-name)
+	       (set-test-case-options suite-name test-case-name)
 	       (record-start-times result suite)
 	       (unwind-protect
 		    (progn

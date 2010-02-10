@@ -1338,40 +1338,40 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
        ((:once-per-test-case t) nil)
        ((:never nil) nil)))))
      
-(defun build-test-test-method (test-class test-body options)
-  (multiple-value-bind (test-name body name-supplied?)
+(defun build-test-test-method (suite-name test-body options)
+  (multiple-value-bind (test-case-name body name-supplied?)
                        (parse-test-body test-body)
     (declare (ignorable name-supplied?))
     (unless (consp (first body))
       (setf body (list body)))
-    (setf (def :test-case-name) test-name)
+    (setf (def :test-case-name) test-case-name)
     `(progn
-       (setf (gethash ',test-name (test-name->code-table ',test-class)) ',body
-             (gethash ',body (test-code->name-table ',test-class)) ',test-name)
+       (setf (gethash ',test-case-name (test-name->code-table ',suite-name)) ',body
+             (gethash ',body (test-code->name-table ',suite-name)) ',test-case-name)
        #+(or mcl ccl)
        ,@(when name-supplied?
-           `((ccl:record-source-file ',test-name 'test-case)))
-       (unless (find ',test-name (testsuite-tests ',test-class))
-	 (setf (testsuite-tests ',test-class)
-	       (append (testsuite-tests ',test-class) (list ',test-name))))
+           `((ccl:record-source-file ',test-case-name 'test-case)))
+       (unless (find ',test-case-name (testsuite-tests ',suite-name))
+	 (setf (testsuite-tests ',suite-name)
+	       (append (testsuite-tests ',suite-name) (list ',test-case-name))))
        ;;?? to defer until after compile...?
-       (load-time-value 
-	,@(when options 
-		(list (build-test-case-options 
-		       test-class test-name options))))
-       (setf (gethash ',test-name (test-name->methods ',test-class))
+       ,@(when options
+          `((defmethod set-test-case-options 
+		((suite-name (eql ',suite-name)) (test-case-name (eql ',test-case-name)))
+	      `(build-test-case-options 
+		suite-name test-case-name options))))
+       (setf (gethash ',test-case-name (test-name->methods ',suite-name))
 	     (lambda (testsuite)
 	       (declare (ignorable testsuite))
 	       ,@(when options 
-		       (list (build-test-case-options 
-			      test-class test-name options)))
+		       `((set-test-case-options ',suite-name ',test-case-name)))
 	       (with-test-slots ,@body)))
-       (setf *last-test-case-name* ',test-name)
+       (setf *last-test-case-name* ',test-case-name)
        (when (and *test-print-when-defined?*
                   (not (or *test-is-being-compiled?*
                            )))
          (format *debug-io* "~&;Test Created: ~(~S.~S~)." 
-		 ',test-class ',test-name))
+		 ',suite-name ',test-case-name))
        *last-test-case-name*)))
 
 (defun parse-test-body (test-body)
