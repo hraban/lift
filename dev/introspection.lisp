@@ -234,7 +234,8 @@ control over where in the test hierarchy the search begins."
 		'index-themxx)
 
 (defmethod find-test-case ((suite symbol) name &key (errorp nil))
-  (find-test-case (find-class (find-testsuite suite)) name :errorp errorp)) 
+  (find-test-case 
+   (find-class (find-testsuite suite :errorp errorp)) name :errorp errorp)) 
 
 (defmethod find-test-case ((suite null) name &key (errorp nil))
   (find-test-cases name :errorp errorp)) 
@@ -333,7 +334,7 @@ control over where in the test hierarchy the search begins."
                      kind 
                      (if process?
                          (loop for item in list collect
-                              (list (class-name (class-of (testsuite item)))
+                              (list (testsuite item)
                                     (test-method item) item))
                          list)) acc))))
       (when errors? 

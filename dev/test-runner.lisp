@@ -24,7 +24,7 @@ to override them."
       (setf result (make-test-result 
 		    suite :single :testsuite-initargs testsuite-initargs)))
     (prog1
-	(let ((*current-test-case-name* (find-test-case suite name))
+	(let ((*current-test-case-name* (find-test-case suite name :errorp t))
 	      (*test-result* result))
 	  (do-testing-in-environment
 	      suite result 

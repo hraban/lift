@@ -27,9 +27,6 @@
   (:documentation "Returns a list of the test methods defined for test. I.e.,
 the methods that should be run to do the tests for this test."))
 
-(defgeneric test-report-code (testsuite method)
-  (:documentation ""))
-
 (defgeneric testsuite-p (thing)
   (:documentation "Determine whether or not `thing` is a testsuite. Thing can be a symbol naming a suite, a subclass of `test-mixin` or an instance of a test suite. Returns nil if `thing` is not a testsuite and the symbol naming the suite if it is."))
 

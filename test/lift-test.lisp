@@ -1023,10 +1023,12 @@ these cancel testing instead.)")
     (ensure (/ (* (+ 2 2) 3) x))))
 
 (deftestsuite this-testsuite-is-generally-bad (lift-test)
-  ())
+  ()
+  (:documentation "And that's OK."))
 
-(addtest (this-testsuite-is-generally-bad)
+(addtest (this-testsuite-is-generally-bad :documentation "What happens here")
   test-1
+;  (:documentation "What happens here")
   (let ((x 0))
     (ensure (/ (* (+ 2 2) 3) x))))
 
@@ -1035,9 +1037,10 @@ these cancel testing instead.)")
   (ensure-same (+ 2 2) 3))
 
 (deftestsuite this-testsuite-cannot-be-made (lift-test)
-  ((x (error "dang"))))
+  ((x (error "dang")))
+  (:documentation "And that's the way we like it."))
 
-(addtest (this-testsuite-cannot-be-made)
+(addtest (this-testsuite-cannot-be-made :documentation "What happens to this?")
   test-1
   (ensure-same 1 1))
 
@@ -1050,3 +1053,4 @@ these cancel testing instead.)")
   (ensure-same 1 1))
 
 |#
+
