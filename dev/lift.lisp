@@ -1358,7 +1358,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
        ,@(when options
           `((defmethod set-test-case-options 
 		((suite-name (eql ',suite-name)) (test-case-name (eql ',test-case-name)))
-	      `(build-test-case-options 
+	      ,(build-test-case-options 
 		suite-name test-case-name options))))
        (setf (gethash ',test-case-name (test-name->methods ',suite-name))
 	     (lambda (testsuite)
