@@ -122,7 +122,8 @@ For example, compile without cross-reference information."
     ((name style &key 
 	   (log-name *benchmark-log-path* ln-supplied?)
 	   (count-calls-p *count-calls-p* ccp-supplied?)
-	   (timeout nil timeout-supplied?))
+	   (timeout nil timeout-supplied?)
+	   (destination nil distination-supplied?))
      &body body)
   `(with-profile-report-fn 
        ,name ,style 
@@ -133,7 +134,9 @@ For example, compile without cross-reference information."
        ,@(when ln-supplied?
 	       `(:log-name ,log-name))
        ,@(when (and timeout-supplied? timeout)
-	       `(:timeout ,timeout))))
+	       `(:timeout ,timeout))
+       ,@(when distination-supplied?
+	       `(:destination ,destination))))
 
 (defmacro while-counting-repetitions ((&optional (delay 1.0)) &body body)
   "Execute `body` repeatedly for `delay` seconds. Returns the number

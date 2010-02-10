@@ -890,13 +890,15 @@ lift::(progn
     (name style fn body &key
      (log-name *benchmark-log-path*)
      (count-calls-p *count-calls-p*)
-     (timeout nil))
+     (timeout nil)
+     (destination nil destination-supplied?))
   (assert (member style '(nil :time :space :count-only)))
   (when style
     (cancel-current-profile :force? t))
   (let* ((seconds 0.0) (conses 0) 
 	 error
 	 results
+	 report-string
 	 (profile-fn (make-profiled-function fn)))
     (unwind-protect
 	 (multiple-value-bind (result measures errorp)
@@ -911,73 +913,89 @@ lift::(progn
       ;; cleanup / ensure we get report
       (generate-profile-log-entry log-name name seconds conses results error)
       (when (and style (> (current-profile-sample-count) 0))
-	(let ((pathname (unique-filename
-			 (merge-pathnames
-			  (make-pathname 
-			   :type "prof"
-			   :name (format nil "~a-~a-" name style))
-			  log-name))))
-	  (write-profile-report pathname name style body
-				seconds conses error count-calls-p))))
-    (values-list (if (atom results) (list results) results))))
+	(let ((pathname (if destination-supplied?
+			    destination
+			    (unique-filename
+			     (merge-pathnames
+			      (make-pathname 
+			       :type "prof"
+			       :name (format nil "~a-~a-" name style))
+			      log-name)))))
+	  (setf report-string
+		(write-profile-report pathname name style body
+				      seconds conses error count-calls-p)))))
+    (values results report-string)))
 
 (defun write-profile-report (pathname name style body seconds conses
 			     error count-calls-p)
   (format t "~&Profiling output being sent to ~a" pathname)
-  (with-open-file (output pathname
-			  :direction :output
-			  :if-does-not-exist :create
-			  :if-exists :append)
-    (format output "~&Profile data for ~a" name)
-    (format output "~&Date: ~a" (date-stamp :include-time? t))
-    (summarize-test-environment nil output nil)
-    (format output "~&  Total time: ~,2F; Total space: ~:d \(~:*~d\)"
-	    seconds conses)
-    (format output "~%~%")
-    (when error
-      (format output "~&Error occurred during profiling: ~a~%~%" error))
-    (let ((*standard-output* output))
-      (when *current-test* 
-	(write-profile-information *current-test*)))
-    (when body
-      (format output "~&Profiling: ~%")
-      (let ((*print-length* 10)
-	    (*print-level* 10))
-	(dolist (form body)
-	  (pprint form output)))
-      (format output "~%~%"))
-    (when (or (eq :time style)
-	      (eq :space style))
-      (show-flat-profile output)
-      (show-call-graph output)
-      (when count-calls-p
-	(show-call-counts output)))
-    #+allegro
-    (when *functions-to-profile*
-      (loop for thing in *functions-to-profile* do
-	   (let ((*standard-output* output)
-		 (*print-readably* nil))
-	     (handler-case 
-		 (cond ((thing-names-generic-function-p thing)
-			(format output "~%~%Disassemble generic-function ~s:~%"
-				thing)
-			(prof:disassemble-profile thing)
-			(mapc 
-			 (lambda (m)
-			   (format t "~2%~a~%"
-				   (make-string 60 :initial-element #\-))
-			   (format t "~&Method: ~a~2%" m)
-			   (prof:disassemble-profile (clos:method-function m)))
-			 (clos:generic-function-methods 
-			  (symbol-function thing))))
-		       (t
-			(format output "~%~%Disassemble function ~s:~%"
-				thing)
-			(prof:disassemble-profile thing)))
-	       (error (c)
-		 (format 
-		  output "~2%Error ~a while trying to disassemble-profile ~s~2%"
-		  c thing))))))))
+  (let (report-string
+	(output-stream (cond ((null pathname)
+			      (make-string-output-stream))
+			     ((eq pathname t)
+			      *standard-output*)
+			     (t
+			      (open pathname
+				    :direction :output
+				    :if-does-not-exist :create
+				    :if-exists :append)))))
+    (unwind-protect
+	 (progn
+	   (format output-stream "~&Profile data for ~a" name)
+	   (format output-stream "~&Date: ~a" (date-stamp :include-time? t))
+	   (summarize-test-environment nil output-stream nil)
+	   (format output-stream "~&  Total time: ~,2F; Total space: ~:d \(~:*~d\)"
+		   seconds conses)
+	   (format output-stream "~%~%")
+	   (when error
+	     (format output-stream "~&Error occurred during profiling: ~a~%~%" error))
+	   (let ((*standard-output* output-stream))
+	     (when *current-test* 
+	       (write-profile-information *current-test*)))
+	   (when body
+	     (format output-stream "~&Profiling: ~%")
+	     (let ((*print-length* 10)
+		   (*print-level* 10))
+	       (dolist (form body)
+		 (pprint form output-stream)))
+	     (format output-stream "~%~%"))
+	   (when (or (eq :time style)
+		     (eq :space style))
+	     (show-flat-profile output-stream)
+	     (show-call-graph output-stream)
+	     (when count-calls-p
+	       (show-call-counts output-stream)))
+	   #+allegro
+	   (when *functions-to-profile*
+	     (loop for thing in *functions-to-profile* do
+		  (let ((*standard-output* output-stream)
+			(*print-readably* nil))
+		    (handler-case 
+			(cond ((thing-names-generic-function-p thing)
+			       (format output-stream "~%~%Disassemble generic-function ~s:~%"
+				       thing)
+			       (prof:disassemble-profile thing)
+			       (mapc 
+				(lambda (m)
+				  (format t "~2%~a~%"
+					  (make-string 60 :initial-element #\-))
+				  (format t "~&Method: ~a~2%" m)
+				  (prof:disassemble-profile (clos:method-function m)))
+				(clos:generic-function-methods 
+				 (symbol-function thing))))
+			      (t
+			       (format output-stream "~%~%Disassemble function ~s:~%"
+				       thing)
+			       (prof:disassemble-profile thing)))
+		      (error (c)
+			(format 
+			 output-stream "~2%Error ~a while trying to disassemble-profile ~s~2%"
+			 c thing)))))))
+      (cond ((null pathname)
+	     (setf report-string (get-output-stream-string output-stream)))
+	    ((not (eq pathname t))
+	     (when output-stream (close output-stream)))))
+    report-string))
 
 ;; stolen from cl-markdown and modified
 (defun thing-names-generic-function-p (thing)
