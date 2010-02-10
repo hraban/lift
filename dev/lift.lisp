@@ -161,16 +161,16 @@
 (define-condition ensure-not-same (failed-comparison-condition) 
   ()
   (:report (lambda (c s)
-             (format s "Ensure-same: ~S is not ~S to ~S~@[ (~a)~]"
-                     (first-value c) (test c) (second-value c)
-		     (message c)))))
+             (format s "Ensure-same: ~S is not ~a to ~S~@[ (~a)~]"
+                     (first-value c) (test-function-name (test c))
+		     (second-value c) (message c)))))
 
 (define-condition ensure-same (failed-comparison-condition) 
   ()
   (:report (lambda (c s)
-             (format s "Ensure-different: ~S is ~S to ~S~@[ (~a)~]"
-                     (first-value c) (test c) (second-value c)
-		     (message c)))))
+             (format s "Ensure-different: ~S is ~a to ~S~@[ (~a)~]"
+                     (first-value c) (test-function-name (test c))
+		     (second-value c) (message c)))))
 
 (define-condition ensure-cases-failure (test-condition)
   ((total :initarg :total :initform 0)
@@ -624,10 +624,6 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 	   ;; remove previous methods (do this _before_ we define the class)
 	   (unless (or *test-is-being-compiled?*
 		       *test-is-being-loaded?*)
-	     #+(or)
-	     (print (list :cle *test-is-being-compiled?* 
-			  *test-is-being-loaded?*
-			  *test-is-being-loaded?*))
 	     (remove-previous-definitions ',(def :testsuite-name)))
 	   ,(build-test-class)
 	   (unwind-protect
@@ -746,7 +742,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
   #-no-lift-tests
   (let ((body nil)
 	(return (gensym))
-	(options nil)
+	(options nil) (documentation nil)
 	(looks-like-suite-name (looks-like-suite-name-p name))
 	(looks-like-code (looks-like-code-p name)))
     (cond ((and looks-like-suite-name looks-like-code)
@@ -759,6 +755,9 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 	  (t
 	   ;; the 'name' is really part of the test...
 	   (setf body (cons name test))))
+    (when (getf options :documentation)
+      (setf documentation (getf options :documentation))
+      (remf options :documentation))
     (unless (def :testsuite-name)
       (when *last-testsuite-name*
 	(setf (def :testsuite-name) *last-testsuite-name*)))
@@ -779,6 +778,11 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 	    (let ((*test-is-being-defined?* t))
 	      (muffle-redefinition-warnings
 		,(build-test-test-method (def :testsuite-name) body options))
+	      ,@(when documentation
+		     `((setf (gethash 
+			      ',(def :test-case-name)
+			      (test-case-documentation ',(def :testsuite-name)))
+			    ,documentation)))
 	      (setf *last-testsuite-name* ',(def :testsuite-name))
 	      (if *test-evaluate-when-defined?*
 		  (unless (or *test-is-being-compiled?*
@@ -833,16 +837,6 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
   (assert test-case nil "Test-case could not be determined.")
   (setf (testsuite-tests suite)
 	(remove test-case (testsuite-tests suite))))
-
-#+(or)
-(defun make-testsuite (suite-name args)
-  (let ((testsuite (find-testsuite suite-name :errorp t))
-	result)
-    (if testsuite
-	(setf result (apply #'make-instance testsuite args))
-	(error "Testsuite ~a not found." suite-name))
-    (setf (testsuite-initargs result) args)
-    result))
 
 (defun make-testsuite (suite-name args)
   (let ((testsuite (find-testsuite suite-name :errorp t))
@@ -1164,21 +1158,15 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
                     ~@[~&Condition    : ~<~@;~a~:>~]~
                     ~@[~&During       : ~a~]~
                     ~@[~&Code         : ~a~]~
-                    ~&~:>" (list (list doc-string) (list condition) step code)))))
+                    ~&~:>" (list doc-string (list condition) step code)))))
 
 
 ;;; ---------------------------------------------------------------------------
 ;;; test-reports
 ;;; ---------------------------------------------------------------------------
 
-#+(or)
-(defmethod test-report-code ((testsuite test-mixin) (method symbol))
-  (let* ((class-name (class-name (class-of testsuite))))
-    (gethash method
-             (test-name->code-table class-name))))
-
-(defmethod test-report-code ((testsuite symbol) (method symbol))
-  (gethash method (test-name->code-table testsuite)))
+(defun test-report-code (suite-name test-case-name)
+  (gethash test-case-name (test-name->code-table suite-name)))
 
 ;;; ---------------------------------------------------------------------------
 ;;; utilities
@@ -1349,59 +1337,47 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
        ((:once-per-test-case t) nil)
        ((:never nil) nil)))))
      
-(defun build-test-test-method (test-class test-body options)
-  (multiple-value-bind (test-name body documentation name-supplied?)
+(defun build-test-test-method (suite-name test-body options)
+  (multiple-value-bind (test-case-name body name-supplied?)
                        (parse-test-body test-body)
     (declare (ignorable name-supplied?))
     (unless (consp (first body))
       (setf body (list body)))
+    (setf (def :test-case-name) test-case-name)
     `(progn
-       (setf (gethash ',test-name (test-name->code-table ',test-class)) ',body
-             (gethash ',body (test-code->name-table ',test-class)) ',test-name)
-       ,(when documentation
-          `(setf (gethash ',test-name (test-case-documentation ',test-class))
-                 ,documentation))
+       (setf (gethash ',test-case-name (test-name->code-table ',suite-name)) ',body
+             (gethash ',body (test-code->name-table ',suite-name)) ',test-case-name)
        #+(or mcl ccl)
        ,@(when name-supplied?
-           `((ccl:record-source-file ',test-name 'test-case)))
-       (unless (find ',test-name (testsuite-tests ',test-class))
-	 (setf (testsuite-tests ',test-class)
-	       (append (testsuite-tests ',test-class) (list ',test-name))))
+           `((ccl:record-source-file ',test-case-name 'test-case)))
+       (unless (find ',test-case-name (testsuite-tests ',suite-name))
+	 (setf (testsuite-tests ',suite-name)
+	       (append (testsuite-tests ',suite-name) (list ',test-case-name))))
        ;;?? to defer until after compile...?
-       (load-time-value 
-	,@(when options 
-		(list (build-test-case-options 
-		       test-class test-name options))))
-       (setf (gethash ',test-name (test-name->methods ',test-class))
+       ,@(when options
+          `((defmethod set-test-case-options 
+		((suite-name (eql ',suite-name)) (test-case-name (eql ',test-case-name)))
+	      ,(build-test-case-options 
+		suite-name test-case-name options))))
+       (setf (gethash ',test-case-name (test-name->methods ',suite-name))
 	     (lambda (testsuite)
 	       (declare (ignorable testsuite))
 	       ,@(when options 
-		       (list (build-test-case-options 
-			      test-class test-name options)))
+		       `((set-test-case-options ',suite-name ',test-case-name)))
 	       (with-test-slots ,@body)))
-       (setf *last-test-case-name* ',test-name)
+       (setf *last-test-case-name* ',test-case-name)
        (when (and *test-print-when-defined?*
                   (not (or *test-is-being-compiled?*
                            )))
          (format *debug-io* "~&;Test Created: ~(~S.~S~)." 
-		 ',test-class ',test-name))
+		 ',suite-name ',test-case-name))
        *last-test-case-name*)))
 
 (defun parse-test-body (test-body)
   (let ((test-name nil)
         (body nil)
-        (parsed-body nil)
-        (documentation nil)
         (test-number (1+ (testsuite-test-count *last-testsuite-name*)))
         (name-supplied? nil))
-    ;; parse out any documentation
-    (loop for form in test-body do
-          (if (and (consp form)
-                   (keywordp (first form))
-                   (eq :documentation (first form)))
-            (setf documentation (second form))
-            (push form parsed-body)))
-    (setf test-body (nreverse parsed-body))
     (setf test-name (first test-body))
     (cond ((symbolp test-name)
            (setf test-name 
@@ -1418,7 +1394,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 		 (intern (format nil "TEST-~A" 
 				 test-number))
                  body test-body)))
-    (values test-name body documentation name-supplied?)))
+    (values test-name body name-supplied?)))
 
 (defun build-test-class ()
   ;; for now, we don't generate code from :class-def code-blocks

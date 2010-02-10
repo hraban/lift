@@ -32,12 +32,10 @@
 		"api"
 		:pathname "dev/"
 		:depends-on ("setup")
-		:components ((:file "generics")
-			     #+(or)
-			     (:file "classes" :depends-on ("generics"))))
+		:components ((:file "generics")))
 	       (:module 
 		"dev" 
-		:depends-on ("setup")
+		:depends-on ("setup" "api")
 		:components 
 		((:static-file "notes.text")
 		 (:file "lift"

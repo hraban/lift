@@ -443,13 +443,13 @@ lift::(progn
   (let ((problem (getf datum :problem)))
     (cond ((typep problem 'test-failure)
 	   (format stream "~&<span class=\"test-name\"><a href=\"~a\" title=\"details\">~a</a></span>"
-		   (details-link stream suite test-name)
+		   (details-link suite test-name)
 		   test-name)
 	   (format stream 
 		   "~&<span class=\"test-failure\">failure</span>" ))
 	  ((typep problem 'test-error)
 	   (format stream "~&<span class=\"test-name\"><a href=\"~a\" title=\"details\">~a [during ~a]</a></span>"
-		   (details-link stream suite test-name)
+		   (details-link suite test-name)
 		   test-name
 		   (test-step problem))
 	   (format stream "~&<span class=\"test-error\">error</span>"))
@@ -483,89 +483,6 @@ lift::(progn
 	 (report-test-case-by-suite format stream suite test-name datum))
     (finish-report-tests-by-suite format stream current-suite)))
 
-#+(or)
-(defun report-tests-by-suite (tests stream)
-  (let ((current-suite nil))
-    (loop for rest = (sort 
-		      (copy-list tests)
-		      'string-lessp :key 'first) then (rest rest) 
-       while rest
-       for (suite test-name datum) = (first rest) do
-       (unless (eq current-suite suite)
-	 (when current-suite
-	   (format stream "</div>"))
-	 (setf current-suite suite)
-	 (format stream "~&<div class=\"testsuite\">")
-	 (let* ((this-suite-end (or 
-				 (position-if 
-				  (lambda (datum)
-				    (not (eq current-suite (first datum))))
-				  rest)
-				 (length rest)))
-		(error-count (count-if 
-			      (lambda (datum)
-				(and (getf (third datum) :problem)
-				     (typep (getf (third datum) :problem)
-					    'test-error)))
-			      rest
-			      :end this-suite-end))
-		(failure-count (count-if 
-				(lambda (datum)
-				  (and (getf (third datum) :problem)
-				       (typep (getf (third datum) :problem)
-					      'test-failure)))
-				rest
-				:end this-suite-end))
-		(extra-class (cond ((and (= error-count 0) (= failure-count 0))
-				    'testsuite-all-passed)
-				   ((> error-count 0)
-				    'testsuite-some-errors)
-				   (t
-				    'testsuite-some-failures))))
-	   (format stream "~&<div class=\"testsuite-title\"><table class=\"~a\"><tr><td>~a</td>" extra-class suite)
-	   (format stream "<td class=\"testsuite-test-count\">~:d test~:p</td>"
-		   (test-case-count current-suite))
-	   (format stream "<td class=\"testsuite-summary\">")
-	   (cond ((and (= error-count 0) (= failure-count 0))
-		  (format stream "all passed"))
-		 (t
-		  (format stream "~[~:;~:*~:d failure~:p~]" 
-			  failure-count)
-		  (when (and (> error-count 0) (> failure-count 0))
-		    (format stream ", "))
-		  (format stream  "~[~:;~:*~a error~:p~]" 
-			  error-count)))
-	   (format stream "</td></tr></table>")
-	   (format stream "</div>")))
-	 (format stream "~&<div class=\"test-case\">")
-	 (let ((problem (getf datum :problem)))
-	   (cond ((typep problem 'test-failure)
-		  (format stream "~&<span class=\"test-name\"><a href=\"~a\" title=\"details\">~a</a></span>"
-			  (details-link stream suite test-name)
-			  test-name)
-		  (format stream 
-			  "~&<span class=\"test-failure\">failure</span>" ))
-		 ((typep problem 'test-error)
-		  (format stream "~&<span class=\"test-name\"><a href=\"~a\" title=\"details\">~a [during ~a]</a></span>"
-			  (details-link stream suite test-name)
-			  test-name
-			  (test-step problem))
-		  (format stream "~&<span class=\"test-error\">error</span>"))
-		 (t
-		  (format stream "~&<span class=\"test-name\">~a</span>" 
-			  test-name)
-		  (let ((seconds (getf datum :seconds))
-			(conses (getf datum :conses)))
-		    (when seconds 
-		      (format stream "<span class=\"test-time\">~,3f</span>"
-			      seconds))
-		    (when conses 
-		      (format stream "<span class=\"test-space\">~:d</span>"
-			      conses)))))
-	   (format stream "~&</div>")))
-    (when current-suite
-      (format stream "</div>"))))
-
 (defun get-details-links-table ()
   (let ((hash (getf *report-environment* :details-links)))
     (or hash
@@ -575,8 +492,7 @@ lift::(progn
 #+(or)
 (get-details-links-table)
 
-(defun details-link (stream suite name)
-  (declare (ignore stream))
+(defun details-link (suite name)
   (let* ((hash (get-details-links-table)))
     (or (gethash (cons suite name) hash)
 	(progn
@@ -616,7 +532,7 @@ lift::(progn
   (loop for (suite-name test-name datum) in (tests-run result)
      when (getf datum :problem) do
      (let ((output-pathname (merge-pathnames
-			     (details-link stream suite-name test-name) 
+			     (details-link suite-name test-name) 
 			     stream)))
        (ensure-directories-exist output-pathname)
        (let ((*print-right-margin* 64)
@@ -1129,7 +1045,7 @@ lift::(progn
 	    (destructuring-bind (_1 suite name _2) issue
 	      (declare (ignore _1 _2))
 	      (format out "~&<li><span>~a</span> <a href=\"~a\"><span>~a</span></a></li>~&" 
-		      suite (details-link stream suite name) name)))
+		      suite (details-link suite name) name)))
        (format out "~&</ul>~%"))
     (html-footer out)))
 
