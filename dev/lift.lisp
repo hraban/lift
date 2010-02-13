@@ -2,7 +2,6 @@
 
 (in-package #:lift)
 
-
 (defmethod accumulate-problem ((problem test-failure) result)
   (setf (failures result) (append (failures result) (list problem))))
 
