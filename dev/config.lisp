@@ -322,11 +322,28 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
 			(merge-pathnames
 			 (make-pathname :defaults report-name)))))
 	 (unique-name? (test-result-property result :unique-name)))
+    (when (stringp dest)
+      (setf dest (translate-user dest)))
     (values 
      (if (and unique-name? (not (streamp dest)))
 	 (unique-filename dest)
 	 dest)
      via)))
+
+(defun translate-user (dest)
+  (loop for position = (search "$user" dest :test #'char-equal) 
+     while position do
+     (setf dest (concatenate 
+		 'string (subseq dest 0 position) (current-user)
+		 (subseq dest (+ position (length "$user"))))))
+  dest)
+
+#+(or)
+(translate-user "/usr/home/foo/$user/bar")
+
+#+(or)
+(translate-user "/usr/home/foo/$user/bar/$user-foo")
+
 
 (defmethod handle-config-preference ((name (eql :build-report))
 				     args)
@@ -392,3 +409,12 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
 		 test-case suite))
 	       (t
 		(push (list suite test-case) *skip-tests*))))))
+
+(defun current-user ()
+  #+allegro
+  (or (ignore-errors (excl.osi:cuserid))
+      (first (last (pathname-directory
+		    (user-homedir-pathname)))))
+  #-allegro
+  (first (last (pathname-directory
+		(user-homedir-pathname)))))
