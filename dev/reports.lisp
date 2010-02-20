@@ -830,8 +830,6 @@ lift::(progn
 	    (encode-symbol (test-method glitch)))
       (encode-symbol (testsuite glitch))))
 
-#+(or)
-;;?? remove 
 (defmethod brief-problem-output ((glitch test-configuration-problem-mixin))
   (test-problem-message glitch))
 
