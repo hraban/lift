@@ -176,6 +176,7 @@ but not both."))
 			     (values nil t)))
 		     ;; cleanup
 		     (when dribble-stream 
+		       (print "....")
 		       (close dribble-stream)))
 		   ;; FIXME -- ugh!
 		   (setf (tests-run result) (reverse (tests-run result)))
