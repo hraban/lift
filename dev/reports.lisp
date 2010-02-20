@@ -137,10 +137,7 @@ lift::(progn
   (start-report-output result stream format)
   (summarize-test-result result stream format)
   (summarize-test-environment result stream format)
-  (when (or (failures result) (errors result)
-	    (expected-failures result) (expected-errors result)
-	    (skipped-test-cases result))
-    (summarize-test-problems result stream format))
+  (summarize-test-problems result stream format)
   (summarize-tests-run result stream format)
   (end-report-output result stream format)
   (generate-detailed-reports result stream format))
@@ -250,34 +247,25 @@ lift::(progn
 	  (t
 	   (format stream "~&<h2>~:d test~:p"
 		   (length (tests-run result)))
-	   (format stream "~[~:;, ~:*<a href=\"#failures\">~:d failure~:P~]</a>"
+	   (format stream "~[~:;, ~:*<a href=\"#failures\">~:d failure~:P</a>~]"
 		   (length (failures result)))
-	   (format stream "~[~:;, ~:*<a href=\"#errors\">~:d error~:P~]</a>"
+	   (format stream "~[~:;, ~:*<a href=\"#errors\">~:d error~:P</a>~]"
 		   (length (errors result)))
 	   (format stream "</h2>")))
 
-    (when (or (expected-errors result) (expected-failures result))
+    (when (or (expected-errors result) (expected-failures result) 
+	      (skipped-test-cases result) (skipped-testsuites result))
       (format stream "~&<h3>")
-      (format stream "~[~:;~:*<a href=\"#expected-failures\">Expected failure~p: ~:*~:d</a>~]"
-	      (length (expected-failures result)))
-      ;; zero if only one or the other (so we don't need a separator...)
-      (format stream "~[~:;, ~]"
-	      (* (length (expected-failures result))
-		 (length (expected-errors result))))
-      (format stream "~[~:;~:*<a href=\"#expected-errors\">Expected error~p: ~:*~:d</a>~]"
-	      (length (expected-errors result)))
-      (format stream "</h3>~%"))
-
-    (when (or (skipped-test-cases result) (skipped-testsuites result))
-      (format stream "~&<h3>")
-      (when (skipped-test-cases result)
-	(format stream "~:d Skipped test cases" 
-		(length (skipped-test-cases result)))
-	(when (skipped-testsuites result)
-	  (format stream ", ")))
-      (when (skipped-testsuites result)
-	(format stream "~:d Skipped test suites" 
-		(length (skipped-testsuites result))))
+      (let ((first? t))
+	(loop for (fn div title) in `((expected-errors   "expected-errors"   "Expected-errors")
+				      (expected-failures "expected-failures" "Expected failure")
+				      (skipped-test-cases "skipped-test-cases" "Skipped test cases")
+				      (skipped-testsuites "skipped-testsuites" "Skipped testsuites")) do
+	     (let ((count (length (funcall fn result))))
+	       (when (plusp count)
+		 (unless first? (format stream ", "))
+		 (setf first? nil)
+		 (format stream "<a href=\"#~a\">~a~p: ~:*~:d</a>" div title count)))))
       (format stream "</h3>~%"))
 
     (when (and (slot-boundp result 'end-time-universal)
@@ -285,56 +273,13 @@ lift::(progn
 	       (numberp (start-time-universal result)))
       (format stream "~&<h3>Testing took: ~:d seconds</h3>"
 	      (- (end-time-universal result)
-		 (start-time-universal result))))
-    #+(or)
-    (when (and (numberp (real-end-time result))
-	       (numberp (real-start-time result)))
-      (format stream "~&Time: ~,2f real-time"
-	      (/ (- (real-end-time result) (real-start-time result))
-		 internal-time-units-per-second))))
+		 (start-time-universal result)))))
   (format stream "~&</div>"))
 
 (defmethod summarize-test-environment (result stream (format (eql :html)))
   (declare (ignore result))
   (format stream "~&<div id=\"environment\">")
   (call-next-method)
-  (format stream "~&</div>"))
-
-(defmethod summarize-test-problems (result stream  (format (eql :html)))
-  (format stream "~&<div id=\"problem-summary\">")
-  (format stream "~&<h2>Problem Summary:</h2>")
-  (when (failures result)
-    (summarize-test-problems-of-type 
-     format (failures result) stream "failure-summary" "Failures" "failures"))
-  (when (errors result)
-    (summarize-test-problems-of-type 
-     format (errors result) stream "error-summary" "Errors" "errors"))
-  (when (expected-failures result)
-    (summarize-test-problems-of-type 
-     format (expected-failures result)
-     stream "expected-failure-summary" "Expected Failures" "expected-failures"))
-  (when (expected-errors result)
-    (summarize-test-problems-of-type 
-     format (expected-errors result) stream "expected-failure-summary" 
-     "Expected Errors" "expected-errors"))
-  (when (skipped-test-cases result)
-    (summarize-test-problems-of-type 
-     format (skipped-test-cases result) stream "skipped-cases-summary" 
-     "Skipped tests" "skipped-tests"))
-  (format stream "~&</div>"))
-
-(defmethod summarize-test-problems-of-type 
-    (format problems stream id heading name)
-  (format stream "~&<div id=\"~a\">" id)
-  (format stream "~&<a name=\"~a\"></a><h3>~a</h3>" name heading)
-  (report-tests-by-suite 
-   format  
-   (mapcar (lambda (problem)
-	     `(,(testsuite problem)
-		,(test-method problem)
-		(:problem ,problem)))
-	   problems)
-   stream)
   (format stream "~&</div>"))
 
 (defmethod summarize-tests-run (result stream (format (eql :html)))
@@ -347,9 +292,9 @@ lift::(progn
 	       (expected-failures result) (expected-errors result))
 	   ;; print separately
 	   (with-open-file (new-stream (merge-pathnames "summary.html" stream)
-				   :direction :output
-				   :if-does-not-exist :create
-				   :if-exists :supersede)
+				       :direction :output
+				       :if-does-not-exist :create
+				       :if-exists :supersede)
 	     (html-header 
 	      new-stream 
 	      "test summary"
@@ -375,6 +320,60 @@ lift::(progn
 	  (t
 	   (doit stream)))))
 
+(defmethod summarize-test-problems (result stream (format (eql :html)))
+  (let ((done-header? nil))
+    (flet ((output-header ()
+	     (unless done-header?
+	       (format stream "~&<div id=\"problem-summary\">")
+	       (format stream "~&<h2>Problem Summary:</h2>"))
+	     (setf done-header? t)))
+      (loop for (fn id heading name) in 
+	   `((configuration-failures "configuration-failure-summary" 
+				     "Configuration Failures" "configuration-failures")
+	     (errors "error-summary" "Errors" "errors")
+	     (testsuite-failures "failure-summary" "Failures" "failures")
+	     (expected-failures  "expected-failure-summary" "Expected Failures" "expected-failures")
+	     (expected-errors "expected-failure-summary" 
+			      "Expected Errors" "expected-errors")
+	     (skipped-test-cases "skipped-cases-summary" 
+				 "Skipped test cases" "skipped-tests")
+	     (skipped-testsuites  "skipped-suites-summary" 
+				  "Skipped testsuites" "skipped-tests"))
+	   do
+	   (let ((problems (funcall fn result)))
+	     (when problems
+	       (output-header)
+	       (summarize-test-problems-of-type 
+		format problems stream id heading name)))))
+    (when done-header?
+      (format stream "~&</div>"))))
+
+(defmethod problem-summarization ((problem testsuite-problem-mixin))
+  `(,(testsuite problem) ,(test-method problem) (:problem ,problem)))
+
+(defmethod problem-summarization ((problem test-configuration-problem-mixin))
+  `(:configuration :configuration (:problem ,problem)))
+
+(defmethod summarize-test-problems-of-type 
+    (format problems stream id heading name)
+  (when problems
+    (format stream "~&<div id=\"~a\">" id)
+    (format stream "~&<a name=\"~a\"></a><h3>~a</h3>" name heading)
+    (report-tests-by-suite 
+     format (mapcar #'problem-summarization problems) stream)
+    (format stream "~&</div>")))
+
+(defun report-tests-by-suite (format tests stream)
+  (let ((current-suite nil))
+    (loop for rest = (sort (copy-list tests)
+			   'string-lessp :key 'first) then (rest rest) 
+       while rest
+       for (suite test-name datum) = (first rest) do
+	 (unless (eq current-suite suite)
+	   (report-test-suite-by-suite format stream rest current-suite suite)
+	   (setf current-suite suite))
+	 (report-test-case-by-suite format stream suite test-name datum))
+    (finish-report-tests-by-suite format stream current-suite)))
 
 (defmethod report-test-suite-by-suite 
     (format stream remaining current-suite suite)
@@ -390,15 +389,25 @@ lift::(progn
   )
 
 (defmethod report-test-suite-by-suite 
+    :around ((format (eql :html)) stream remaining current-suite suite)
+  (declare (ignore remaining suite))
+  (finish-report-tests-by-suite format stream current-suite)
+  (call-next-method)
+  (format stream "</div>"))
+
+(defmethod report-test-suite-by-suite 
+    ((format (eql :html)) stream remaining current-suite (suite (eql :configuration)))
+  (declare (ignore remaining current-suite))
+  (format stream "~&<div class=\"testsuite\">"))
+
+(defmethod report-test-suite-by-suite 
     ((format (eql :html)) stream remaining current-suite suite)
-  (when current-suite
-    (format stream "</div>"))
-  (setf current-suite suite)
+  (declare (ignore current-suite))
   (format stream "~&<div class=\"testsuite\">")
   (let* ((this-suite-end (or 
 			  (position-if 
 			   (lambda (datum)
-			     (not (eq current-suite (first datum))))
+			     (not (eq suite (first datum))))
 			   remaining)
 			  (length remaining)))
 	 (error-count (count-if 
@@ -423,7 +432,7 @@ lift::(progn
 			     'testsuite-some-failures))))
     (format stream "~&<div class=\"testsuite-title\"><table class=\"~a\"><tr><td>~a</td>" extra-class suite)
     (format stream "<td class=\"testsuite-test-count\">~:d test~:p</td>"
-	    (test-case-count current-suite))
+	    (test-case-count suite))
     (format stream "<td class=\"testsuite-summary\">")
     (cond ((and (= error-count 0) (= failure-count 0))
 	   (format stream "all passed"))
@@ -434,8 +443,7 @@ lift::(progn
 	     (format stream ", "))
 	   (format stream  "~[~:;~:*~a error~:p~]" 
 		   error-count)))
-    (format stream "</td></tr></table>")
-    (format stream "</div>")))
+    (format stream "</td></tr></table>")))
 
 (defmethod report-test-case-by-suite 
     ((format (eql :html)) stream suite test-name datum)
@@ -466,22 +474,20 @@ lift::(progn
 		       conses)))))
     (format stream "~&</div>")))
 
+(defmethod report-test-case-by-suite 
+    ((format (eql :html)) stream (suite (eql :configuration)) test-name datum)
+  (declare (ignore test-name))
+  (format stream "~&<div class=\"test-case\">")
+  (let ((problem (getf datum :problem)))
+    (format stream "~&<span class=\"test-name\">~a</span>: ~a~%"
+	    (test-problem-kind problem)
+	    (test-problem-message problem))
+    (format stream "~&</div>")))
+
 (defmethod finish-report-tests-by-suite
     ((format (eql :html)) stream current-suite)
   (when current-suite
     (format stream "</div>")))
-
-(defun report-tests-by-suite (format tests stream)
-  (let ((current-suite nil))
-    (loop for rest = (sort (copy-list tests)
-			   'string-lessp :key 'first) then (rest rest) 
-       while rest
-       for (suite test-name datum) = (first rest) do
-	 (unless (eq current-suite suite)
-	   (report-test-suite-by-suite format stream rest current-suite suite)
-	   (setf current-suite suite))
-	 (report-test-case-by-suite format stream suite test-name datum))
-    (finish-report-tests-by-suite format stream current-suite)))
 
 (defun get-details-links-table ()
   (let ((hash (getf *report-environment* :details-links)))
@@ -817,18 +823,23 @@ lift::(progn
 
 ;;;;
 
+(defun encode-symbol (symbol)
+  (cons (symbol-name symbol) 
+	(package-name (symbol-package symbol))))
+
+(defmethod brief-problem-output ((glitch testsuite-problem-mixin))
+  (if (test-method glitch)
+      (list (encode-symbol (testsuite glitch))
+	    (encode-symbol (test-method glitch)))
+      (encode-symbol (testsuite glitch))))
+
+(defmethod brief-problem-output ((glitch test-configuration-problem-mixin))
+  (test-problem-message glitch))
+
 (defun collect-testsuite-summary-for-log (result kind)
   (let ((list (slot-value result (intern (symbol-name kind) 
 					 (find-package :lift)))))
-    (flet ((encode-symbol (symbol)
-	     (cons (symbol-name symbol) 
-		   (package-name (symbol-package symbol)))))
-      (mapcar (lambda (glitch)
-		(if (test-method glitch)
-		    (list (encode-symbol (testsuite glitch))
-			  (encode-symbol (test-method glitch)))
-		    (encode-symbol (testsuite glitch))))
-	      list))))
+    (mapcar #'brief-problem-output list)))
 
 #+(or)
 (collect-testsuite-summary-for-log lift:*test-result* :skipped-testsuites)
@@ -1119,11 +1130,7 @@ lift::(progn
 	 (format stream "~&~a~%" tag)
 	 (report-tests-by-suite 
 	  format  
-	  (mapcar (lambda (problem)
-		    `(,(testsuite problem)
-		       ,(test-method problem)
-		       (:problem ,problem)))
-		  cases)
+	  (mapcar #'problem-summarization cases)
 	  stream))))
 
 (defmethod report-test-suite-by-suite 
@@ -1136,9 +1143,16 @@ lift::(progn
   (declare (ignore datum))
   (format stream "~&  :suite '~a :name '~a~%" suite test-name))
 
+(defmethod report-test-case-by-suite 
+    ((format (eql :brief)) stream (suite (eql :configuration)) test-name datum)
+  (declare (ignore test-name))
+  (let ((problem (getf datum :problem)))
+    (format stream "~&  ~20a: ~a~%"
+	    (test-problem-kind problem)
+	    (test-problem-message problem))))
+
 (defmethod finish-report-tests-by-suite
     ((format (eql :brief)) stream current-suite)
   (declare (ignore stream current-suite))
   )
 
- 

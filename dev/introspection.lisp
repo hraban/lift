@@ -175,7 +175,7 @@ control over where in the test hierarchy the search begins."
         (testsuites start-at))
   (values))
 
-(defun test-case-count (testsuite)
+(defmethod test-case-count (testsuite)
   (let ((result 0))
     (map-testsuites (lambda (suite level)
 		      (declare (ignore level))
@@ -324,9 +324,11 @@ control over where in the test hierarchy the search begins."
 	 (consp (suites-run result))
 	 (find suite (suites-run result)))))
 
+
 (defun test-results (&key (result *test-result*) (failures? t)
-                    (errors? t) (successes? nil)
-                    (expected-failures? t) (expected-errors? t))
+		     (errors? t) (successes? nil)
+		     (expected-failures? t) (expected-errors? t)
+		     (skipped-testsuites? nil) (skipped-test-cases? nil))
   (let ((acc nil))
     (flet ((gather (list kind process?)
             (when list
@@ -340,11 +342,15 @@ control over where in the test hierarchy the search begins."
       (when errors? 
        (gather (errors result) :errors t))
       (when failures? 
-       (gather (failures result) :failures t))
+       (gather (testsuite-failures result) :failures t))
       (when expected-errors? 
        (gather (expected-errors result) :expected-errors t))
       (when expected-failures? 
        (gather (expected-failures result) :expected-failures t))
+      (when skipped-testsuites?
+       (gather (skipped-testsuites result) :skipped-testsuites t))
+      (when skipped-test-cases?
+       (gather (skipped-test-cases result) :skipped-test-cases t))
       (when successes?
        (gather (loop for (suite test-case data) in (tests-run result) 
                     unless (getf data :problem) collect (list suite test-case))
@@ -376,12 +382,15 @@ control over where in the test hierarchy the search begins."
 ;; expensive, don't keep calling `massage-condition-string`
 (defun build-issues-list (result kind)
   (let* ((args (list :failures? nil :errors? nil :expected-failures? nil
-		     :expected-errors? nil)))
+		     :expected-errors? nil :skipped-testsuites? nil 
+		     :skipped-test-cases? nil)))
     (ecase kind
       (:errors (setf (getf args :errors?) t))
       (:failures (setf (getf args :failures?) t))
       (:expected-failures (setf (getf args :expected-failures?) t))
-      (:expected-errors (setf (getf args :expected-errors?) t)))
+      (:expected-errors (setf (getf args :expected-errors?) t))
+      (:skipped-testsuites (setf (getf args :skipped-testsuites?) t))
+      (:skipped-test-cases (setf (getf args :skipped-test-cases?) t)))
     (let ((tests (mapcar (lambda (triple)
 			   (list* (massage-condition-string triple) triple))
 			 (rest (first (apply #'test-results 
@@ -475,4 +484,3 @@ control over where in the test hierarchy the search begins."
  :suite (lift::suites-in-portion 
 	 (lift::collect-test-cases 'db.agraph.tests)
 	 '(:b)))
-
