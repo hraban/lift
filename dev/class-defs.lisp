@@ -22,6 +22,11 @@
   (:default-initargs
     :run-setup :once-per-test-case))
 
+(defclass process-test-mixin (test-mixin)
+  ((maximum-time :initform *test-maximum-time* 
+                 :accessor maximum-time
+                 :initarg :maximum-time)))
+
 (defclass test-result ()
   ((results-for :initform nil 
 		:initarg :results-for 
@@ -61,92 +66,123 @@ LIFT during a test run.")
     :real-start-time-universal (get-universal-time)))
 
 (defclass test-problem-mixin ()
-  ((testsuite :initform nil :initarg :testsuite :reader testsuite)
-   (test-method :initform nil :initarg :test-method :reader test-method)
-   (test-condition :initform nil
-		   :initarg :test-condition 
-		   :reader test-condition)
-   (test-problem-kind :reader test-problem-kind :allocation :class)
-   (test-step :initform nil :initarg :test-step :reader test-step)
-   (testsuite-initargs 
-    :initform nil :initarg :testsuite-initargs
-    :reader testsuite-initargs)))
+  ((test-problem-kind 
+    :reader test-problem-kind
+    :allocation :class
+    :initarg :test-problem-kind)))
 
-(defmethod print-object ((problem test-problem-mixin) stream)
-  (print-unreadable-object (problem stream)
-    (format stream "TEST-~@:(~A~): ~A in ~A" 
-            (test-problem-kind problem) 
-            (testsuite problem)
-	    (test-method problem))))
-
-(defclass generic-problem (test-problem-mixin)
-  ((test-problem-kind :initarg :test-problem-kind
-		      :allocation :class)))
+(defclass test-error-mixin () 
+  ((backtrace :initform nil :initarg :backtrace :reader backtrace)))
+  
+(defclass test-failure-mixin () 
+  ())
 
 (defclass expected-problem-mixin ()
   ((documentation :initform nil 
 		  :initarg :documentation
 		  :accessor failure-documentation)))
 
-(defclass test-expected-failure (expected-problem-mixin generic-problem)
+(defmethod print-object ((problem test-problem-mixin) stream)
+  (print-unreadable-object (problem stream)
+    (format stream "~a" (test-problem-kind problem))))
+
+(defclass testsuite-problem-mixin (test-problem-mixin)
+  ((testsuite :initform nil :initarg :testsuite :reader testsuite)
+   (test-method :initform nil :initarg :test-method :reader test-method)
+   (test-condition :initform nil
+		   :initarg :test-condition 
+		   :reader test-condition)
+   (test-step :initform nil :initarg :test-step :reader test-step)
+   (testsuite-initargs 
+    :initform nil :initarg :testsuite-initargs
+    :reader testsuite-initargs)))
+
+(defmethod print-object ((problem testsuite-problem-mixin) stream)
+  (print-unreadable-object (problem stream)
+    (format stream "TEST-~@:(~A~): ~A in ~A" 
+            (test-problem-kind problem) 
+            (testsuite problem)
+	    (test-method problem))))
+
+(defclass test-expected-failure (expected-problem-mixin 
+				 test-failure-mixin testsuite-problem-mixin)
   ())
 
 (defmethod test-problem-kind ((problem test-expected-failure))
   "Expected failure")
 
-(defclass test-failure (generic-problem)
+(defclass test-failure (test-failure-mixin testsuite-problem-mixin)
   ()
   (:default-initargs 
    :test-problem-kind "failure"))
 
-(defclass test-error-mixin (generic-problem) 
-  ((backtrace :initform nil :initarg :backtrace :reader backtrace)))
-  
-(defclass test-expected-error (expected-problem-mixin test-error-mixin)
+(defclass test-expected-error (expected-problem-mixin test-error-mixin testsuite-problem-mixin)
   ()
   (:default-initargs 
    :test-problem-kind "Expected error"))
 
-(defclass test-error (test-error-mixin)
+(defclass test-error (test-error-mixin testsuite-problem-mixin)
   ()
   (:default-initargs 
    :test-problem-kind "Error"))
 
-(defclass test-serious-condition (test-error-mixin)
+(defclass test-serious-condition (test-error-mixin testsuite-problem-mixin)
   ()
   (:default-initargs 
    :test-problem-kind "Serious condition"))
 
-(defclass testsuite-error (test-error-mixin)
+(defclass testsuite-error (test-error-mixin testsuite-problem-mixin)
   ()
   (:default-initargs 
    :test-problem-kind "Testsuite error"))
 
-(defclass testsuite-serious-condition (test-error-mixin)
+(defclass testsuite-serious-condition (test-error-mixin testsuite-problem-mixin)
   ()
   (:default-initargs 
    :test-problem-kind "Testsuite serious condition"))
 
-(defclass testsuite-failure (generic-problem)
+(defclass testsuite-failure (test-failure-mixin testsuite-problem-mixin)
   ()
   (:default-initargs 
    :test-problem-kind "Testsuite failure"))
 
-(defclass testcase-skipped (generic-problem)
+(defclass testcase-skipped (testsuite-problem-mixin)
   ()
   (:default-initargs
    :test-problem-kind "Test case skipped"))
 
-(defclass testsuite-skipped (generic-problem)
+(defclass testsuite-skipped (testsuite-problem-mixin)
   ()
   (:default-initargs
    :test-problem-kind "Testsuite skipped"))
 
-(defclass process-test-mixin (test-mixin)
-  ((maximum-time :initform *test-maximum-time* 
-                 :accessor maximum-time
-                 :initarg :maximum-time)))
-
 (defclass test-timeout-failure (test-failure)
   ((test-problem-kind :initform "Timeout" :allocation :class)))
 
+(defclass test-configuration-problem-mixin (test-problem-mixin)
+  ((message :initarg :message :reader test-problem-message)))
+
+(defmethod print-object ((problem test-configuration-problem-mixin) stream)
+  (print-unreadable-object (problem stream)
+    (format stream "~a: ~a" 
+	    (test-problem-kind problem) (test-problem-message problem))))
+
+(defclass test-configuration-failure (test-configuration-problem-mixin test-failure-mixin)
+  ())
+   
+(defclass test-configuration-error (test-configuration-problem-mixin test-error-mixin)
+  ())
+
+(defmethod test-problem-kind ((problem test-configuration-problem-mixin))
+  "Configuration problem")
+
+(defmethod test-problem-kind ((problem test-configuration-error))
+  "Configuration error")
+
+;;;;
+
+(defun testsuite-failures (result)
+  (remove-if-not (lambda (p) (typep p 'testsuite-problem-mixin)) (failures result)))
+
+(defun configuration-failures (result)
+  (remove-if-not (lambda (p) (typep p 'test-configuration-problem-mixin)) (failures result)))

@@ -38,8 +38,14 @@ In all cases, the report will go into
 
 |#
 
-(defun show-test-warning (message &rest args)
-  (apply #'format *error-output* message args))
+(defun handle-configuration-problem (class message &rest args)
+  (let ((msg (apply #'format nil message args)))
+    (accumulate-problem (make-instance class :message msg)
+			*test-result*)
+    (format *error-output* "~&;;;;;;;;;;;;;;;;;;;;;;;;;;;;;~%~%")
+    (format *error-output* "~a" msg)
+    (format *error-output* "~%~%;;;;;;;;;;;;;;;;;;;;;;;;;;;;;~%~%")
+    ))
 
 (defgeneric generate-report-summary-pathname ()
   )
@@ -139,12 +145,16 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
       					    nil :eof nil)) :eof)) 
       	 collect
       	 (handler-bind 
-      	     ((error (lambda (c) (format 
-      				  *error-output* 
-      				  "Error while running ~a from ~a: ~a"
-      				  form path c)
-      			     (pprint (get-backtrace c))
-      			     (invoke-debugger c))))
+      	     ((error 
+	       (lambda (c)
+		 (handle-configuration-problem 
+		  'test-configuration-error
+		  "Error while running ~a from ~a: ~a" form path c)
+		 ;(pprint (get-backtrace c))
+		 #+(or)
+		 ;;
+		 (invoke-debugger c)
+		 )))
 	   (format t "~&handle config: ~s" form)
       	   (destructuring-bind
       		 (name &rest args)
@@ -158,15 +168,16 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
       		    (symbol-package :keyword))
       		;; must be a preference
       		(handle-config-preference name args))
-      	       ((and run-tests-p (find-testsuite name :errorp nil))
+              ((and run-tests-p (symbolp name))
       		(multiple-value-bind (_ restartedp)
 		    (restart-case 
 			(if (find-testsuite name :errorp nil)
 			    (run-tests :suite name 
 				       :result *test-result* 
 				       :testsuite-initargs args)
-			    (show-test-warning
-			     "~&Warning: testsuite ~s not found, skipping" name))
+			    (handle-configuration-problem
+			     'test-configuration-failure
+			     "Warning: testsuite ~s not found, skipping" name))
 		      (cancel-testing-from-configuration (result)
 			:report (lambda (stream)
 				  (format stream "Cancel testing from file ~a"
@@ -178,8 +189,8 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
       		  (when restartedp 
       		    (setf run-tests-p nil))))
       	       (t
-      		(show-test-warning
-		 "Don't understand '~s' while reading from ~s" 
+      		(handle-configuration-problem
+		 'test-configuration-failure "Don't understand '~s' while reading from ~s" 
 		 form path))))))))
   (values *test-result*))
 
@@ -191,7 +202,7 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
 	     (t arg))))
 
 (defmethod handle-config-preference ((name t) args)
-  (show-test-warning "Unknown preference ~s (with arguments ~s)" 
+  (handle-configuration-problem 'test-configuration-failure "Unknown preference ~s (with arguments ~s)" 
 		     name args))
 
 (defmethod handle-config-preference ((name (eql :include)) args)
@@ -389,7 +400,7 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
   (loop for arg in args do
        (if (find-testsuite arg)
 	   (push arg *skip-tests*)
-	   (show-test-warning "Unable to find testsuite ~a to skip" arg))))
+	   (handle-configuration-problem 'test-configuration-failure "Unable to find testsuite ~a to skip" arg))))
 
 (defconfig :skip-tests 
   (loop for arg in args do
@@ -397,14 +408,17 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
 	     (test-case (if (consp arg) (second arg) nil)))
 	 (cond ((not (or (atom arg) 
 			 (= (length arg) 1) (= (length arg) 2)))
-		(show-test-warning 
+		(handle-configuration-problem 
+		 'test-configuration-failure
 		 ":skip-tests takes atoms or two element lists as arguments. Ignoring ~a in ~a" 
 		 arg args))
 	       ((and (null test-case) (null (find-testsuite suite)))
-		(show-test-warning
+		(handle-configuration-problem
+		 'test-configuration-failure
 		 "Unable to find testsuite ~a to skip" suite))
 	       ((and test-case (null (find-test-case suite test-case)))
-		(show-test-warning 
+		(handle-configuration-problem 
+		 'test-configuration-failure
 		 "Unable to find test-case ~a in testsuite ~a to skip" 
 		 test-case suite))
 	       (t
