@@ -110,6 +110,8 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
 #+(or)
 (generate-report-summary-pathname)
 
+(defvar *config-dribble-pathname* nil)
+
 (defun run-tests-from-file (path)
   (let ((real-path (cond ((eq path :generic)
 			  (setf path 
@@ -123,6 +125,7 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
 		 (*read-eval* nil)
 		 (result (make-test-result path :multiple))
 		 (*lift-dribble-pathname* nil)
+		 (*config-dribble-pathname* nil)
 		 (*lift-debug-output* *debug-io*)
 		 (*lift-standard-output* *standard-output*)
 		 (*test-break-on-errors?* nil)
@@ -173,7 +176,8 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
 		    (restart-case 
 			(if (find-testsuite name :errorp nil)
 			    (run-tests :suite name 
-				       :result *test-result* 
+				       :result *test-result*
+				       :dribble *config-dribble-pathname*
 				       :testsuite-initargs args)
 			    (handle-configuration-problem
 			     'test-configuration-failure
@@ -209,7 +213,7 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
   (%run-tests-from-file (merge-pathnames (ensure-string (first args))
 					 *current-configuration-stream*)))
 
-(defconfig-variable :dribble *lift-dribble-pathname*)
+(defconfig-variable :dribble *config-dribble-pathname*)
 
 (defconfig-variable :debug-output *lift-debug-output*)
 

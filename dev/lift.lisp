@@ -744,11 +744,8 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
   (let ((body nil)
 	(return (gensym))
 	(options nil) (documentation nil)
-	(looks-like-suite-name (looks-like-suite-name-p name))
-	(looks-like-code (looks-like-code-p name)))
-    (cond ((and looks-like-suite-name looks-like-code)
-	   (error "Can't disambiguate suite name from possible code."))
-	  (looks-like-suite-name
+	(looks-like-suite-name (looks-like-suite-name-p name)))
+    (cond (looks-like-suite-name
 	   ;; testsuite given
 	   (setf (def :testsuite-name) (first name) 
 		 options (rest name)
@@ -756,6 +753,8 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 	  (t
 	   ;; the 'name' is really part of the test...
 	   (setf body (cons name test))))
+    (unless (property-list-p options)
+      (signal-lift-error 'add-test "test-case options must be a property list and \"~s`\" is not" options)) 
     (when (getf options :documentation)
       (setf documentation (getf options :documentation))
       (remf options :documentation))
@@ -802,8 +801,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 (defun looks-like-suite-name-p (form)
   (and (consp form)
        (atom (first form))
-       (find-testsuite (first form))
-       (property-list-p (rest form))))
+       (find-testsuite (first form))))
 
 (defun property-list-p (form)
   (and (listp form)
@@ -826,11 +824,6 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 (property-list-p '(3 :a))
 (property-list-p '(:a 3 :b))
 |#
-
-(defun looks-like-code-p (name)
-  (declare (ignore name))
-  ;; FIXME - stub
-  nil)
 
 (defun remove-test (&key (test-case *last-test-case-name*)
                          (suite *last-testsuite-name*))
@@ -1362,7 +1355,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
        ,@(when options
           `((defmethod set-test-case-options 
 		((suite-name (eql ',suite-name)) (test-case-name (eql ',test-case-name)))
-	      ,(build-test-case-options 
+	      ,@(build-test-case-options 
 		suite-name test-case-name options))))
        (setf (gethash ',test-case-name (test-name->methods ',suite-name))
 	     (lambda (testsuite)
@@ -1555,7 +1548,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
       (setf (getf (car case-options) option-name) value))))
 
 (defun build-test-case-options (suite-name case-name options)
-  (loop for (k v) on options by #'cddr append
+  (loop for (k v) on options by #'cddr collect
        `(setf (test-case-option ',suite-name ',case-name ,k) ,v)))
 
 #|

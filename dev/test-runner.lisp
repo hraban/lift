@@ -158,13 +158,16 @@ but not both."))
 				 :direction :output
 				 :if-does-not-exist :create
 				 :if-exists *lift-if-dribble-exists*)))
-			(*standard-output* 
+			(*lift-standard-output* 
 			 (maybe-add-dribble 
 			  *lift-standard-output* dribble-stream))
+			(*standard-output* *lift-standard-output*)
 			(*error-output* (maybe-add-dribble 
 					 *error-output* dribble-stream))
 			(*debug-io* (maybe-add-dribble 
-				     *debug-io* dribble-stream)))
+				     *debug-io* dribble-stream))
+			(*lift-debug-output* (maybe-add-dribble 
+					      *lift-debug-output* dribble-stream)))
 		   (unwind-protect
 			(restart-case
 			    (run-tests-internal suite result)
@@ -176,7 +179,6 @@ but not both."))
 			     (values nil t)))
 		     ;; cleanup
 		     (when dribble-stream 
-		       (print "....")
 		       (close dribble-stream)))
 		   ;; FIXME -- ugh!
 		   (setf (tests-run result) (reverse (tests-run result)))

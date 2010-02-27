@@ -1007,6 +1007,37 @@ these cancel testing instead.)")
 ;;;;
 
 #|
+
+(deftestsuite lift-syntax-checks (lift-test)
+  ()
+  (:setup
+   (eval '(deftestsuite test-xxx ()()))))
+
+(addtest (lift-syntax-checks)
+  options-are-plist-1
+  (eval '(addtest (test-xxx :a 1 :b 2) test-1 (ensure t)))
+  (ensure (find-test-case 'test-xxx 'test-1)))
+
+(addtest (lift-syntax-checks)
+  options-not-plist-1
+  (eval '(addtest (test-xxx :a 1 :b 2 :c) test-1 (ensure t)))
+  (ensure (find-test-case 'test-xxx 'test-1)))
+
+(addtest (lift-syntax-checks)
+  options-not-plist-2
+  (eval '(addtest (test-xxx :b) test-1 (ensure t)))
+  (ensure (find-test-case 'test-xxx 'test-1)))
+
+(addtest (lift-syntax-checks)
+  options-not-plist-3
+  (eval '(addtest (test-xxx :b 2 :c 3 4 5) test-1 (ensure t)))  
+  (ensure (find-test-case 'test-xxx 'test-1)))
+
+|#
+
+;;;;
+
+#|
 (deftestsuite this-testsuite-fails (lift-test)
   ())
 
