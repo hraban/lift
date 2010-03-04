@@ -465,10 +465,10 @@ test failure is generated instead of a warning"
 	    (labels ((out (key value)
 		       (when value
 			 (let ((*print-readably* nil))
-			   (format out "~&\(~s . ~s\)" key value)))))
+			   (format ,var "~&\(~s . ~s\)~%" key value)))))
 	      (declare (ignorable (function out)))
 	      (progn ,@body)
-	      (force-output out))
+	      (force-output ,var))
 	 (when ,gclosep
 	   (close ,var))))))
 

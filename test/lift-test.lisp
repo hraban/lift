@@ -1085,3 +1085,38 @@ these cancel testing instead.)")
 
 |#
 
+(defun slurp (pathname)
+  (when (probe-file pathname)
+    (with-open-file (s pathname :direction :input)
+      (loop for line = (read-line s nil :eof) 
+	 until (eq line :eof) collect line))))
+
+(deftestsuite test-log-file (lift-test)
+  (log-file)
+  (:setup
+   (setf log-file (format nil "/tmp/~a" (gensym "file-")))
+   (when (probe-file log-file)
+     (delete-file log-file))))
+
+(deftestsuite test-log-file-helper (lift-test)
+  (log-file))
+
+(addtest (test-log-file-helper)
+  test-1
+  (let ((lines (slurp log-file)))
+    (ensure (plusp (length lines)))
+    (let* ((last-line (first (last lines)))
+	   (datum (read-from-string last-line nil nil)))
+      (ensure datum)
+      (ensure (consp datum))
+      (ensure-same (car datum) :start-time-universal))))
+
+(addtest (test-log-file)
+  test-1
+  (let ((r (lift:run-tests
+	    :suite 'test-log-file-helper
+	    :report-pathname log-file
+	    :testsuite-initargs `(:log-file ,log-file))))
+    (ensure-null (errors r))
+    (ensure-null (failures r))
+    (ensure (plusp (length (tests-run r))))))

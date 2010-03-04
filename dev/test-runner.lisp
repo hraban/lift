@@ -204,7 +204,8 @@ nor configuration file options were specified.")))))
   "Run the cases in `testsuite`"
   (let* ((methods (testsuite-methods testsuite))
 	 (suite-name (class-name (class-of testsuite)))
-	 (*current-testsuite-name* suite-name))
+	 (*current-testsuite-name* suite-name)
+	 data)
     (cond ((skip-test-suite-children-p result suite-name)
 	   (skip-testsuite result suite-name))
 	  (t
@@ -213,13 +214,17 @@ nor configuration file options were specified.")))))
 		   (start-time-universal result) (get-universal-time)))
 	   (unwind-protect
 		(loop for method in methods do
-		     (let ((data 
-			    (if (skip-test-case-p result suite-name method)
-				`(:problem ,(skip-test-case
-					     result suite-name method))
-				(run-test-internal testsuite method result))))
+		     (unwind-protect
+			  (progn
+			    (write-log-test-start :save suite-name method
+						  :stream *lift-report-pathname*)
+			    (setf data 
+				  (if (skip-test-case-p result suite-name method)
+				      `(:problem ,(skip-test-case
+						   result suite-name method))
+				      (run-test-internal testsuite method result))))
 		       (when *lift-report-pathname*
-			 (write-log-test  
+			 (write-log-test-end
 			  :save suite-name method data
 			  :stream *lift-report-pathname*))))
 	     (setf (end-time result) (get-universal-time)))))

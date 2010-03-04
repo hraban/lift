@@ -257,7 +257,7 @@ lift::(progn
 	      (skipped-test-cases result) (skipped-testsuites result))
       (format stream "~&<h3>")
       (let ((first? t))
-	(loop for (fn div title) in `((expected-errors   "expected-errors"   "Expected-errors")
+	(loop for (fn div title) in `((expected-errors   "expected-errors"   "Expected error")
 				      (expected-failures "expected-failures" "Expected failure")
 				      (skipped-test-cases "skipped-test-cases" "Skipped test cases")
 				      (skipped-testsuites "skipped-testsuites" "Skipped testsuites")) do
@@ -781,45 +781,57 @@ lift::(progn
   (append-to-report (out stream)
     (call-next-method format suite-name test-case-name data :stream out)))
 
-(defmethod write-log-test 
+(defmethod write-log-test (format suite-name test-case-name data
+			   &key (stream *standard-output*))
+  (write-log-test-start format suite-name test-case-name data 
+			:stream stream)
+  (write-log-test-end format suite-name test-case-name
+			:stream stream))
+
+(defmethod write-log-test-start 
+    ((format (eql :save)) suite-name test-case-name
+     &key (stream *standard-output*))
+  (when stream
+    (append-to-report (out-stream stream)
+      (format out-stream "~&\(~%")
+      (out :suite suite-name)
+      (out :name test-case-name)
+      (out :start-time-universal (get-universal-time)))))
+
+(defmethod write-log-test-end 
     ((format (eql :save)) suite-name test-case-name data
      &key (stream *standard-output*))
-  (labels ((out (key value)
-	     (when value
-	       (format stream "~&\(~s . ~s\)" key value)))
-	   (write-datum (name &key (source data))
-	     (let* ((key (form-keyword name))
-		    (value (getf source key)))
-	       (out key value))))
-    (format stream "~&\(~%")
-    (out :suite suite-name)
-    (out :name test-case-name)
-    ;; FIXME - we could make these extensible
-    (write-datum 'start-time-universal)
-    (write-datum 'end-time-universal)
-    (write-datum 'result)
-    (write-datum 'seconds)
-    (write-datum 'conses)
-    (let ((properties (getf data :properties)))
-      (loop for key in properties by #'cddr
-	 for value in (rest properties) by #'cddr do
-	 (out key value)))
-    (cond ((getf data :problem)
-	   (let ((problem (getf data :problem)))
-	     (out :problem-kind (test-problem-kind problem))
-	     (out :problem-step (test-step problem))
-	     (out :problem-condition 
-		  (let ((*print-readably* nil))
-		    (format nil "~s" (test-condition problem))))
-	     (out :problem-condition-description 
-		  (format nil "~a" (test-condition problem)))
-	     (when (slot-exists-p problem 'backtrace)
-	       (out :problem-backtrace (backtrace problem)))))
-	  (t
-	   (out :result t)))
-    (loop for hook in *log-detail-hooks* do
-	 (funcall hook stream data))
-    (format stream "\)~%")))
+  (declare (ignore suite-name test-case-name))
+  (when stream
+    (append-to-report (out-stream stream)
+      (labels ((write-datum (name &key (source data))
+		 (let* ((key (form-keyword name))
+			(value (getf source key)))
+		   (out key value))))
+	(write-datum 'end-time-universal)
+	(write-datum 'result)
+	(write-datum 'seconds)
+	(write-datum 'conses)
+	(let ((properties (getf data :properties)))
+	  (loop for key in properties by #'cddr
+	     for value in (rest properties) by #'cddr do
+	     (out key value)))
+	(cond ((getf data :problem)
+	       (let ((problem (getf data :problem)))
+		 (out :problem-kind (test-problem-kind problem))
+		 (out :problem-step (test-step problem))
+		 (out :problem-condition 
+		      (let ((*print-readably* nil))
+			(format nil "~s" (test-condition problem))))
+		 (out :problem-condition-description 
+		      (format nil "~a" (test-condition problem)))
+		 (when (slot-exists-p problem 'backtrace)
+		   (out :problem-backtrace (backtrace problem)))))
+	      (t
+	       (out :result t)))
+	(loop for hook in *log-detail-hooks* do
+	     (funcall hook out-stream data))
+	(format out-stream "\)~%")))))
 
 ;;;;
 
