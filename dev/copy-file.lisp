@@ -3,31 +3,33 @@
 
 (in-package #:lift)
 ;(in-package #:metatilities)
-        
-(define-condition source/target-file-error (file-error)
-                  ((pathname :reader source-pathname
-                             :initarg :source-pathname)
-                   (target-pathname :reader target-pathname 
-                                    :initarg :target-pathname :initform nil))
-  (:report (lambda (c s)
-             (format s "Copy of ~S to ~S failed" 
-                     (source-pathname c) (target-pathname c))))
-  (:documentation "General condition for file errors that have a source and target."))
 
-(define-condition source/target-target-already-exists-error (source/target-file-error)
-                  ()
-  (:report (lambda (c s)
-             (format s "File action failed because target ~S already exists"
-                     (target-pathname c))))
-  (:documentation "This error is signaled when the target pathname already exists."))
+(defcondition (source/target-file-error
+	       :documentation
+	       "General condition for file errors that have a source and target."
+	       :exportp nil)
+    (file-error)
+  (source-pathname target-pathname)
+  "Copy of ~S to ~S failed" 
+  source-pathname target-pathname)
 
-(define-condition source/target-source-does-not-exist-error
+(defcondition (source/target-target-already-exists-error
+	       :documentation 
+	       "This error is signaled when the target pathname already exists."
+	       :exportp nil)
     (source/target-file-error)
-                  ()
-  (:report (lambda (c s)
-             (format s "File action failed because source ~S does not exist"
-                     (source-pathname c))))
-  (:documentation "This error is signaled when the source file does not exist."))
+  ()
+  "File action failed because target ~S already exists"
+  target-pathname)
+
+(defcondition (source/target-source-does-not-exist-error
+	       :documentation 
+	       "This error is signaled when the source file does not exist."
+	       :exportp nil)
+    (source/target-file-error)
+  ()
+  "File action failed because source ~S does not exist"
+  source-pathname)
 
 (defun copy-file (from to &key (if-does-not-exist :error)
                        (if-exists :error))

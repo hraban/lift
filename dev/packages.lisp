@@ -16,7 +16,8 @@
        #:class-direct-superclasses
        #:class-precedence-list)
       (:export
-       #:*benchmark-log-path*
+       #:generate-log-entry
+       #:*log-path*
        #:*log-detail-hooks*
        #:*log-header-hooks*
        #:*log-footer-hooks*

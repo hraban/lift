@@ -1,14 +1,5 @@
 (in-package #:lift)
 
-(defvar *measures* nil
-  "A list of defineded measures")
-
-(defparameter *benchmark-log-path*
-  (asdf:system-relative-pathname 
-   'lift "benchmark-data/benchmarks.log"))
-
-(defvar *count-calls-p* nil)
-
 (defun compile-quickly (body)
   "Compile body with as much extra stuff as possible turned `off`. 
 
@@ -120,7 +111,7 @@ For example, compile without cross-reference information."
 
 (defmacro with-profile-report 
     ((name style &key 
-	   (log-name *benchmark-log-path* ln-supplied?)
+	   (log-name *log-path* ln-supplied?)
 	   (count-calls-p *count-calls-p* ccp-supplied?)
 	   (timeout nil timeout-supplied?)
 	   (destination nil distination-supplied?))
@@ -472,87 +463,61 @@ test failure is generated instead of a warning"
 	 (when ,gclosep
 	   (close ,var))))))
 
-
-#|
-;;-- from moptilities
-(defgeneric get-class (thing &key error?)
-  (:documentation "Returns the class of thing or nil if the class cannot be found. Thing can be a class, an object representing a class or a symbol naming a class. Get-class is like find-class only not as particular.")
-  (:method ((thing symbol) &key error?)
-           (find-class thing error?))
-  (:method ((thing standard-object) &key error?)
-           (declare (ignore error?))
-           (class-of thing))
-  (:method ((thing t) &key error?)
-           (declare (ignore error?))
-           (class-of thing))
-  (:method ((thing class) &key error?)
-           (declare (ignore error?))
-           thing))
-
-(defun class-slot-names (thing)
-  (let ((class (get-class thing)))
-    (if class
-      (mapcar 'mop:slot-definition-name
-	      (mop:class-slots (finalize-class-if-necessary class)))
-      (progn
-	(warn "class for ~a not found)" thing)
-	nil))))
-
-(defun finalize-class-if-necessary (thing)
-  "Finalizes thing if necessary. Thing can be a class, object or symbol naming a class. Returns the class of thing."
-  (let ((class (get-class thing)))
-    (unless (mop:class-finalized-p class)
-      (mop:finalize-inheritance class))
-    (values class)))
+(defmacro newlinify (format &environment e)
+  #+allegro
+  `(if (and (constantp ,format ,e)
+	   (stringp (sys:constant-value ,format ,e)))
+      (excl::newlinify-format-string (sys:constant-value ,format ,e))
+    ,format)
+  #-allegro
+  format)
 
 (defmacro defcondition (name/options (&rest super-conditions)
-			slot-names &optional format &rest args)
+			slot-names &optional format &rest args &environment e)
   ;; name/options can be a symbol or a list consisting of
   ;; (symbol &key exportp documentation
-  (bind (((name &key documentation (exportp t)) 
-	  (if (consp name/options) 
-	      name/options (list name/options)))
-	 (all-slot-names
-	  (remove-duplicates
-	   (loop for super in super-conditions append
-		(class-slot-names super)))))
-    (flet ((massage-slot (slot-spec)
-	     (cond ((atom slot-spec)
-		    (push slot-spec all-slot-names)
-		    `(,slot-spec
-		      :initarg ,(intern (symbol-name slot-spec) :keyword)))
-		   (t
-		    (push (first slot-spec) all-slot-names)
-		    slot-spec))))
-      `(progn
-	 (eval-when (:compile-toplevel :load-toplevel :execute)
-	   ,@(when exportp
-		   `((export '(,name))))
-	   (define-condition ,name ,super-conditions
-	     ,(mapcar #'massage-slot slot-names)
-	     ,@(when documentation
-		     `((:documentation ,documentation)))
-	     ,@(when ;; XXX ACL dependency -- this is used inside agraph.
-		(and format
-		     #+allegro
-		     (setf format (excl::newlinify-format-string format)))
-		`((:report
-		   (lambda (condition stream)
-		     (declare (ignorable condition))
-		     (let ,(mapcar
-			    (lambda (name)
-			      `(,name (and (slot-boundp condition ',name)
-					   (slot-value condition ',name))))
-			    all-slot-names)
-		       ,@(when all-slot-names
-			       `((declare (ignorable ,@all-slot-names))))
-		       (format
-			stream ,format ,@args))))))))))))
+  (destructuring-bind (name &key documentation (exportp t))
+      (if (consp name/options) 
+	  name/options (list name/options))
+    (let ((all-slot-names
+	   (remove-duplicates
+	    (loop for super in super-conditions append
+		 (class-slot-names super))))
+	  (format (and format
+		       (setf format (newlinify format)))))
+      (flet ((massage-slot (slot-spec)
+	       (cond ((atom slot-spec)
+		      (push slot-spec all-slot-names)
+		      `(,slot-spec
+			:initarg ,(intern (symbol-name slot-spec) :keyword)))
+		     (t
+		      (push (first slot-spec) all-slot-names)
+		      (unless (find :initarg slot-spec)
+		      `(,@slot-spec 
+			:initarg ,(intern (symbol-name (first slot-spec)) :keyword)))))))
+	`(progn
+	   (eval-when (:compile-toplevel :load-toplevel :execute)
+	     ,@(when exportp
+		     `((export '(,name))))
+	     (define-condition ,name ,super-conditions
+	       ,(mapcar #'massage-slot slot-names)
+	       ,@(when documentation
+		       `((:documentation ,documentation)))
+	       ,@(when format
+		       `((:report
+			  (lambda (condition stream)
+			    (declare (ignorable condition))
+			    (let ,(mapcar
+				   (lambda (name)
+				     `(,name (and (slot-boundp condition ',name)
+						  (slot-value condition ',name))))
+				   all-slot-names)
+			      ,@(when all-slot-names
+				      `((declare (ignorable ,@all-slot-names))))
+			      ,@(if (and (constantp format e)
+				       #+allegro
+				       (stringp (sys:constant-value format e)))
+				  `((format stream ,(newlinify format) ,@args))
+				  `((,@(ensure-list format))
+				    ,@args))))))))))))))
 
-(defmacro newlinify (format &environment e)
-  (if (and (constantp format e)
-	   (stringp (sys:constant-value format e)))
-      (excl::newlinify-format-string (sys:constant-value format e))
-    format))
-
-|#
