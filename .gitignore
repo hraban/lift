@@ -13,3 +13,5 @@ test-results*/
 lift-local.config
 *.dribble
 *.fasl
+
+benchmark-data/
