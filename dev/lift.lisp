@@ -41,165 +41,99 @@
 ;;; test conditions
 ;;; ---------------------------------------------------------------------------
 
-(define-condition lift-compile-error (error)
-                  ((msg :initform "" 
-                        :reader msg
-                        :initarg :lift-message))
-  (:report (lambda (c s)
-             (format s "Compile error: '~S'" (msg c)))))
+(defcondition (lift-compile-error :exportp nil) (error)
+  (msg)
+  "Compile error: '~S'" msg)
 
-(define-condition testsuite-not-defined (lift-compile-error)
-                  ((testsuite-name :reader testsuite-name
-                                    :initarg :testsuite-name))
-  (:report (lambda (c s)
-             (format s "Test class ~A not defined before it was used."
-                     (testsuite-name c)))))
+(defcondition testsuite-not-defined (lift-compile-error)
+  (testsuite-name)
+  "Test class ~A not defined before it was used."
+  testsuite-name)
 
-(define-condition testsuite-ambiguous (lift-compile-error)
-                  ((testsuite-name :reader testsuite-name
-                                    :initarg :testsuite-name)
-		   (possible-matches :reader possible-matches
-				     :initarg :possible-matches))
-  (:report 
-   (lambda (c s)
-     (format s "There are several test suites named ~s: they are ~{~s~^, ~}"
-	     (testsuite-name c)
-	     (possible-matches c)))))
+(defcondition testsuite-ambiguous (lift-compile-error)
+  (testsuite-name possible-matches)
+  "There are several test suites named ~s: they are ~{~s~^, ~}"
+  testsuite-name possible-matches)
 
-(define-condition test-case-not-defined (lift-compile-error)
-                  ((testsuite-name :reader testsuite-name
-				   :initarg :testsuite-name)
-		   (test-case-name :reader test-case-name
-				   :initarg :test-case-name))
-  (:report (lambda (c s)
-             (format s "Testsuite ~s has no test-case named ~s."
-                     (testsuite-name c)
-		     (test-case-name c)))))
+(defcondition test-case-not-defined (lift-compile-error)
+  (testsuite-name test-case-name)
+  "Testsuite ~s has no test-case named ~s."
+  testsuite-name test-case-name)
 
-(define-condition test-case-ambiguous (lift-compile-error)
-                  ((testsuite-name :reader testsuite-name
-				   :initarg :testsuite-name)
-		   (test-case-name :reader test-case-name
-				   :initarg :test-case-name)
-		   (possible-matches :reader possible-matches
-				     :initarg possible-matches))
-  (:report 
-   (lambda (c s)
-     (format s "There are several test cases named ~s.~s: they are ~{~s~^, ~}"
-                     (testsuite-name c)
-		     (test-case-name c)
-		     (possible-matches c)))))
+(defcondition test-case-ambiguous (lift-compile-error)
+  (testsuite-name test-case-name possible-matches)
+  "There are several test cases named ~s.~s: they are ~{~s~^, ~}"
+  testsuite-name test-case-name possible-matches)
 
-(define-condition test-condition (warning) 
-                  ((message :initform ""
-                            :initarg :message
-                            :accessor message))
-  (:report (lambda (c s)
-             (when (message c)
-               (format s "~%~A" (message c))))))
+(defcondition test-condition (warning) 
+  ((message :initform ""))
+  "~%~A" message)
 
-(define-condition test-timeout-condition (test-condition) 
-                  ((maximum-time :initform *test-maximum-time* 
-                                 :accessor maximum-time
-                                 :initarg :maximum-time))
-  (:report (lambda (c s)
-             (format s "Test ran out of time (longer than ~S-second~:P)" 
-                     (maximum-time c)))))
+(defcondition test-timeout-condition (test-condition) 
+  ((maximum-time :initform *test-maximum-time*))
+  "Test ran out of time (longer than ~S-second~:P)" 
+  maximum-time)
 
-(define-condition ensure-failed-error (test-condition) 
-                  ((assertion :initform "" 
-                              :accessor assertion
-                              :initarg :assertion))
-  (:report (lambda (c s)
-             (format s "Ensure failed: ~S ~@[(~a)~]" 
-		     (assertion c) (message c)))))
+(defcondition ensure-failed-error (test-condition) 
+  ((assertion :initform ""))
+   "Ensure failed: ~S ~@[(~a)~]" assertion message)
 
-(define-condition ensure-null-failed-error (ensure-failed-error)
-  ((value :initform "" 
-	  :accessor value
-	  :initarg :value)
-   (assertion :initform "" 
-	      :accessor assertion
-	      :initarg :assertion))
-  (:report (lambda (c s)
-             (format s "Ensure null failed: ~s evaluates to ~s ~@[(~a)~]" 
-		     (assertion c) (value c) (message c)))))
+(defcondition ensure-null-failed-error (ensure-failed-error)
+  ((value :initform "")
+   (assertion :initform ""))
+  "Ensure null failed: ~s evaluates to ~s ~@[(~a)~]"
+  assertion value message)
 
-(define-condition ensure-expected-condition (test-condition) 
+(defcondition ensure-expected-condition (test-condition) 
   ((expected-condition-type
-    :initform nil
-    :accessor expected-condition-type
-    :initarg :expected-condition-type)
+    :initform nil)
    (the-condition
-    :initform nil
-    :accessor the-condition
-    :initarg :the-condition))
-  (:report (lambda (c s)
-	     (let ((the-condition (the-condition c)))
-	       (format s "Expected ~S but got ~S~@[:~_   ~A~]" 
-		       (expected-condition-type c)
-		       (type-of the-condition)
-		       (and (typep the-condition 'condition)
-			    the-condition))))))
+    :initform nil))
+  "Expected ~S but got ~S~@[:~_   ~A~]" 
+  expected-condition-type
+  (type-of the-condition)
+  (and (typep the-condition 'condition)
+       the-condition))
 
-(define-condition ensure-expected-no-warning-condition (test-condition) 
+(defcondition ensure-expected-no-warning-condition (test-condition) 
   ((the-condition
-    :initform nil
-    :accessor the-condition
-    :initarg :the-condition))
-  (:report (lambda (c s)
-             (format s "Expected no warnings but got ~S" 
-                     (the-condition c)))))
+    :initform nil))
+  "Expected no warnings but got ~S" 
+  the-condition)
 
-(define-condition failed-comparison-condition (test-condition) 
-  ((first-value :accessor first-value
-		:initarg :first-value)
-   (second-value :accessor second-value
-		 :initarg :second-value)
-   (test :accessor test
-	 :initarg :test)))
+(defcondition failed-comparison-condition (test-condition) 
+  (first-value second-value test))
 
-(define-condition ensure-not-same (failed-comparison-condition) 
+(defcondition ensure-not-same (failed-comparison-condition) 
   ()
-  (:report (lambda (c s)
-             (format s "Ensure-same: ~S is not ~a to ~S~@[ (~a)~]"
-                     (first-value c) (test-function-name (test c))
-		     (second-value c) (message c)))))
+  "Ensure-same: ~S is not ~a to ~S~@[ (~a)~]"
+  first-value (test-function-name test)
+  second-value message)
 
-(define-condition ensure-same (failed-comparison-condition) 
+(defcondition ensure-same (failed-comparison-condition) 
   ()
-  (:report (lambda (c s)
-             (format s "Ensure-different: ~S is ~a to ~S~@[ (~a)~]"
-                     (first-value c) (test-function-name (test c))
-		     (second-value c) (message c)))))
+  "Ensure-different: ~S is ~a to ~S~@[ (~a)~]"
+  first-value (test-function-name test) second-value message)
 
-(define-condition ensure-cases-failure (test-condition)
-  ((total :initarg :total :initform 0)
-   (problems :initarg :problems :initform nil)
-   (errors :initarg :errors :initform nil))
-  (:report (lambda (condition stream)
-	     (format 
-	      stream 
-	      "Ensure-cases: ~d case~:p with ~[~:;~:*~d error~:p; ~]~[~:;~:*~d failure~:p; ~]"
-	      (slot-value condition 'total)
-	      (length (slot-value condition 'errors))
-	      (length (slot-value condition 'problems)))
-	     (when (slot-value condition 'errors)
-	       (format stream 
-		       "~&Errors: ~@<  ~@;~{~%  ~{~20s ~3,8@t~a~}~^, ~}~:>" 
-		       (slot-value condition 'errors)))
-	     (when (slot-value condition 'problems)
-	       (format stream 
-		       "~&Failures: ~@<  ~@;~{~%  ~{~20s ~3,8@t~a~}~^, ~}~:>" 
-		       (slot-value condition 'problems))))))
+(defcondition ensure-cases-failure (test-condition)
+  ((total :initform 0)
+   (problems :initform nil)
+   (errors :initform nil))
+  (format 
+   stream 
+   "Ensure-cases: ~d case~:p with ~[~:;~:*~d error~:p; ~]~[~:;~:*~d failure~:p; ~]"
+   total (length errors) (length problems))
+  (when errors
+    (format stream "~&Errors: ~@<  ~@;~{~%  ~{~20s ~3,8@t~a~}~^, ~}~:>" 
+	    errors))
+  (when problems
+    (format stream "~&Failures: ~@<  ~@;~{~%  ~{~20s ~3,8@t~a~}~^, ~}~:>" 
+	    problems)))
 
-(define-condition unexpected-success-failure (test-condition)
-  ((expected :reader expected :initarg :expected)
-   (expected-more :reader expected-more :initarg :expected-more))
-  (:report (lambda (c s)
-	     (format s "Test succeeded but we expected ~s (~s)"
-		     (expected c)
-		     (expected-more c)))))
+(defcondition unexpected-success-failure (test-condition)
+  (expected expected-more)
+  "Test succeeded but we expected ~s (~s)"
+  expected expected-more)
 
 (defun build-lift-error-message (context message &rest arguments)
   (format nil "~A: ~A" 

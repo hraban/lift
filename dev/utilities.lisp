@@ -121,16 +121,22 @@ pathspac points. For example:
 	     (return name)))
 	(error "Unable to find unique pathname for ~a" pathname))))
 
-(defun date-stamp (&key (datetime (get-universal-time)) (include-time? nil))
+(defun date-stamp (&key (datetime (get-universal-time)) (include-time? nil) 
+		   (time-delimiter #\-) (date-delimiter #\-) (date-time-separator #\T))
   (multiple-value-bind
 	(second minute hour day month year day-of-the-week)
       (decode-universal-time datetime)
     (declare (ignore day-of-the-week))
-    (let ((date-part (format nil "~d-~2,'0d-~2,'0d" year month day))
+    (let ((date-part (format nil "~d~@[~c~]~2,'0d~@[~c~]~2,'0d"
+			     year date-delimiter month date-delimiter day))
 	  (time-part (and include-time? 
-			  (list (format nil "-~2,'0d-~2,'0d-~2,'0d"
-					hour minute second)))))
-      (apply 'concatenate 'string date-part time-part))))
+			  (list (format nil "~@[~c~]~2,'0d~@[~c~]~2,'0d~@[~c~]~2,'0d"
+					date-time-separator hour
+					time-delimiter minute
+					time-delimiter second)))))
+      (if time-part
+	  (apply 'concatenate 'string date-part time-part)
+	  date-part))))
 
 
 #+(or)
@@ -186,6 +192,22 @@ the class itself is not included in the mapping. Proper? defaults to nil."
   "Returns a list of superclasses of thing. Thing can be a class, object or symbol naming a class. The list of classes returned is 'proper'; it does not include the class itself."
   (let ((result (class-precedence-list (get-class thing))))
     (if proper? (rest result) result)))
+
+(defun class-slot-names (thing)
+  (let ((class (get-class thing)))
+    (if class
+      (mapcar 'mop:slot-definition-name
+	      (mop:class-slots (finalize-class-if-necessary class)))
+      (progn
+	(warn "class for ~a not found)" thing)
+	nil))))
+
+(defun finalize-class-if-necessary (thing)
+  "Finalizes thing if necessary. Thing can be a class, object or symbol naming a class. Returns the class of thing."
+  (let ((class (get-class thing)))
+    (unless (mop:class-finalized-p class)
+      (mop:finalize-inheritance class))
+    (values class)))
 
 (declaim (inline length-1-list-p)) 
 (defun length-1-list-p (x) 
@@ -440,3 +462,14 @@ and nil otherwise."
 	 "=")
 	(t
 	 (princ-to-string test-function))))
+
+(defun hostname ()
+  (or *hostname*
+      (setf *hostname* 
+	    (multiple-value-bind (r _ code)
+		(or (symbol-apply (symbol-name '#:run-shell-command)
+				  :trivial-shell "hostname -s")
+		    (symbol-apply (symbol-name '#:command-output)
+				  :excl.osi "hostname -s"))
+	      (declare (ignore _))
+	      (if (/= code 0) "unknown" (first r))))))

@@ -6,6 +6,11 @@
 ;;; global environment thingies
 ;;; ---------------------------------------------------------------------------
 
+(defvar *hostname* nil)
+
+(defvar *current-user* 
+  (first (last (pathname-directory (user-homedir-pathname)))))
+
 (defvar *current-testsuite-name* nil)
 (defvar *current-test-case-name* nil)
 
@@ -153,4 +158,12 @@ the thing being defined.")
 (defparameter +lift-unable-to-parse-test-name-and-class+ 
   "")
 
+
+(defvar *measures* nil
+  "A list of defineded measures")
+
+(defparameter *log-path*
+  (asdf:system-relative-pathname 'lift "benchmark-data/benchmarks.log"))
+
+(defvar *count-calls-p* nil)
 

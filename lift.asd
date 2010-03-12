@@ -21,9 +21,9 @@
 		:components
 		((:file "packages")
 		 (:file "utilities" 
-			:depends-on ("packages" "macros"))
+			:depends-on ("packages" "macros" "definitions"))
 		 (:file "macros"
-			:depends-on ("packages"))
+			:depends-on ("packages" "definitions"))
 		 (:file "definitions"
 			:depends-on ("packages"))
 		 (:file "class-defs"

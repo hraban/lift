@@ -911,7 +911,7 @@ lift::(progn
 #+allegro
 (defun with-profile-report-fn 
     (name style fn body &key
-     (log-name *benchmark-log-path*)
+     (log-name *log-path*)
      (count-calls-p *count-calls-p*)
      (timeout nil)
      (destination nil destination-supplied?))

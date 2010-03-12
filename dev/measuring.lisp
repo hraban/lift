@@ -82,8 +82,6 @@ The accuracy can be no greater than {hs internal-time-units-per-second}.")
 
 (defvar *functions-to-profile* nil)
 
-(defvar *additional-markers* nil)
-
 (defvar *profiling-threshold* nil)
 
 (defun make-profiled-function (fn)
@@ -99,6 +97,15 @@ The accuracy can be no greater than {hs internal-time-units-per-second}.")
 	   (funcall fn)))))
 
 (defun generate-profile-log-entry (log-name name seconds conses results error)
+  (generate-log-entry name seconds conses :results results :error error
+		      :sample-count (and (plusp (current-profile-sample-count))
+					 (current-profile-sample-count))
+		      :log-name log-name))
+
+(defun generate-log-entry (name seconds conses &key (log-name *log-path*) results error
+			   (sample-count (and (plusp (current-profile-sample-count))
+						      (current-profile-sample-count)))
+			   (additional-data nil))
   (ensure-directories-exist log-name)
   ;;log 
   (with-open-file (output log-name
@@ -108,10 +115,11 @@ The accuracy can be no greater than {hs internal-time-units-per-second}.")
     (with-standard-io-syntax
       (let ((*print-readably* nil))
 	(terpri output)
-	(format output "\(~11,d ~20,s ~10,s ~10,s ~{~s~^ ~} ~s ~s ~a\)"
-		(date-stamp :include-time? t) name 
-		seconds conses *additional-markers*
-		results (current-profile-sample-count)
+	(format output "\(~19,a :tag ~,s :hostname ~,s :username ~,s :lisp-version ~,s :seconds ~,s :conses ~,s~@[ :additional \(~{~s~^ ~}\)~]~@[ :results ~s~]~@[ :sample-count ~s~]~@[ :error ~a~]\)"
+		(date-stamp :include-time? t :time-delimiter #\:) name 
+		(hostname) *current-user* (lisp-version-string)
+		seconds conses additional-data
+		results sample-count
 		error)))))
 
 (defun count-repetitions (fn delay &rest args)
