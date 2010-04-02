@@ -473,3 +473,25 @@ and nil otherwise."
 				  :excl.osi "hostname -s"))
 	      (declare (ignore _))
 	      (if (/= code 0) "unknown" (first r))))))
+
+(defun dotted-pair-p (putative-pair)
+  "Returns true if and only if `putative-pair` is a dotted-list. I.e.,
+if `putative-pair` is a cons cell with a non-nil cdr."
+  (and (consp putative-pair)
+       (cdr putative-pair)
+       (not (consp (cdr putative-pair)))))
+
+(defun make-printable (thing)
+  (cond ((dotted-pair-p thing)
+	 (cons (make-printable (car thing))
+	       (make-printable (cdr thing))))
+	((keywordp thing)
+	 thing)
+	((symbolp thing)
+	 (encode-symbol thing))
+	((listp thing)
+	 (mapcar #'make-printable thing))
+	((typep thing 'standard-object)
+	 (format nil "~a" thing))
+	(t
+	 thing)))

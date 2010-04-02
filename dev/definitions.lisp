@@ -11,6 +11,9 @@
 (defvar *current-user* 
   (first (last (pathname-directory (user-homedir-pathname)))))
 
+(defparameter *log-tag* nil
+  "If set, this is used to tag generated log information.")
+
 (defvar *current-testsuite-name* nil)
 (defvar *current-test-case-name* nil)
 
@@ -79,8 +82,6 @@ during calls to run-tests.")
 
 (defvar *test-result* nil
   "Set to the most recent test result by calls to run-test or run-tests.")
-
-(defvar *test-environment* nil)
 
 (defvar *test-metadata* (list)
   "A place for LIFT to put stuff.")

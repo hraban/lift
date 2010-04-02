@@ -213,6 +213,8 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
   (%run-tests-from-file (merge-pathnames (ensure-string (first args))
 					 *current-configuration-stream*)))
 
+(defconfig-variable :log-tag *log-tag*)
+
 (defconfig-variable :dribble *config-dribble-pathname*)
 
 (defconfig-variable :debug-output *lift-debug-output*)

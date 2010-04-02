@@ -143,7 +143,7 @@
 (defun signal-lift-error (context message &rest arguments)
   (let ((c (make-condition  
             'lift-compile-error
-            :lift-message (apply #'build-lift-error-message
+            :msg (apply #'build-lift-error-message
 				 context message arguments))))
     (unless (signal c)
       (error c))))
@@ -732,6 +732,39 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 		 *test-is-being-executed?*
 		 (remove ',return *test-is-being-executed?*))))))
 
+(defmacro addbenchmark ((suite-name &rest options) test-case-name &body body)
+  "Adds a single new test-benchmark to testsuite suite-name."
+  #+no-lift-tests
+  `nil
+  #-no-lift-tests
+  (let ((documentation nil))
+    (unless (property-list-p options)
+      (signal-lift-error 
+       'addbenchmark
+       "benchmark options must be a property list and \"~s`\" is not" options)) 
+    (when (getf options :documentation)
+      (setf documentation (getf options :documentation))
+      (remf options :documentation))
+    (unless suite-name
+      (signal-lift-error 'addbenchmark +lift-no-current-test-class+))
+    (unless (find-testsuite suite-name)
+      (signal-lift-error 
+       'addbenchmark +lift-test-class-not-found+ suite-name))
+    (setf (def :testsuite-name) suite-name
+	  (def :test-case-name) test-case-name)
+    `(eval-when (:compile-toplevel :load-toplevel :execute)
+       (let ((*test-is-being-defined?* t))
+	 (muffle-redefinition-warnings
+	   ,(build-benchmark-function
+	     suite-name test-case-name body options))
+	 ,@(when documentation
+		 `((setf (gethash 
+			  ',(def :test-case-name)
+			  (test-case-documentation ',(def :testsuite-name)))
+			 ,documentation)))
+	 (setf *last-testsuite-name* ',(def :testsuite-name))
+	 ',(def :test-case-name)))))
+
 (defun looks-like-suite-name-p (form)
   (and (consp form)
        (atom (first form))
@@ -912,7 +945,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 	(getf (test-data suite) :end-time-universal) (get-universal-time)
 	(end-time-universal result) (get-universal-time)))
 
-(defun make-test-result (for test-mode &rest args)
+(defmethod make-test-result (for test-mode &rest args)
   (apply #'make-instance 'test-result
 	 :results-for for
 	 :test-mode test-mode 
@@ -1142,19 +1175,6 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 (defun test-environment-value (name)
   (slot-value *current-test* name))
 
-#+(or)
-(defun (setf test-environment-value) (value name)
-  (push (cons name value) *test-environment*)
-  (values value))
-
-#+(or)
-(defun test-environment-value (name)
-  (cdr (assoc name *test-environment*)))
-
-(defun remove-from-test-environment (name)
-  (setf *test-environment* 
-        (remove name *test-environment* :key #'car :count 1)))
-
 (defun build-test-local-functions ()
   `(progn
      ,@(mapcar 
@@ -1195,7 +1215,6 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 
 (defun build-test-teardown-method ()
   (let ((test-name (def :testsuite-name))
-        (slot-names (def :direct-slot-names))
         (teardown (def :teardown)))
     (when teardown
       (unless (consp teardown)
@@ -1206,10 +1225,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
         (setf teardown (list teardown))))
     (let* ((teardown-code `(,@(when teardown
                                 `((with-test-slots ,@teardown)))))
-           (test-code `(,@teardown-code
-                        ,@(mapcar (lambda (slot)
-                                    `(remove-from-test-environment ',slot))
-                                  slot-names))))
+           (test-code `(,@teardown-code)))
       `(progn
          ,@(when teardown-code
              `((defmethod test-case-teardown progn ((testsuite ,test-name)
@@ -1328,6 +1344,51 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
                  body test-body)))
     (values test-name body name-supplied?)))
 
+(defun build-benchmark-function (suite-name test-case-name body options)
+  (let ((duration 2) style)
+    (when (getf options :style)
+      (setf style (getf options :style))
+      (remf options :style))
+    (when (getf options :duration 2)
+      (setf duration (getf options :duration 2))
+      (remf options :duration))
+    `(progn
+       #+(or mcl ccl)
+       ,@(when name-supplied?
+	       `((ccl:record-source-file ',test-case-name 'test-case)))
+       (unless (find ',test-case-name (testsuite-tests ',suite-name))
+	 (setf (testsuite-tests ',suite-name)
+	       (append (testsuite-tests ',suite-name) (list ',test-case-name))))
+       ;;?? to defer until after compile...?
+       ,@(when options
+	       `((defmethod set-test-case-options 
+		     ((suite-name (eql ',suite-name))
+		      (test-case-name (eql ',test-case-name)))
+		   ,@(build-test-case-options 
+		      suite-name test-case-name options))))
+       (setf (gethash ',test-case-name (test-name->methods ',suite-name))
+	     (lambda (testsuite)
+	       (declare (ignorable testsuite))
+	       (with-test-slots 
+		 (symbol-macrolet 
+		     ((benchmark-count 
+		       (getf (test-data *current-test*) :benchmark-count)))
+		   (declare (ignorable benchmark-count))
+		   ,@(when options 
+			   `((set-test-case-options ',suite-name ',test-case-name)))
+		   ,@(ecase style
+			    (:repetition
+			     `((setf benchmark-count
+				     (while-counting-repetitions (,duration)
+				       ,@body))))
+			    (:events
+			     `((setf benchmark-count
+				     (while-counting-events (,duration)
+				       ,@body))))
+			    ((nil)
+			     `,body))))))
+       (setf *last-test-case-name* ',test-case-name))))
+
 (defun build-test-class ()
   ;; for now, we don't generate code from :class-def code-blocks
   ;; they are executed only for effect.
@@ -1431,6 +1492,30 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 	 'test-timeout-failure result suite-name (current-method testsuite)
 	 (make-instance 'test-timeout-condition
 			:maximum-time (maximum-time testsuite)))))))
+
+(defmethod testsuite-log-data ((suite t) )
+  nil)
+
+
+(defmethod test-case-teardown :around ((suite log-results-mixin) result)
+  (declare (ignore result))
+  (let ((problem (getf (test-data suite) :problem)))
+    (unless (and problem (typep problem 'test-error-mixin))
+      (multiple-value-bind (additional error?)
+	  (ignore-errors (testsuite-log-data suite))
+	(generate-log-entry 
+	 nil
+	 (getf (test-data suite) :seconds)
+	 (getf (test-data suite) :conses)
+	 :additional-data 
+	 `(:suite ,(form-keyword *current-testsuite-name*)
+		  :name ,(form-keyword *current-test-case-name*)
+		  ,@(when (and *test-result*
+			       (result-uuid *test-result*))
+			  `(:uuid ,(result-uuid *test-result*)))
+		  ,@(if error? 
+			`(:error "error occured gathering additional data")
+			additional)))))))
 
 ;;?? might be "cleaner" with a macrolet (cf. lift-result)
 (defun lift-property (name)

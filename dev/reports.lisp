@@ -560,8 +560,8 @@ lift::(progn
 	   (format out "~&<p>Problem occurred during ~a.</p>"
 		   (test-step problem))
 	   (format out "~&<p>Reproduce using: <pre>")
-	   (format out "~&  (run-test :suite '~a " suite-name)
-	   (format out "~&            :name '~a" test-name)
+	   (format out "~&  (lift:run-test :suite '~a " suite-name)
+	   (format out "~&                 :name '~a" test-name)
 	   (when (testsuite-initargs problem)
 	     (format out "~&            :testsuite-initargs '~s" 
 		     (testsuite-initargs problem)))
@@ -741,7 +741,7 @@ lift::(progn
   (append-to-report (out stream)
     (format out "~&\(")
     (out :results-for (results-for result))
-    (out :arguments args)
+    (out :arguments (make-printable args))
     (out :features (copy-list *features*))
     (out :datetime (get-universal-time))
     (loop for hook in *log-header-hooks* do
@@ -794,8 +794,8 @@ lift::(progn
   (when stream
     (append-to-report (out-stream stream)
       (format out-stream "~&\(~%")
-      (out :suite suite-name)
-      (out :name test-case-name)
+      (out :suite (encode-symbol suite-name))
+      (out :name (encode-symbol test-case-name))
       (out :start-time-universal (get-universal-time)))))
 
 (defmethod write-log-test-end 
