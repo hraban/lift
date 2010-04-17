@@ -27,6 +27,9 @@
                  :accessor maximum-time
                  :initarg :maximum-time)))
 
+(defclass log-results-mixin (test-mixin)
+  ())
+
 (defclass test-result ()
   ((results-for :initform nil 
 		:initarg :results-for 
@@ -56,7 +59,11 @@
    (testsuite-initargs 
     :initform nil
     :initarg :testsuite-initargs
-    :accessor testsuite-initargs))
+    :accessor testsuite-initargs)
+   (uuid
+    :initform nil
+    :initarg :uuid
+    :accessor result-uuid))
   (:documentation 
 "A `test-result` instance contains all of the information collectd by 
 LIFT during a test run.")

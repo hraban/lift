@@ -17,6 +17,8 @@
        #:class-precedence-list)
       (:export
        #:generate-log-entry
+       #:testsuite-log-data
+       #:*log-tag*
        #:*log-path*
        #:*log-detail-hooks*
        #:*log-header-hooks*
@@ -24,6 +26,7 @@
        #:report-hooks-for
        #:with-profile-report
        #:describe-test-result
+       #:make-test-result
        #:count-repetitions
        #:while-counting-repetitions
        #:while-counting-events
@@ -33,7 +36,9 @@
        #:testsuite-not-defined)
       (:export
        #:test-mixin
+       #:log-results-mixin
        #:test-result
+       #:result-uuid
        #:testsuite-p
        #:*test-result*
        #:*current-test*
@@ -52,6 +57,8 @@
        #:remove-test
        #:run-test
        #:run-tests
+
+       #:addbenchmark
 
        #:defmeasure
        #:undefmeasure

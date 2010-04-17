@@ -115,8 +115,9 @@ The accuracy can be no greater than {hs internal-time-units-per-second}.")
     (with-standard-io-syntax
       (let ((*print-readably* nil))
 	(terpri output)
-	(format output "\(~19,a :tag ~,s :hostname ~,s :username ~,s :lisp-version ~,s :seconds ~,s :conses ~,s~@[ :additional \(~{~s~^ ~}\)~]~@[ :results ~s~]~@[ :sample-count ~s~]~@[ :error ~a~]\)"
-		(date-stamp :include-time? t :time-delimiter #\:) name 
+	(format output "\(~19,s :tag ~,s :hostname ~,s :username ~,s :lisp-version ~,s :seconds ~,s :conses ~,s~@[ :additional \(~{~s~^ ~}\)~]~@[ :results ~s~]~@[ :sample-count ~s~]~@[ :error ~a~]\)"
+		(date-stamp :include-time? t :time-delimiter #\:)
+		(or name *log-tag*) 
 		(hostname) *current-user* (lisp-version-string)
 		seconds conses additional-data
 		results sample-count
