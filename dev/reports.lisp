@@ -934,8 +934,8 @@ lift::(progn
 	   (setf seconds (first measures) conses (second measures) 
 		 results result error errorp))
       ;; cleanup / ensure we get report
-      (generate-profile-log-entry log-name name seconds conses results error)
       (when (and style (> (current-profile-sample-count) 0))
+	(generate-profile-log-entry log-name name seconds conses results error)
 	(let ((pathname (if destination-supplied?
 			    destination
 			    (unique-filename

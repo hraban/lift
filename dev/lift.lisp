@@ -1510,6 +1510,8 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 	 :additional-data 
 	 `(:suite ,(form-keyword *current-testsuite-name*)
 		  :name ,(form-keyword *current-test-case-name*)
+		  ,@(when (testsuite-initargs *test-result*)
+			  `(:testsuite-initargs ,(testsuite-initargs *test-result*)))
 		  ,@(when (and *test-result*
 			       (result-uuid *test-result*))
 			  `(:uuid ,(result-uuid *test-result*)))
