@@ -1493,29 +1493,26 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 	 (make-instance 'test-timeout-condition
 			:maximum-time (maximum-time testsuite)))))))
 
-(defmethod testsuite-log-data ((suite t) )
+(defmethod testsuite-log-data ((suite t))
   nil)
 
+(defmethod testsuite-log-data :around ((suite t))
+  (multiple-value-bind (additional error?)
+      (ignore-errors (call-next-method))
+    (if error? 
+	`(:error "error occured gathering additional data")
+	additional)))
 
 (defmethod test-case-teardown :around ((suite log-results-mixin) result)
   (declare (ignore result))
   (let ((problem (getf (test-data suite) :problem)))
     (unless (and problem (typep problem 'test-error-mixin))
-      (multiple-value-bind (additional error?)
-	  (ignore-errors (testsuite-log-data suite))
-	(generate-log-entry 
-	 nil
-	 (getf (test-data suite) :seconds)
-	 (getf (test-data suite) :conses)
-	 :additional-data 
-	 `(:suite ,(form-keyword *current-testsuite-name*)
-		  :name ,(form-keyword *current-test-case-name*)
-		  ,@(when (and *test-result*
-			       (result-uuid *test-result*))
-			  `(:uuid ,(result-uuid *test-result*)))
-		  ,@(if error? 
-			`(:error "error occured gathering additional data")
-			additional)))))))
+      (generate-log-entry 
+       nil
+       (getf (test-data suite) :seconds)
+       (getf (test-data suite) :conses)
+       :additional-data 
+       `(,@(testsuite-log-data suite))))))
 
 ;;?? might be "cleaner" with a macrolet (cf. lift-result)
 (defun lift-property (name)
