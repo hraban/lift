@@ -631,26 +631,26 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
   ;;?? we assume that we won't have too deep a hierarchy or too many 
   ;; dv's or functions so that having lots of duplicate names is OK
   (let ((slots nil)
-	(dynamic-variables nil)
+	(inherited-dynamic-variables nil)
+	(dynamic-variables (%build-pairs (def :direct-dynamic-variables)))
 	(function-specs nil))
     (dolist (super (def :superclasses))
       (cond ((find-testsuite super)
 	     (setf slots (append slots (test-slots super))
-		   dynamic-variables 
-		   (append dynamic-variables 
+		   inherited-dynamic-variables 
+		   (append inherited-dynamic-variables 
 			   (testsuite-dynamic-variables super))
 		   function-specs
 		   (append function-specs 
 			   (testsuite-function-specs super))))
 	    (t
 	     (error 'testsuite-not-defined :testsuite-name super))))
+    (loop for pair in inherited-dynamic-variables 
+	 unless (find (first pair) dynamic-variables :key #'first) collect
+	 (progn (push pair dynamic-variables) pair))
     (setf (def :slot-names) 
 	  (remove-duplicates (append (def :direct-slot-names) slots))
-	  (def :dynamic-variables)
-	  (remove-duplicates 
-	   (append (%build-pairs (def :direct-dynamic-variables))
-		   dynamic-variables)
-	   :key #'car)
+	  (def :dynamic-variables) (nreverse dynamic-variables)
 	  (def :function-specs)
 	  (remove-duplicates 
 	   (append (def :function-specs) function-specs)))
@@ -1493,31 +1493,26 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 	 (make-instance 'test-timeout-condition
 			:maximum-time (maximum-time testsuite)))))))
 
-(defmethod testsuite-log-data ((suite t) )
+(defmethod testsuite-log-data ((suite t))
   nil)
 
+(defmethod testsuite-log-data :around ((suite t))
+  (multiple-value-bind (additional error?)
+      (ignore-errors (call-next-method))
+    (if error? 
+	`(:error "error occured gathering additional data")
+	additional)))
 
 (defmethod test-case-teardown :around ((suite log-results-mixin) result)
   (declare (ignore result))
   (let ((problem (getf (test-data suite) :problem)))
     (unless (and problem (typep problem 'test-error-mixin))
-      (multiple-value-bind (additional error?)
-	  (ignore-errors (testsuite-log-data suite))
-	(generate-log-entry 
-	 nil
-	 (getf (test-data suite) :seconds)
-	 (getf (test-data suite) :conses)
-	 :additional-data 
-	 `(:suite ,(form-keyword *current-testsuite-name*)
-		  :name ,(form-keyword *current-test-case-name*)
-		  ,@(when (testsuite-initargs *test-result*)
-			  `(:testsuite-initargs ,(testsuite-initargs *test-result*)))
-		  ,@(when (and *test-result*
-			       (result-uuid *test-result*))
-			  `(:uuid ,(result-uuid *test-result*)))
-		  ,@(if error? 
-			`(:error "error occured gathering additional data")
-			additional)))))))
+      (generate-log-entry 
+       nil
+       (getf (test-data suite) :seconds)
+       (getf (test-data suite) :conses)
+       :additional-data 
+       `(,@(testsuite-log-data suite))))))
 
 ;;?? might be "cleaner" with a macrolet (cf. lift-result)
 (defun lift-property (name)

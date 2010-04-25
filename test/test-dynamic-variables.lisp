@@ -60,4 +60,69 @@ marked as special in the global environment.")
     (ensure-null (lift::errors r))
     (ensure-null (lift::failures r))))
 
+;;;;
 
+(deftestsuite test-dynamic-variables-helper-parent ()
+  ()
+  (:dynamic-variables
+   (*tdvhp* 1)))
+
+(addtest (test-dynamic-variables-helper-parent)
+  test-1
+  (ensure-same *tdvhp* 1))
+
+(deftestsuite test-dynamic-variables-helper-other-parent ()
+  ()
+  (:dynamic-variables
+   (*tdvhp* 3)))
+
+(deftestsuite test-dynamic-variables-helper-child (test-dynamic-variables-helper-parent)
+  ()
+  (:dynamic-variables
+   (*tdvhp* 2)))
+
+(addtest (test-dynamic-variables-helper-child)
+  test-1
+  (ensure-same *tdvhp* 2))
+
+(deftestsuite test-dynamic-variables-helper-two-parents-a
+    (test-dynamic-variables-helper-parent test-dynamic-variables-helper-other-parent)
+  ())
+
+(addtest (test-dynamic-variables-helper-two-parents-a)
+  test-1
+  (ensure-same *tdvhp* 1))
+
+(deftestsuite test-dynamic-variables-helper-two-parents-b
+    (test-dynamic-variables-helper-other-parent test-dynamic-variables-helper-parent)
+  ())
+
+(addtest (test-dynamic-variables-helper-two-parents-b)
+  test-1
+  (ensure-same *tdvhp* 3))
+
+;;;
+
+(deftestsuite test-dynamic-variables-inheritance (test-dynamic-variables)
+  ())
+
+(addtest (test-dynamic-variables-inheritance)
+  test-1
+  (let ((r (run-tests :suite 'test-dynamic-variables-helper-child)))
+    (ensure-same (length (tests-run r)) 1)
+    (ensure-null (lift::errors r))
+    (ensure-null (lift::failures r))))
+
+(addtest (test-dynamic-variables-inheritance)
+  test-two-parents-1
+  (let ((r (run-tests :suite 'test-dynamic-variables-helper-two-parents-a)))
+    (ensure-same (length (tests-run r)) 1)
+    (ensure-null (lift::errors r))
+    (ensure-null (lift::failures r))))
+
+(addtest (test-dynamic-variables-inheritance)
+  test-two-parents-2
+  (let ((r (run-tests :suite 'test-dynamic-variables-helper-two-parents-b)))
+    (ensure-same (length (tests-run r)) 1)
+    (ensure-null (lift::errors r))
+    (ensure-null (lift::failures r))))

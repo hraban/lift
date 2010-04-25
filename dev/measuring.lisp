@@ -96,6 +96,23 @@ The accuracy can be no greater than {hs internal-time-units-per-second}.")
 	  (t
 	   (funcall fn)))))
 
+(defun standard-log-data ()
+  (let ((custom
+	 (loop for hook in (report-hooks-for :standard-log-data) append
+	      (multiple-value-bind (datum error?)
+		  (funcall hook)
+		(if error? `(:error ,(format nil "calling hook ~a" hook)) datum)))))
+    `(,@(when *current-testsuite-name*
+	      `(:suite ,(form-keyword *current-testsuite-name*)))
+	,@(when *current-test-case-name*
+		`(:name ,(form-keyword *current-test-case-name*)))
+	,@(when (and *test-result* (testsuite-initargs *test-result*))
+		`(:testsuite-initargs ,(testsuite-initargs *test-result*)))
+	,@(when (and *test-result*
+		     (result-uuid *test-result*))
+		`(:uuid ,(result-uuid *test-result*)))
+	,@(when custom custom))))
+  
 (defun generate-profile-log-entry (log-name name seconds conses results error)
   (generate-log-entry name seconds conses :results results :error error
 		      :sample-count (and (plusp (current-profile-sample-count))
@@ -119,7 +136,8 @@ The accuracy can be no greater than {hs internal-time-units-per-second}.")
 		(date-stamp :include-time? t :time-delimiter #\:)
 		(or name *log-tag*) 
 		(hostname) *current-user* (lisp-version-string)
-		seconds conses additional-data
+		seconds conses 
+		(append (standard-log-data) additional-data)
 		results sample-count
 		error)))))
 
