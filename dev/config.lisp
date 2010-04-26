@@ -385,6 +385,8 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
 		 (writable-directory-p dest))
 	     (format *debug-io* "~&Sending report (format ~s) to ~a" 
 		     format dest)
+	     (loop for hook in (report-hooks-for :report-display-name) do
+	       (funcall hook format dest))
 	     (test-result-report
 	      *test-result* dest format))
 	    (t

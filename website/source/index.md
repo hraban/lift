@@ -5,9 +5,9 @@
 
   * [Mailing Lists][3]
   * [Getting it][4]
-  * [Documentation][5]
+{remark  * [Documentation][5] }
   * [News][6]
-  * [Test results][tr]
+{remark  * [Test results][tr] }
   * [Changelog][7]
 
    [3]: #mailing-lists
@@ -65,12 +65,11 @@ The externals of LIFT haven't changed too much though the implementation has bee
 
 ### Where is it
 
-A [Darcs][16] repository is available. The commands are
-listed below:
+metabang.com is slowly switching from [darcs][] to [git][]
+for source control; the current LIFT repository is on
+[github][github-lift] and you can clone it using:
 
- [16]: http://www.darcs.net/
-
-    darcs get http://common-lisp.net/project/lift/
+    git clone git://github.com/gwkkwg/lift
 
 LIFT is also [ASDF installable][18]. Its CLiki home is right
 [where][19] you'd expect.
@@ -85,6 +84,8 @@ There's also a handy [gzipped tar file][20].
 {anchor news}
 
 ### What is happening
+
+10 April 2010 - moved to git; lots of other stuff too but it's all undocumented :-(.
 
 1 March 2008 
 Much excitement and new features. If only someone would write up the documentation.

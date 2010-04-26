@@ -495,4 +495,3 @@ if `putative-pair` is a cons cell with a non-nil cdr."
 	 (format nil "~a" thing))
 	(t
 	 thing)))
-

@@ -24,13 +24,17 @@
        #:*log-header-hooks*
        #:*log-footer-hooks*
        #:report-hooks-for
+       #:add-report-hook-for
        #:with-profile-report
        #:describe-test-result
        #:make-test-result
        #:count-repetitions
        #:while-counting-repetitions
        #:while-counting-events
+       #:while-counting-repetitions*
+       #:while-counting-events*
        #:with-timeout
+       #:did-event
 
        #:testsuite-ambiguous
        #:testsuite-not-defined)

@@ -157,6 +157,41 @@ be executed more than a fixnum number of times. The `delay` defaults to
 			 ,gevent-count))))))))
 	   (funcall ,gfn))))
   
+(defmacro while-counting-repetitions* ((&optional (delay 1.0)) &body body)
+  "Count the number of times `body` executes in `delay` seconds. 
+
+Warning: assumes that `body` will not be executed more than a fixnum
+number of times. The `delay` defaults to 1.0.
+
+Unlike [while-counting-repetitions][] , this does not use with-timeout and
+therefore assumes that `body` executes quickly relative to delay."
+  (let ((gevent-count (gensym "count-"))
+	(gdelay (gensym "delay-"))
+	(gduration (gensym "duration-"))
+	(gfn (gensym "fn-"))
+	(gstart (gensym "start-"))
+	(gend (gensym "end-")))
+    `(let ((,gfn
+	    (compile
+	     nil
+	     '(lambda () 
+	       (let* ((,gevent-count 0)
+		     (,gdelay (truncate (* ,delay internal-time-units-per-second)))
+		     (,gstart (get-internal-real-time))
+		     (,gend (+ ,gstart ,gdelay)))
+		 (declare (type fixnum ,gevent-count))
+		 (loop while (< (get-internal-real-time) ,gend) do
+		      (progn ,@body)
+		      (setf ,gevent-count (the fixnum (1+ ,gevent-count))))
+		 (let ((,gduration (/ (- ,gend ,gstart) 
+				      internal-time-units-per-second)))
+		   (values
+		    (if (plusp ,gevent-count)
+			(float (/ ,gevent-count ,gduration))
+			0)
+		    ,gduration ,gevent-count)))))))
+       (funcall ,gfn))))
+
 (defmacro while-counting-events ((&optional (delay 1.0)) &body body)
   "Returns the count of the number of times `did-event` was called during 
 `delay` seconds. See also: [while-counting-repetitions][]."
@@ -172,7 +207,42 @@ be executed more than a fixnum number of times. The `delay` defaults to
 		  (progn ,@body)))
 	   (timeout-error (c)
 	     (declare (ignore c))
-	     (float (/ ,gevent-count ,delay))))))))  
+	     (float (/ ,gevent-count ,delay)))))))) 
+
+(defmacro while-counting-events* ((&optional (delay 1.0)) &body body)
+  "Count the number of times `did-event` is called `body` during `delay`.
+
+Warning: assumes that `body` will not be executed more than a fixnum
+number of times. The `delay` defaults to 1.0.
+
+Unlike [while-counting-events][] , this does not use with-timeout and
+therefore assumes that `body` executes quickly relative to delay."
+  (let ((gevent-count (gensym "count-"))
+	(gdelay (gensym "delay-"))
+	(gduration (gensym "duration-"))
+	(gfn (gensym "fn-"))
+	(gstart (gensym "start-"))
+	(gend (gensym "end-")))
+    `(let* ((,gfn (lambda () 
+		    (let* ((,gevent-count 0)
+			   (,gdelay (truncate (* ,delay internal-time-units-per-second)))
+			   (,gstart (get-internal-real-time))
+			   (,gend (+ ,gstart ,gdelay)))
+		      (declare (type fixnum ,gevent-count))
+		      (flet ((did-event () (incf ,gevent-count))) 
+			(loop while (< (get-internal-real-time) ,gend) do
+			     (progn ,@body)))
+		      (let ((,gduration (float (/ (- ,gend ,gstart) 
+						  internal-time-units-per-second))))
+			(values
+			 (if (plusp ,gevent-count)
+			     (/ ,gevent-count ,gduration)
+			     0)
+			 ,gduration ,gevent-count))))))
+       #+(or)
+       (unless (compiled-function-p ,gfn)
+	 (setf ,gfn (compile nil ,gfn)))
+       (funcall ,gfn)))) 
 
 ;; stolen from metatilities
 (defmacro muffle-redefinition-warnings (&body body)
