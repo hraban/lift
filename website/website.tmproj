@@ -32,7 +32,7 @@
 			<key>filename</key>
 			<string>source/index.md</string>
 			<key>lastUsed</key>
-			<date>2010-04-25T15:20:06Z</date>
+			<date>2010-05-14T02:02:25Z</date>
 		</dict>
 		<dict>
 			<key>filename</key>
@@ -62,7 +62,7 @@
 			<key>filename</key>
 			<string>../../shared/shared-links.md</string>
 			<key>lastUsed</key>
-			<date>2010-04-25T15:20:06Z</date>
+			<date>2010-05-14T02:06:00Z</date>
 			<key>selected</key>
 			<true/>
 		</dict>
@@ -78,12 +78,12 @@
 				<key>column</key>
 				<integer>0</integer>
 				<key>line</key>
-				<integer>0</integer>
+				<integer>37</integer>
 			</dict>
 			<key>firstVisibleColumn</key>
 			<integer>0</integer>
 			<key>firstVisibleLine</key>
-			<integer>32</integer>
+			<integer>28</integer>
 		</dict>
 		<key>source/glossary.md</key>
 		<dict>
@@ -143,11 +143,72 @@
 			<key>firstVisibleLine</key>
 			<integer>19</integer>
 		</dict>
+		<key>source/resources/header.md</key>
+		<dict>
+			<key>caret</key>
+			<dict>
+				<key>column</key>
+				<integer>0</integer>
+				<key>line</key>
+				<integer>0</integer>
+			</dict>
+			<key>firstVisibleColumn</key>
+			<integer>0</integer>
+			<key>firstVisibleLine</key>
+			<integer>0</integer>
+		</dict>
+		<key>source/resources/navigation.md</key>
+		<dict>
+			<key>caret</key>
+			<dict>
+				<key>column</key>
+				<integer>0</integer>
+				<key>line</key>
+				<integer>0</integer>
+			</dict>
+			<key>firstVisibleColumn</key>
+			<integer>0</integer>
+			<key>firstVisibleLine</key>
+			<integer>0</integer>
+		</dict>
+		<key>source/resources/shared-header.md</key>
+		<dict>
+			<key>caret</key>
+			<dict>
+				<key>column</key>
+				<integer>0</integer>
+				<key>line</key>
+				<integer>15</integer>
+			</dict>
+			<key>columnSelection</key>
+			<false/>
+			<key>firstVisibleColumn</key>
+			<integer>0</integer>
+			<key>firstVisibleLine</key>
+			<integer>0</integer>
+			<key>selectFrom</key>
+			<dict>
+				<key>column</key>
+				<integer>0</integer>
+				<key>line</key>
+				<integer>10</integer>
+			</dict>
+			<key>selectTo</key>
+			<dict>
+				<key>column</key>
+				<integer>0</integer>
+				<key>line</key>
+				<integer>15</integer>
+			</dict>
+		</dict>
 	</dict>
 	<key>openDocuments</key>
 	<array>
 		<string>source/index.md</string>
 		<string>../../shared/shared-links.md</string>
+		<string>source/resources/header.md</string>
+		<string>source/resources/navigation.md</string>
+		<string>source/resources/shared-header.md</string>
 	</array>
 	<key>showFileHierarchyDrawer</key>
 	<true/>

@@ -341,21 +341,35 @@ cause a failure.
 
 `condition` may also be a list of the form 
 
-    (condition &key catch-all-conditions? report arguments)
+    (condition &key catch-all-conditions? report arguments name validate)
 
-If this form is used and `catch-all-conditions? is true, then 
+If this form is used then the values are uses as follows:
+
+* report and arguments are used to display additional information when the
+ensure fails.
+
+* `catch-all-conditions? - if true, then 
 the signaling of _any_ other condition will cause a test failure.
+
+* validate - if supplied, this will be evaluated when the condition is signaled 
+  with the condition bound to the variable `condtion` (unless name is used to 
+  change this).  `validate` can be used to ensure additional constaints on the condition.
+
+* name - if supplied, this will be the name of the variable bound to the 
+  condition in the validate clause.
+
 "
   (setf condition (remove-leading-quote condition))
-  (destructuring-bind (condition &key report arguments catch-all-conditions?)
+  (destructuring-bind (condition &key report arguments catch-all-conditions?
+				 validate name)
                       (if (consp condition) condition (list condition))
     (let ((g (gensym)))
       `(let ((,g nil))
          (unwind-protect
            (handler-case 
              (progn ,@body)
-             (,condition (cond) 
-                         (declare (ignore cond)) (setf ,g t))
+             (,condition (,name) 
+                         (declare (ignorable ,name)) (setf ,g t) ,validate)
              (,(if catch-all-conditions?
 		   'condition 'error)
 		 (cond) 
@@ -543,16 +557,17 @@ test failure is generated instead of a warning"
   format)
 
 (defmacro defcondition (name/options (&rest super-conditions)
-			slot-names &optional format &rest args &environment e)
+			slot-specs &optional format &rest args &environment e)
   ;; name/options can be a symbol or a list consisting of
   ;; (symbol &key exportp documentation
-  (destructuring-bind (name &key documentation (exportp t))
+  (destructuring-bind (name &key documentation (exportp t) slot-names)
       (if (consp name/options) 
 	  name/options (list name/options))
     (let ((all-slot-names
 	   (remove-duplicates
-	    (loop for super in super-conditions append
-		 (class-slot-names super))))
+	    (append slot-names
+		    (loop for super in super-conditions append
+			 (class-slot-names super)))))
 	  (format (and format
 		       (setf format (newlinify format)))))
       (flet ((massage-slot (slot-spec)
@@ -570,7 +585,7 @@ test failure is generated instead of a warning"
 	     ,@(when exportp
 		     `((export '(,name))))
 	     (define-condition ,name ,super-conditions
-	       ,(mapcar #'massage-slot slot-names)
+	       ,(mapcar #'massage-slot slot-specs)
 	       ,@(when documentation
 		       `((:documentation ,documentation)))
 	       ,@(when format

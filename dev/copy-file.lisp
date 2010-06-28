@@ -16,7 +16,8 @@
 (defcondition (source/target-target-already-exists-error
 	       :documentation 
 	       "This error is signaled when the target pathname already exists."
-	       :exportp nil)
+	       :exportp nil
+	       :slot-names (source-pathname target-pathname))
     (source/target-file-error)
   ()
   "File action failed because target ~S already exists"
@@ -25,7 +26,8 @@
 (defcondition (source/target-source-does-not-exist-error
 	       :documentation 
 	       "This error is signaled when the source file does not exist."
-	       :exportp nil)
+	       :exportp nil
+	       :slot-names (source-pathname target-pathname))
     (source/target-file-error)
   ()
   "File action failed because source ~S does not exist"

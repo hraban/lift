@@ -189,11 +189,15 @@ the class itself is not included in the mapping. Proper? defaults to nil."
     (nreverse result)))
 
 (defun superclasses (thing &key (proper? t))
-  "Returns a list of superclasses of thing. Thing can be a class, object or symbol naming a class. The list of classes returned is 'proper'; it does not include the class itself."
+  "Returns a list of superclasses of thing. Thing can be a class,
+object or symbol naming a class. The list of classes returned is
+'proper'; it does not include the class itself."
   (let ((result (class-precedence-list (get-class thing))))
     (if proper? (rest result) result)))
 
 (defun class-slot-names (thing)
+  (declare (ignorable thing))
+  #+allegro
   (let ((class (get-class thing)))
     (if class
       (mapcar 'mop:slot-definition-name
@@ -203,7 +207,10 @@ the class itself is not included in the mapping. Proper? defaults to nil."
 	nil))))
 
 (defun finalize-class-if-necessary (thing)
-  "Finalizes thing if necessary. Thing can be a class, object or symbol naming a class. Returns the class of thing."
+  "Finalizes thing if necessary. Thing can be a class, object or
+symbol naming a class. Returns the class of thing."
+  (declare (ignorable thing))
+  #+allegro
   (let ((class (get-class thing)))
     (unless (mop:class-finalized-p class)
       (mop:finalize-inheritance class))
