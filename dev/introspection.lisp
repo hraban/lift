@@ -451,7 +451,7 @@ control over where in the test hierarchy the search begins."
 	     (add-group suite))
 	   (pop rest)
 	   (push (cons suite name) sub-result))
-      (add-group sub-result nil))))
+      (add-group sub-result))))
 
 #|
 (divide-cases 
