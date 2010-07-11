@@ -361,8 +361,8 @@ the signaling of _any_ other condition will cause a test failure.
 "
   (setf condition (remove-leading-quote condition))
   (destructuring-bind (condition &key report arguments catch-all-conditions?
-				 validate name)
-                      (if (consp condition) condition (list condition))
+				 validate (name (gensym (symbol-name '#:name-))))
+      (if (consp condition) condition (list condition))
     (let ((g (gensym)))
       `(let ((,g nil))
          (unwind-protect
