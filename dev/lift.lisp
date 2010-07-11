@@ -69,16 +69,16 @@
   ((message :initform ""))
   "~%~A" message)
 
-(defcondition test-timeout-condition (test-condition) 
+(defcondition (test-timeout-condition :slot-names (message)) (test-condition) 
   ((maximum-time :initform *test-maximum-time*))
   "Test ran out of time (longer than ~S-second~:P)" 
   maximum-time)
 
-(defcondition ensure-failed-error (test-condition) 
+(defcondition (ensure-failed-error  :slot-names (message)) (test-condition) 
   ((assertion :initform ""))
    "Ensure failed: ~S ~@[(~a)~]" assertion message)
 
-(defcondition ensure-null-failed-error (ensure-failed-error)
+(defcondition (ensure-null-failed-error :slot-names (message)) (ensure-failed-error)
   ((value :initform "")
    (assertion :initform ""))
   "Ensure null failed: ~s evaluates to ~s ~@[(~a)~]"
@@ -104,13 +104,15 @@
 (defcondition failed-comparison-condition (test-condition) 
   (first-value second-value test))
 
-(defcondition ensure-not-same (failed-comparison-condition) 
+(defcondition (ensure-not-same :slot-names (first-value second-value test message))
+    (failed-comparison-condition) 
   ()
   "Ensure-same: ~S is not ~a to ~S~@[ (~a)~]"
   first-value (test-function-name test)
   second-value message)
 
-(defcondition ensure-same (failed-comparison-condition) 
+(defcondition (ensure-same :slot-names (first-value second-value test message))
+    (failed-comparison-condition) 
   ()
   "Ensure-different: ~S is ~a to ~S~@[ (~a)~]"
   first-value (test-function-name test) second-value message)
