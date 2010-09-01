@@ -8,14 +8,14 @@
 		 (break-on-errors? *test-break-on-errors?*)
 		 (break-on-failures? *test-break-on-failures?*)
 		 (result nil)
-		 (profile nil)
+		 (profile *profile-style* profile-supplied?)
                  (testsuite-initargs nil))
   "Run a single test-case in a testsuite. Will run the most recently
 defined or run testcase unless the name and suite arguments are used
 to override them."
   (assert suite nil "Test suite could not be determined.")
   (assert name nil "Test-case could not be determined.")
-  (when profile
+  (when profile-supplied?
     (push profile testsuite-initargs)
     (push :profile testsuite-initargs))
   (let* ((*test-break-on-errors?* break-on-errors?)
@@ -94,7 +94,7 @@ to override them."
 		  (config nil)
 		  (dribble *lift-dribble-pathname*)
 		  (report-pathname *lift-report-pathname*)
-		  (profile nil)
+		  (profile *profile-style* profile-supplied?)
 		  (skip-tests *skip-tests*)
 		  ;(timeout nil)
 		  (do-children? *test-run-subsuites?*)
@@ -115,7 +115,7 @@ to override them."
 	(remf args :do-children?)
 	(remf args :testsuite-initargs)
 	(remf args :profile)
-	(when profile
+	(when profile-supplied?
 	  (push profile testsuite-initargs)
 	  (push :profile testsuite-initargs))
 	(let* ((*lift-report-pathname*
@@ -136,7 +136,9 @@ but not both."))
 		(config
 		 (unless result
 		   (setf result
-			 (apply #'make-test-result config :multiple args)))
+			 (apply #'make-test-result config :multiple 
+				:testsuite-initargs testsuite-initargs 
+				args)))
 		 (when report-pathname
 		   (write-log-header report-pathname result args-copy))
 		 (let* ((*test-result* result))
@@ -145,7 +147,8 @@ but not both."))
 		 (unless result
 		   (setf result
 			 (apply #'make-test-result suite 
-				:multiple args)))
+				:multiple :testsuite-initargs testsuite-initargs
+				args)))
 		 (setf (testsuite-initargs result) testsuite-initargs)
 		 (when report-pathname
 		   (write-log-header report-pathname result args-copy))

@@ -26,6 +26,8 @@
        #:report-hooks-for
        #:add-report-hook-for
        #:with-profile-report
+       #:*profile-style*
+       #:*count-calls-p*
        #:describe-test-result
        #:make-test-result
        #:count-repetitions

@@ -15,7 +15,7 @@
    (log-file :initform nil :initarg :log-file :reader log-file)
    (test-data :initform nil :accessor test-data)
    (profile 
-    :initform nil
+    :initform *profile-style*
     :initarg :profile
     :accessor profile))
   (:documentation "A test suite")
