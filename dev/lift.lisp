@@ -1473,27 +1473,21 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 	(call-next-method))
       (call-next-method)))
 
-(defmethod lift-test :around ((suite test-mixin) name)
-  (if (profile suite)
-      (with-profile-report ((format nil "~a-~a" 
-				    (testsuite-name suite) name) 
-			    (profile suite))
-	(call-next-method))
-      (call-next-method)))
-
-(defmethod do-testing :around ((testsuite process-test-mixin) result fn)
-  (declare (ignore fn))
-  (handler-case
-      (with-timeout ((maximum-time testsuite))
-	(call-next-method))
-    (timeout-error 
-	(c)
-      (declare (ignore c))
-      (let ((suite-name (class-name (class-of testsuite))))
-	(report-test-problem
-	 'test-timeout-failure result suite-name (current-method testsuite)
-	 (make-instance 'test-timeout-condition
-			:maximum-time (maximum-time testsuite)))))))
+(defmethod do-test :around ((suite process-test-mixin) name result)
+  (declare (ignore name))
+  (handler-bind ((timeout-error 
+		  (lambda (c)
+		    (let ((suite-name (class-name (class-of suite))))
+		      (report-test-problem
+		       'test-timeout-failure result suite-name (current-method suite)
+		       (make-instance 'test-timeout-condition
+				      :maximum-time (maximum-time suite))))
+		    (if (find-restart 'test-failed)
+			(invoke-restart 'test-failed c) 
+			(error c)))))
+    (with-timeout ((maximum-time suite))
+      (call-next-method))
+    ))
 
 (defmethod testsuite-log-data ((suite t))
   nil)

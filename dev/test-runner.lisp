@@ -246,7 +246,8 @@ nor configuration file options were specified.")))))
 	 (suite-name (class-name (class-of suite)))
 	 (*current-test-case-name* test-case-name)
 	 (*current-testsuite-name* suite-name)
-	 (error nil))
+	 (error nil)
+	 (current-condition nil))
     (loop for case in (ensure-list
 		       (test-case-option suite-name test-case-name :depends-on))
        unless (test-case-tested-p suite-name case) do
@@ -310,16 +311,24 @@ nor configuration file options were specified.")))))
 	     (report-test-problem
 	      'test-failure result suite-name
 	      *current-test-case-name* condition)
-	     (if (and *test-break-on-failures?*
-		      (not (test-case-expects-failure-p 
-			    suite-name test-case-name)))
-		 (let ((*in-middle-of-failure?* nil))
-		   (invoke-debugger condition))
-		 (go :test-end)))
+	     (setf current-condition condition)
+	     (go :test-failed))
+	   (test-failed (condition) 
+	     :test (lambda (c) (declare (ignore c)) 
+			   *in-middle-of-failure?*)
+	     (setf current-condition condition)
+	     (go :test-failed))
 	   (retry-test () 
 	     :report (lambda (s) (format s "Re-run test-case ~a"
 			     *current-test-case-name*))
 	     (go :test-start)))
+	 :test-failed
+	 (if (and *test-break-on-failures?*
+		  (not (test-case-expects-failure-p 
+			suite-name test-case-name)))
+	     (let ((*in-middle-of-failure?* nil))
+	       (invoke-debugger current-condition))
+	     (go :test-end))
        :test-end)
       (maybe-push-result)))
   (setf *current-test-case-name* test-case-name	*test-result* result)
