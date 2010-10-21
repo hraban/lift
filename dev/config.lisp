@@ -253,6 +253,8 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
 (defconfig-variable :maximum-errors *test-maximum-error-count*)
 (defconfig-variable :maximum-error-count *test-maximum-error-count*)
 
+(defconfig-variable :profile-style *profile-style*)
+
 (defgeneric report-pathname (method &optional result))
 
 (defmethod report-pathname :around ((method (eql :html)) 
