@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>currentDocument</key>
-	<string>../../shared/shared-links.md</string>
+	<string>source/resources/navigation.md</string>
 	<key>documents</key>
 	<array>
 		<dict>
@@ -32,7 +32,7 @@
 			<key>filename</key>
 			<string>source/index.md</string>
 			<key>lastUsed</key>
-			<date>2010-05-14T02:02:25Z</date>
+			<date>2010-12-14T15:35:04Z</date>
 		</dict>
 		<dict>
 			<key>filename</key>
@@ -62,9 +62,7 @@
 			<key>filename</key>
 			<string>../../shared/shared-links.md</string>
 			<key>lastUsed</key>
-			<date>2010-05-14T02:06:00Z</date>
-			<key>selected</key>
-			<true/>
+			<date>2010-12-14T15:31:31Z</date>
 		</dict>
 	</array>
 	<key>fileHierarchyDrawerWidth</key>
@@ -104,30 +102,14 @@
 			<key>caret</key>
 			<dict>
 				<key>column</key>
-				<integer>0</integer>
+				<integer>8</integer>
 				<key>line</key>
-				<integer>72</integer>
+				<integer>28</integer>
 			</dict>
-			<key>columnSelection</key>
-			<false/>
 			<key>firstVisibleColumn</key>
 			<integer>0</integer>
 			<key>firstVisibleLine</key>
-			<integer>41</integer>
-			<key>selectFrom</key>
-			<dict>
-				<key>column</key>
-				<integer>0</integer>
-				<key>line</key>
-				<integer>67</integer>
-			</dict>
-			<key>selectTo</key>
-			<dict>
-				<key>column</key>
-				<integer>0</integer>
-				<key>line</key>
-				<integer>72</integer>
-			</dict>
+			<integer>40</integer>
 		</dict>
 		<key>source/mucking.lisp</key>
 		<dict>
