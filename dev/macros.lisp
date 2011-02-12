@@ -470,11 +470,21 @@ is generated instead of a warning"
 				       (cancel-testing :interrupt)))
 				    (error 
 				     (lambda (condition)
-				       (push (list ,case condition) ,errors)
-				       (go :continue))))
+				       (let ((*in-middle-of-failure?* nil))
+					 (push (list ,case condition) ,errors)
+					 (when (and *test-break-on-errors?*
+						    (not (test-case-expects-error-p 
+							  *current-testsuite-name* *current-test-case-name*)))
+					   (invoke-debugger condition))
+					 (go :continue)))))
 		       (progn ,@body))
 		   (ensure-failed (cond)
-		     (push (list ,case cond) ,problems))))
+		     (push (list ,case cond) ,problems)
+		     (when (and *test-break-on-failures?*
+				(not (test-case-expects-failure-p 
+				      *current-testsuite-name* *current-test-case-name*)))
+		       (let ((*in-middle-of-failure?* nil))
+			 (invoke-debugger cond))))))
 	       :continue))
        (if (or ,problems ,errors)
 	 (let ((condition (make-condition 
@@ -487,6 +497,7 @@ is generated instead of a warning"
 	       (warn condition)))
 	 ;; return true if we're happy
 	 t))))
+
 
 #+(or)
 (defmacro ensure-member
