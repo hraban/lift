@@ -149,6 +149,7 @@
        #:liftpropos
 
        #:handle-config-preference
+       #:defconfg-variable
 
        #:start-periodic-profiling
        #:stop-periodic-profiling
