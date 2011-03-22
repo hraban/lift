@@ -12,6 +12,7 @@
        #+cmu #:clos-mop
        #+sbcl #:sb-mop
        #+scl #:clos
+       #+abcl #:mop
        #:class-direct-subclasses
        #:class-direct-superclasses
        #:class-precedence-list)

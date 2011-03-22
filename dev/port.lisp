@@ -145,6 +145,12 @@ returns a string with the corresponding backtrace.")
   (with-output-to-string (s)
     (system::print-backtrace :out s)))
 
+#+abcl
+(defun get-backtrace (error)
+  (declare (ignore error))
+  (sys::backtrace-as-list))
+	   
+
 #+(or cmucl scl)
 (defun get-backtrace-as-string (error)
   (declare (ignore error))
