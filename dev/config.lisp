@@ -147,55 +147,67 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
       (loop while (not (eq (setf form (read *current-configuration-stream* 
       					    nil :eof nil)) :eof)) 
       	 collect
-      	 (handler-bind 
-      	     ((error 
-	       (lambda (c)
-		 (handle-configuration-problem 
-		  'test-configuration-error
-		  "Error while running ~a from ~a: ~a" form path c)
-		 ;(pprint (get-backtrace c))
-		 #+(or)
-		 ;;
-		 (invoke-debugger c)
-		 )))
-	   (format t "~&handle config: ~s" form)
-      	   (destructuring-bind
-      		 (name &rest args)
-      	       form
-      	     (assert (typep name 'symbol) nil
-      		     "Each command must be a symbol and ~s is not." name)
-      	     (setf args (massage-arguments args))
-      	     (cond 
-      	       ;; check for preferences first (i.e., keywords)
-      	       ((eq (symbol-package name) 
-      		    (symbol-package :keyword))
-      		;; must be a preference
-      		(handle-config-preference name args))
-              ((and run-tests-p (symbolp name))
-      		(multiple-value-bind (_ restartedp)
-		    (restart-case 
-			(if (find-testsuite name :errorp nil)
-			    (run-tests :suite name 
-				       :result *test-result*
-				       :dribble *config-dribble-pathname*
-				       :testsuite-initargs args)
-			    (handle-configuration-problem
-			     'test-configuration-failure
-			     "Warning: testsuite ~s not found, skipping" name))
-		      (cancel-testing-from-configuration (result)
-			:report (lambda (stream)
-				  (format stream "Cancel testing from file ~a"
-					  path))
-			(declare (ignore result))
-			(values nil t)))
-      		  (declare (ignore _))
-      		  ;; no more testing; continue to process commands
-      		  (when restartedp 
-      		    (setf run-tests-p nil))))
-      	       (t
-      		(handle-configuration-problem
-		 'test-configuration-failure "Don't understand '~s' while reading from ~s" 
-		 form path))))))))
+	   (tagbody 
+	      (flet ((stop-running-tests ()
+		       (setf run-tests-p nil)))
+		#+allegro
+		(excl:set-signal-handler excl::*sigterm*
+				    (lambda (a b)
+				      (declare (ignore a b))
+				      (format t "~%Got sigterm~%")
+				      (stop-running-tests)
+				      (go :loop-end)))
+		(handler-bind 
+		    ((error 
+		      (lambda (c)
+			(handle-configuration-problem 
+			 'test-configuration-error
+			 "Error while running ~a from ~a: ~a" form path c)
+					;(pprint (get-backtrace c))
+			#+(or)
+			;;
+			(invoke-debugger c)
+			)))
+		  (format t "~&handle config: ~s" form)
+		  (destructuring-bind
+			(name &rest args)
+		      form
+		    (assert (typep name 'symbol) nil
+			    "Each command must be a symbol and ~s is not." name)
+		    (setf args (massage-arguments args))
+		    (cond 
+		      ;; check for preferences first (i.e., keywords)
+		      ((eq (symbol-package name) 
+			   (symbol-package :keyword))
+		       ;; must be a preference
+		       (handle-config-preference name args))
+		      ((symbolp name)
+		       (when run-tests-p
+			 (multiple-value-bind (_ restartedp)
+			     (restart-case 
+				 (if (find-testsuite name :errorp nil)
+				     (run-tests :suite name 
+						:result *test-result*
+						:dribble *config-dribble-pathname*
+						:testsuite-initargs args)
+				     (handle-configuration-problem
+				      'test-configuration-failure
+				      "Warning: testsuite ~s not found, skipping" name))
+			       (cancel-testing-from-configuration (result)
+				 :report (lambda (stream)
+					   (format stream "Cancel testing from file ~a"
+						   path))
+				 (declare (ignore result))
+				 (values nil t)))
+			   (declare (ignore _))
+			   ;; no more testing; continue to process commands
+			   (when restartedp 
+			     (setf run-tests-p nil)))))
+		      (t
+		       (handle-configuration-problem
+			'test-configuration-failure "Don't understand '~s' while reading from ~s" 
+			form path))))))
+	      :loop-end))))
   (values *test-result*))
 
 (defun massage-arguments (args)
