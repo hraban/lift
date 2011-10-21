@@ -1168,3 +1168,54 @@ lift::(progn
   (declare (ignore stream current-suite))
   )
 
+;;;
+
+(defmethod result-summary-tag ((problem t) (style (eql :brief)))
+  ".")
+
+(defmethod result-summary-tag ((problem test-problem-mixin) (style (eql :brief)))
+  "P")
+
+(defmethod result-summary-tag ((problem test-failure-mixin) (style (eql :brief)))
+  "F")
+
+(defmethod result-summary-tag ((problem test-error-mixin) (style (eql :brief)))
+  "E")
+
+(defmethod result-summary-tag ((problem testsuite-serious-condition) (style (eql :brief)))
+  "X")
+
+(defmethod result-summary-tag ((problem test-serious-condition) (style (eql :brief)))
+  "x")
+
+(defmethod result-summary-tag ((problem test-expected-failure) (style (eql :brief)))
+  "f")
+
+(defmethod result-summary-tag ((problem test-expected-error) (style (eql :brief)))
+  "e")
+
+;;
+
+(defmethod result-summary-tag ((problem t) (style t))
+  "Pass")
+
+(defmethod result-summary-tag ((problem test-problem-mixin) (style t))
+  "Problem")
+
+(defmethod result-summary-tag ((problem test-failure-mixin) (style t))
+  "Fail")
+
+(defmethod result-summary-tag ((problem test-error-mixin) (style t))
+  "Error")
+
+(defmethod result-summary-tag ((problem testsuite-serious-condition) (style t))
+  "Serious error in test suite")
+
+(defmethod result-summary-tag ((problem test-serious-condition) (style t))
+  "Serious error in test")
+
+(defmethod result-summary-tag ((problem test-expected-failure) (style t))
+  "Expected failure")
+
+(defmethod result-summary-tag ((problem test-expected-error) (style t))
+  "Expected error")
