@@ -644,8 +644,8 @@ lift::(progn
   (let ((tests (tests-run result))
 	(current-suite nil))
     (loop for rest = tests then (rest rest)
-       while rest
-       for (suite test-name datum) = (first rest) do
+       for (suite test-name datum) = (first rest) 
+       while rest do
        (unless (eq current-suite suite)
 	 (when current-suite
 	   (format stream "~%~%"))
