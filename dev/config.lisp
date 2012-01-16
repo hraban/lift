@@ -20,21 +20,21 @@ There are three ways to specify the directory:
 
 If :full-name is a pathname with a name and type, then these will be
 used rather than :name. If :unique-name is true (and the destination
-is not a stream), then the date and an integer tag will be added to the 
-name. E.g., the path `/tmp/lift-tests/report.txt` will become 
+is not a stream), then the date and an integer tag will be added to the
+name. E.g., the path `/tmp/lift-tests/report.txt` will become
 `/tmp/lift-tests/report-2009-02-01-1.txt`.
 
 
 For HTML, The report name specifies a _directory_. The :name property
 is ignored.
 
-There are three ways to specify the directory location. 
+There are three ways to specify the directory location.
 
 1. :full-name
 2. :relative-to
 3. the current directory (via *default-pathname-defaults*)
 
-In all cases, the report will go into 
+In all cases, the report will go into
 
 |#
 
@@ -56,12 +56,12 @@ In all cases, the report will go into
 (defvar *current-configuration-stream* nil)
 
 (defvar *current-asdf-system-name* nil
-  "Holds the name of the system being tested when using the `:generic` 
+  "Holds the name of the system being tested when using the `:generic`
 configuration.
 
 LIFT needs this to run the `:generic` configuration because this is
-how it determines which configuration file to load. If you use 
-`asdf:test-op` then this value will be set automatically. 
+how it determines which configuration file to load. If you use
+`asdf:test-op` then this value will be set automatically.
 Otherwise, you will need to set it yourself.")
 
 (eval-when (:load-toplevel :execute)
@@ -75,7 +75,7 @@ Otherwise, you will need to set it yourself.")
 \(if there is one\) or the *default-pathname-defaults*."
   (let* ((asdf-package (find-package :asdf))
 	 (srp-symbol (and asdf-package
-			  (find-symbol (symbol-name 'system-relative-pathname) 
+			  (find-symbol (symbol-name 'system-relative-pathname)
 				       asdf-package)))
 	 (srp (and *current-asdf-system-name* srp-symbol)))
     (labels ((try-it (path)
@@ -89,8 +89,8 @@ Otherwise, you will need to set it yourself.")
 	  (and (not srp-symbol)
 	       (error "Unable to use :generic configuration option because asdf:system-relative-pathname is not function bound (maybe try updating ASDF?)"))
 	  (and (not *current-asdf-system-name*)
-	       (error "Unable to use :generic configuration option 
-because the current system cannot be determined. You can either 
+	       (error "Unable to use :generic configuration option
+because the current system cannot be determined. You can either
 use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
 
 (defun find-generic-test-configuration (&optional (errorp nil))
@@ -114,12 +114,12 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
 
 (defun run-tests-from-file (path)
   (let ((real-path (cond ((eq path :generic)
-			  (setf path 
+			  (setf path
 				(find-generic-test-configuration t)))
 			 (t
 			  (probe-file path)))))
     (unless real-path
-      (error "Unable to find configuration file ~s" path)) 
+      (error "Unable to find configuration file ~s" path))
     (setf *test-result*
 	  (let* ((*package* *package*)
 		 (*read-eval* nil)
@@ -143,13 +143,14 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
     (let ((form nil)
       	  (run-tests-p t)
 	  (*lift-report-pathname* (report-summary-pathname)))
-      (loop while (not (eq (setf form (read *current-configuration-stream* 
-      					    nil :eof nil)) :eof)) 
+      (loop while (not (eq (setf form (read *current-configuration-stream*
+      					    nil :eof nil)) :eof))
       	 collect
-	   (tagbody 
+	   (tagbody
 	      (flet (#+(and allegro unix)
 		     (stop-running-tests ()
 		       (setf run-tests-p nil)))
+		(declare (ignorable (function stop-running-tests)))
 		#+(and allegro unix)
 		(excl:set-signal-handler excl::*sigterm*
 				    (lambda (a b)
@@ -157,10 +158,10 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
 				      (format t "~%Got sigterm~%")
 				      (stop-running-tests)
 				      (go :loop-end)))
-		(handler-bind 
-		    ((error 
+		(handler-bind
+		    ((error
 		      (lambda (c)
-			(handle-configuration-problem 
+			(handle-configuration-problem
 			 'test-configuration-error
 			 "Error while running ~a from ~a: ~a" form path c)
 					;(pprint (get-backtrace c))
@@ -175,18 +176,18 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
 		    (assert (typep name 'symbol) nil
 			    "Each command must be a symbol and ~s is not." name)
 		    (setf args (massage-arguments args))
-		    (cond 
+		    (cond
 		      ;; check for preferences first (i.e., keywords)
-		      ((eq (symbol-package name) 
+		      ((eq (symbol-package name)
 			   (symbol-package :keyword))
 		       ;; must be a preference
 		       (handle-config-preference name args))
 		      ((symbolp name)
 		       (when run-tests-p
 			 (multiple-value-bind (_ restartedp)
-			     (restart-case 
+			     (restart-case
 				 (if (find-testsuite name :errorp nil)
-				     (run-tests :suite name 
+				     (run-tests :suite name
 						:result *test-result*
 						:dribble *config-dribble-pathname*
 						:testsuite-initargs args)
@@ -201,11 +202,11 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
 				 (values nil t)))
 			   (declare (ignore _))
 			   ;; no more testing; continue to process commands
-			   (when restartedp 
+			   (when restartedp
 			     (setf run-tests-p nil)))))
 		      (t
 		       (handle-configuration-problem
-			'test-configuration-failure "Don't understand '~s' while reading from ~s" 
+			'test-configuration-failure "Don't understand '~s' while reading from ~s"
 			form path))))))
 	      #+(and allegro unix)
 	      :loop-end))))
@@ -219,7 +220,7 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
 	     (t arg))))
 
 (defmethod handle-config-preference ((name t) args)
-  (handle-configuration-problem 'test-configuration-failure "Unknown preference ~s (with arguments ~s)" 
+  (handle-configuration-problem 'test-configuration-failure "Unknown preference ~s (with arguments ~s)"
 		     name args))
 
 (defmethod handle-config-preference ((name (eql :include)) args)
@@ -272,7 +273,7 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
 
 (defgeneric report-pathname (method &optional result))
 
-(defmethod report-pathname :around ((method (eql :html)) 
+(defmethod report-pathname :around ((method (eql :html))
 				    &optional (result *test-result*))
   (cond ((and (test-result-property result :full-pathname)
 	      (streamp (test-result-property result :full-pathname)))
@@ -295,13 +296,13 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
 		    (merge-pathnames
 		     (make-pathname :name "index" :type "html")
 		     (pathname-sans-name+type
-		      (if old-unique-name 
+		      (if old-unique-name
 			  (unique-directory destination)
 			  destination)))))
 	     (setf (test-result-property result :name) old-name
-		   (test-result-property result :full-pathname) 
+		   (test-result-property result :full-pathname)
 		   old-full-pathname
-		   (test-result-property result :unique-name) 
+		   (test-result-property result :unique-name)
 		   old-unique-name))))))
 
 #+(or)
@@ -317,12 +318,12 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
 (defmethod report-pathname ((method t) &optional (result *test-result*))
   (let* ((given-report-name (test-result-property result :name))
 	 (report-type (string-downcase
-		       (ensure-string 
+		       (ensure-string
 			(test-result-property result :format))))
 	 (report-name (or (and given-report-name
 			       (not (eq given-report-name t))
 			       (merge-pathnames
-				given-report-name 
+				given-report-name
 				(make-pathname :type report-type)))
 			  (format nil "report.~a" report-type)))
 	 (via nil)
@@ -346,11 +347,11 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
 				(test-result-property result :full-pathname)
 				given-report-name))))
 		   (and (setf via :relative-to)
-			(let ((relative-to 
+			(let ((relative-to
 			       (test-result-property result :relative-to)))
 			  (and relative-to
 			       (asdf:find-system relative-to nil)
-			       (asdf:system-relative-pathname 
+			       (asdf:system-relative-pathname
 				relative-to report-name))))
 		   (and (setf via :current-directory)
 			(merge-pathnames
@@ -358,16 +359,16 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
 	 (unique-name? (test-result-property result :unique-name)))
     (when (stringp dest)
       (setf dest (translate-user dest)))
-    (values 
+    (values
      (if (and unique-name? (not (streamp dest)))
 	 (unique-filename dest)
 	 dest)
      via)))
 
 (defun translate-user (dest)
-  (loop for position = (search "$user" dest :test #'char-equal) 
+  (loop for position = (search "$user" dest :test #'char-equal)
      while position do
-     (setf dest (concatenate 
+     (setf dest (concatenate
 		 'string (subseq dest 0 position) (current-user)
 		 (subseq dest (+ position (length "$user"))))))
   dest)
@@ -385,33 +386,33 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
   (let* ((format (or (test-result-property *test-result* :format)
 		     :html))
 	 (dest (report-pathname format *test-result*)))
-    (with-standard-io-syntax 
+    (with-standard-io-syntax
       (let ((*print-readably* nil))
-	(handler-bind 
-	    ((error 
+	(handler-bind
+	    ((error
 	      (lambda (c)
 		(format *debug-io*
 			"Error ~a while generating report (format ~s) to ~a"
 			c format dest)
 		(format *debug-io*
-			"~%~%Backtrace~%~%~s" 
+			"~%~%Backtrace~%~%~s"
 			(get-backtrace c)))))
 	  (cond
-	    ((or (streamp dest) 
+	    ((or (streamp dest)
 		 (ensure-directories-exist dest)
 		 (writable-directory-p dest))
-	     (format *debug-io* "~&Sending report (format ~s) to ~a" 
+	     (format *debug-io* "~&Sending report (format ~s) to ~a"
 		     format dest)
 	     (loop for hook in (report-hooks-for :report-display-name) do
 	       (funcall hook format dest))
 	     (test-result-report
 	      *test-result* dest format))
 	    (t
-	     (format *debug-io* "~&Unable to write report (format ~s) to ~a" 
+	     (format *debug-io* "~&Unable to write report (format ~s) to ~a"
 		     format dest))))))))
-  
 
-(defconfig :trace 
+
+(defconfig :trace
   "Start tracing each of the arguments to :trace."
   (eval `(trace ,@args)))
 
@@ -427,24 +428,24 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
 	   (push arg *skip-tests*)
 	   (handle-configuration-problem 'test-configuration-failure "Unable to find testsuite ~a to skip" arg))))
 
-(defconfig :skip-tests 
+(defconfig :skip-tests
   (loop for arg in args do
        (let ((suite (if (consp arg) (first arg) arg))
 	     (test-case (if (consp arg) (second arg) nil)))
-	 (cond ((not (or (atom arg) 
+	 (cond ((not (or (atom arg)
 			 (= (length arg) 1) (= (length arg) 2)))
-		(handle-configuration-problem 
+		(handle-configuration-problem
 		 'test-configuration-failure
-		 ":skip-tests takes atoms or two element lists as arguments. Ignoring ~a in ~a" 
+		 ":skip-tests takes atoms or two element lists as arguments. Ignoring ~a in ~a"
 		 arg args))
 	       ((and (null test-case) (null (find-testsuite suite)))
 		(handle-configuration-problem
 		 'test-configuration-failure
 		 "Unable to find testsuite ~a to skip" suite))
 	       ((and test-case (null (find-test-case suite test-case)))
-		(handle-configuration-problem 
+		(handle-configuration-problem
 		 'test-configuration-failure
-		 "Unable to find test-case ~a in testsuite ~a to skip" 
+		 "Unable to find test-case ~a in testsuite ~a to skip"
 		 test-case suite))
 	       (t
 		(push (list suite test-case) *skip-tests*))))))

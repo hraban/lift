@@ -531,7 +531,7 @@ test failure is generated instead of a warning"
 )
 
 (defmacro with-test-slots (&body body)
-  `(symbol-macrolet ((lift-result (getf (test-data *current-test*) :result)))   
+  `(symbol-macrolet ((lift-result `(getf (test-data *current-test*) :result)))   
      ;; case111 - LW complains otherwise
      (declare (ignorable lift-result)
 	      ,@(when (def :dynamic-variables)
@@ -577,6 +577,7 @@ test failure is generated instead of a warning"
 	   (close ,var))))))
 
 (defmacro newlinify (format &environment e)
+  (declare (ignorable e))
   #+allegro
   (if (and (constantp format e)
            (stringp (sys:constant-value format e)))

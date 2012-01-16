@@ -59,3 +59,32 @@ the methods that should be run to do the tests for this testsuite."))
   (:method ((name t) (value t))
            (error "Unknown clause: ~A" name)))
 
+(defgeneric accumulate-problem (problem result))
+
+(defgeneric make-test-result (for test-mode &rest args))
+
+(defgeneric print-test-problem (prefix report stream show-code-p))
+
+(defgeneric testsuite-log-data (suite))
+
+(defgeneric problem-summarization (problem))
+
+(defgeneric report-test-suite-by-suite (format stream remaining current-suite suite))
+
+(defgeneric report-test-case-by-suite (format stream suite test-name datum))
+
+(defgeneric finish-report-tests-by-suite (format stream current-suite))
+
+(defgeneric write-log-test-start (format suite-name test-case-name &key stream))
+
+(defgeneric write-log-test-end (format suite-name test-case-name data &key stream))
+
+(defgeneric brief-problem-output (glitch))
+
+(defgeneric save-configuration-file (result destination))
+
+(defgeneric result-summary-tag (problem style))
+
+(defgeneric test-case-count (testsuite))
+
+(defgeneric do-testing (suite result fn))

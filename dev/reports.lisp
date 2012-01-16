@@ -809,9 +809,9 @@ lift::(progn
 
 (defmethod write-log-test (format suite-name test-case-name data
 			   &key (stream *standard-output*))
-  (write-log-test-start format suite-name test-case-name data
+  (write-log-test-start format suite-name test-case-name
 			:stream stream)
-  (write-log-test-end format suite-name test-case-name
+  (write-log-test-end format suite-name test-case-name data
 			:stream stream))
 
 (defmethod write-log-test-start

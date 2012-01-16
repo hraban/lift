@@ -88,8 +88,8 @@ returns a string with the corresponding backtrace.")
 	  (tpl:*zoom-print-circle* t)
 	  (tpl:*zoom-print-level* nil)
 	  (tpl:*zoom-print-length* nil))
-      (ignore-errors 
-	(format *terminal-io* "Creating backtrace for ~a to ~a" 
+      (ignore-errors
+	(format *terminal-io* "Creating backtrace for ~a to ~a"
 		condition output))
       (flet ((zoom (s)
 	       (ignore-errors
@@ -149,7 +149,7 @@ returns a string with the corresponding backtrace.")
 (defun get-backtrace (error)
   (declare (ignore error))
   (sys::backtrace-as-list))
-	   
+
 
 #+(or cmucl scl)
 (defun get-backtrace-as-string (error)
@@ -158,7 +158,6 @@ returns a string with the corresponding backtrace.")
     (let ((debug:*debug-print-level* nil)
           (debug:*debug-print-length* nil))
       (debug:backtrace most-positive-fixnum s))))
-
 
 #+allegro
 (defun cancel-current-profile (&key force?)
@@ -173,19 +172,19 @@ returns a string with the corresponding backtrace.")
    (ecase (prof::profiler-status :verbose nil)
     ((:inactive :analyzed) 0)
     ((:suspended :saved)
-     (slot-value (prof::current-profile-actual prof::*current-profile*) 
+     (slot-value (prof::current-profile-actual prof::*current-profile*)
 		 'prof::samples))
     (:sampling (warn "Can't determine count while sampling"))))
 
 #+allegro
 (defun show-flat-profile (output)
-  (let ((prof:*significance-threshold* 
+  (let ((prof:*significance-threshold*
 	 (or *profiling-threshold* prof:*significance-threshold*)))
     (prof:show-flat-profile :stream output)))
 
 #+allegro
 (defun show-call-graph (output)
-  (let ((prof:*significance-threshold* 
+  (let ((prof:*significance-threshold*
 	 (or *profiling-threshold* prof:*significance-threshold*)))
     (prof:show-call-graph :stream output)))
 
@@ -213,7 +212,7 @@ returns a string with the corresponding backtrace.")
 
 #-allegro
 ;; ugh!
-(defun with-profile-report-fn 
+(defun with-profile-report-fn
     (name style fn body &key
      (log-name *log-path*)
      (count-calls-p *count-calls-p*)
@@ -234,7 +233,6 @@ returns a string with the corresponding backtrace.")
     (+ (* (+ secs #.excl::seconds-1900-2015) 1000) fsecs))
   #+(version>= 10 0)
   (excl::get-universal-hi-res-time))
-
 #-allegro
 (defun get-test-real-time ()
   (* 1000 (get-universal-time)))

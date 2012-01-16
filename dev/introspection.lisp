@@ -151,7 +151,7 @@ control over where in the test hierarchy the search begins."
    (lambda (suite level)
      (let ((indent (coerce (make-list (* level 3) :initial-element #\Space)
 			   'string))
-	   (name (class-name suite)))
+	   (name suite))
        (format stream "~&~a~s (~:d)" 
 	       indent
 	       name

@@ -111,7 +111,7 @@ The accuracy can be no greater than {hs internal-time-units-per-second}.")
   
 (defun generate-profile-log-entry (log-name name seconds conses results error)
   (generate-log-entry name seconds conses :results results :error error
-		      :sample-count (and (plusp (current-profile-sample-count))
+		      :sample-count (and (plusp (the fixnum (current-profile-sample-count)))
 					 (current-profile-sample-count))
 		      :log-name log-name))
 
@@ -125,6 +125,7 @@ The accuracy can be no greater than {hs internal-time-units-per-second}.")
 			  :direction :output
 			  :if-does-not-exist :create
 			  :if-exists :append)
+    (declare (type stream output))
     (with-standard-io-syntax
       (let ((*print-readably* nil))
 	(terpri output)
