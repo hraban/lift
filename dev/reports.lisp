@@ -367,8 +367,8 @@ lift::(progn
   (let ((current-suite nil))
     (loop for rest = (sort (copy-list tests)
 			   'string-lessp :key 'first) then (rest rest) 
-       while rest
-       for (suite test-name datum) = (first rest) do
+       for (suite test-name datum) = (first rest)
+       while rest do
 	 (unless (eq current-suite suite)
 	   (report-test-suite-by-suite format stream rest current-suite suite)
 	   (setf current-suite suite))
@@ -880,13 +880,13 @@ lift::(progn
 #+allegro
 (defun show-flat-profile (output)
   (let ((prof:*significance-threshold* 
-	 (or *profiling-threshold* 0.01)))
+	 (or *profiling-threshold* prof:*significance-threshold*)))
     (prof:show-flat-profile :stream output)))
 
 #+allegro
 (defun show-call-graph (output)
   (let ((prof:*significance-threshold* 
-	 (or *profiling-threshold* 0.01)))
+	 (or *profiling-threshold* prof:*significance-threshold*)))
     (prof:show-call-graph :stream output)))
 
 #+allegro
