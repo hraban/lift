@@ -13,6 +13,7 @@
        #+sbcl #:sb-mop
        #+scl #:clos
        #+abcl #:mop
+       #+ecl #:clos
        #:class-direct-subclasses
        #:class-direct-superclasses
        #:class-precedence-list)
