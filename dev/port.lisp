@@ -160,3 +160,67 @@ returns a string with the corresponding backtrace.")
       (debug:backtrace most-positive-fixnum s))))
 
 
+
+
+
+#+allegro
+(defun cancel-current-profile (&key force?)
+  (when (prof::current-profile-actual prof::*current-profile*)
+    (unless force?
+      (assert (member (prof:profiler-status) '(:inactive))))
+    (prof:stop-profiler)
+    (setf prof::*current-profile* (prof::make-current-profile))))
+
+#+allegro
+(defun current-profile-sample-count ()
+   (ecase (prof::profiler-status :verbose nil)
+    ((:inactive :analyzed) 0)
+    ((:suspended :saved)
+     (slot-value (prof::current-profile-actual prof::*current-profile*) 
+		 'prof::samples))
+    (:sampling (warn "Can't determine count while sampling"))))
+
+#+allegro
+(defun show-flat-profile (output)
+  (let ((prof:*significance-threshold* 
+	 (or *profiling-threshold* prof:*significance-threshold*)))
+    (prof:show-flat-profile :stream output)))
+
+#+allegro
+(defun show-call-graph (output)
+  (let ((prof:*significance-threshold* 
+	 (or *profiling-threshold* prof:*significance-threshold*)))
+    (prof:show-call-graph :stream output)))
+
+#+allegro
+(defun show-call-counts (output)
+  (format output "~%~%Call counts~%")
+  (let ((*standard-output* output))
+    (prof:show-call-counts)))
+
+#-allegro
+(defun current-profile-sample-count ()
+  0)
+
+#-allegro
+(defun show-flat-profile (output)
+  (format output "~%~%Flat profile: unavailable for this Lisp~%"))
+
+#-allegro
+(defun show-call-graph (output)
+  (format output "~%~%Call graph: unavailable for this Lisp~%"))
+
+#-allegro
+(defun show-call-counts (output)
+  (format output "~%~%Call counts: unavailable for this Lisp~%"))
+
+#-allegro
+;; ugh!
+(defun with-profile-report-fn 
+    (name style fn body &key
+     (log-name *log-path*)
+     (count-calls-p *count-calls-p*)
+     (timeout nil)
+     destination)
+  (declare (ignorable name style fn body log-name count-calls-p timeout destination))
+  (funcall fn))

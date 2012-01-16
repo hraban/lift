@@ -32,26 +32,24 @@
 		"api"
 		:pathname "dev/"
 		:depends-on ("setup")
-		:components ((:file "generics")))
+		:components ((:file "generics")
+			     (:file "port")))
 	       (:module 
 		"dev" 
 		:depends-on ("setup" "api")
 		:components 
 		((:static-file "notes.text")
 		 (:file "lift"
-			:depends-on ("measuring" "port"))
+			:depends-on ("measuring"))
 		 (:file "copy-file"
 			:depends-on ())
 		 (:file "random-testing" 
 			:depends-on ("lift"))
-		 (:file "port" 
-			:depends-on ())
-		 (:file "measuring" 
-			:depends-on ("port"))
+		 (:file "measuring")
 		 (:file "config" 
-			:depends-on ("port" "lift"))
+			:depends-on ("lift"))
 		 (:file "reports" 
-			:depends-on ("port" "lift" "copy-file"))
+			:depends-on ("lift" "copy-file"))
 		 (:file "introspection" 
 			:depends-on ("lift"))
 		 (:file "test-runner" 
