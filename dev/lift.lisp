@@ -299,6 +299,7 @@
 
 (defmethod initialize-instance :after ((testsuite test-mixin) &rest initargs 
 				       &key &allow-other-keys)
+  (declare (ignorable initargs))
   (when (null (testsuite-name testsuite))
     (setf (slot-value testsuite 'name) 
 	  (symbol-name (type-of testsuite)))))
@@ -593,10 +594,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 		  ,@(when (def :dynamic-variables)
 			  `((defmethod do-testing :around
 				((suite ,(def :testsuite-name)) result fn) 
-			      (declare (ignore result fn)
-				       (special 
-					,@(mapcar 
-					   #'car (def :dynamic-variables))))
+			      (declare (ignore result fn))
 			      (with-test-slots
 				(cond ((done-dynamics? suite)
 				       (call-next-method))

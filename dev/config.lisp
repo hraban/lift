@@ -150,6 +150,7 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
 	   (tagbody 
 	      (flet ((stop-running-tests ()
 		       (setf run-tests-p nil)))
+		(declare (ignorable (function stop-running-tests)))
 		#+allegro
 		(excl:set-signal-handler excl::*sigterm*
 				    (lambda (a b)
