@@ -256,12 +256,6 @@ nor configuration file options were specified.")))))
 	     (let ((datum (list suite-name test-case-name (test-data suite))))
 	       (cond ((null result-pushed?)
 		      (setf result-pushed? t)
-		      (when *test-print-test-case-names*
-			(when (not (eq *test-print-test-case-names* :brief))
-			  (format *lift-debug-output* "~40T"))
-			(print-lift-message "~a"
-					    (result-summary-tag (getf (test-data suite) :problem)
-								*test-print-test-case-names*)))
 		      (push datum (tests-run result)))
 		     (t
 		      ;; replace
@@ -337,6 +331,12 @@ nor configuration file options were specified.")))))
 	     (go :test-end))
        :test-end)
       (maybe-push-result)))
+  (when *test-print-test-case-names*
+    (when (not (eq *test-print-test-case-names* :brief))
+      (format *lift-debug-output* "~40T"))
+    (print-lift-message "~a"
+                        (result-summary-tag (getf (test-data suite) :problem)
+                                            *test-print-test-case-names*)))
   (setf *current-test-case-name* test-case-name	*test-result* result)
   (third (first (tests-run result))))
 
