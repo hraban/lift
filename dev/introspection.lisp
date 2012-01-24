@@ -151,7 +151,9 @@ control over where in the test hierarchy the search begins."
    (lambda (suite level)
      (let ((indent (coerce (make-list (* level 3) :initial-element #\Space)
 			   'string))
-	   (name (class-name suite)))
+           (name (class-name (or (and (symbolp suite)
+                                      (find-class suite))
+                                 suite))))
        (format stream "~&~a~s (~:d)" 
 	       indent
 	       name
@@ -165,7 +167,9 @@ control over where in the test hierarchy the search begins."
 (defun list-tests (&key (include-cases? t) (start-at 'test-mixin) (stream t))
   "Lists all of the defined test classes from :start-at on down." 
   (mapc (lambda (subclass)
-	  (let ((subclass-name (class-name subclass)))
+          (let ((subclass-name (class-name (or (and (symbolp subclass)
+                                                    (find-class subclass))
+                                               (subclass)))))
 	    (format stream "~&~s (~:d)" 
 		    subclass-name
 		    (length (testsuite-methods subclass-name)))
