@@ -286,7 +286,6 @@
     (if current
       (setf (cdr current) value)
       (push (cons name value) *current-definition*)))
-
   (values value))
 
 (defstruct (code-block (:type list) (:conc-name nil))
