@@ -809,11 +809,7 @@ lift::(progn
 
 (defmethod write-log-test (format suite-name test-case-name data
 			   &key (stream *standard-output*))
-<<<<<<< cdd4b46bd5069b2ca18d34df3302dfdbda447cbe
   (write-log-test-start format suite-name test-case-name
-=======
-  (write-log-test-start format suite-name test-case-name 
->>>>>>> Cleanup, minor fixes
 			:stream stream)
   (write-log-test-end format suite-name test-case-name data
 			:stream stream))
@@ -865,10 +861,6 @@ lift::(progn
 
 ;;;;
 
-(defun encode-symbol (symbol)
-  (cons (symbol-name symbol)
-	(package-name (symbol-package symbol))))
-
 (defmethod brief-problem-output ((glitch testsuite-problem-mixin))
   (if (test-method glitch)
       (list (encode-symbol (testsuite glitch))
@@ -889,11 +881,7 @@ lift::(progn
 ;;;;;
 
 #+allegro
-<<<<<<< cdd4b46bd5069b2ca18d34df3302dfdbda447cbe
 (defun with-profile-report-fn
-=======
-(defun with-profile-report-fn 
->>>>>>> Cleanup, minor fixes
     (name style fn body &key
      (log-name *log-path*)
      (count-calls-p *count-calls-p*)
