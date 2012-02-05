@@ -502,3 +502,47 @@ if `putative-pair` is a cons cell with a non-nil cdr."
 	 (format nil "~a" thing))
 	(t
 	 thing)))
+
+(defun encode-symbol (symbol)
+  (cons (symbol-name symbol) 
+	(package-name (symbol-package symbol))))
+
+(defun def (name &optional (definition *current-definition*))
+  (when definition (cdr (assoc name definition))))
+
+(defun (setf def) (value name)
+  (set-definition name value))
+
+(defun %build-ensure-comparison
+    (form values guard-fn test test-specified-p report arguments
+     ignore-multiple-values?)
+  (setf test (remove-leading-quote test))
+  (when (and (consp test)
+             (eq (first test) 'function))
+    (setf test (second test)))
+  (let ((gblock (gensym "block-"))
+	(ga (gensym "a-"))
+	(gb (gensym "b-"))
+	(gtest (gensym "test-")))
+    `(block ,gblock
+       (flet ((,gtest (,ga ,gb)
+		(,@(cond (test-specified-p
+			  (if (atom test) 
+			      (list test)
+			      `(funcall ,test)))
+			 (t
+			  `(funcall *lift-equality-test*)))
+		   ,ga ,gb)))
+	 (loop for value in (,(if ignore-multiple-values? 
+				  'list 'multiple-value-list) ,form)
+	    for other-value in (,(if ignore-multiple-values? 
+				     'list 'multiple-value-list) ,values) do
+	    (,guard-fn (,gtest value other-value)
+		       (,(ecase guard-fn 
+				(unless 'maybe-raise-not-same-condition)
+				(when 'maybe-raise-ensure-same-condition))
+			 value other-value
+			 ,(if test-specified-p (list 'quote test) '*lift-equality-test*)
+			 ,report ,@arguments)
+		       (return-from ,gblock nil))))
+       (values t))))

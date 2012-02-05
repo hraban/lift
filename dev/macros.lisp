@@ -19,6 +19,15 @@ For example, compile without cross-reference information."
        (defmethod (setf ,property) (value (class-name symbol))
          (setf (get class-name ,real-name) value)))))
 
+;; some handy properties
+(defclass-property test-slots)
+(defclass-property test-code->name-table)
+(defclass-property test-name->code-table)
+(defclass-property test-case-documentation)
+(defclass-property testsuite-tests)
+(defclass-property testsuite-dynamic-variables)
+(defclass-property test-name->methods)
+
 (defmacro undefmeasure (name)
   (let ((gname (gensym "name-")))
     `(let ((,gname ,(form-keyword name)))
