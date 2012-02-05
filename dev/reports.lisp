@@ -835,10 +835,6 @@ lift::(progn
 
 ;;;;
 
-(defun encode-symbol (symbol)
-  (cons (symbol-name symbol) 
-	(package-name (symbol-package symbol))))
-
 (defmethod brief-problem-output ((glitch testsuite-problem-mixin))
   (if (test-method glitch)
       (list (encode-symbol (testsuite glitch))

@@ -17,6 +17,9 @@
        #:class-direct-subclasses
        #:class-direct-superclasses
        #:class-precedence-list)
+      (:import-from #:trivial-timeout
+		    #:with-timeout
+		    #:timeout-error)
       (:export
        #:generate-log-entry
        #:testsuite-log-data
@@ -37,7 +40,6 @@
        #:while-counting-events
        #:while-counting-repetitions*
        #:while-counting-events*
-       #:with-timeout
        #:did-event
 
        #:testsuite-ambiguous
@@ -159,7 +161,9 @@
 
        #:setup-test
        )
+      #+no
       (:export
+       #:with-timeout
        #:timeout-error))))
 
 (unless (and (find-package :asdf)

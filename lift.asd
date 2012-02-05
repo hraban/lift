@@ -2,7 +2,7 @@
 (in-package #:lift-system)
 
 (defsystem lift
-  :version "1.7.0"
+  :version "1.7.1"
   :author "Gary Warren King <gwking@metabang.com>"
   :maintainer "Gary Warren King <gwking@metabang.com>"
   :licence "MIT Style License; see file COPYING for details"
@@ -21,9 +21,9 @@
 		:components
 		((:file "packages")
 		 (:file "utilities" 
-			:depends-on ("packages" "macros" "definitions"))
-		 (:file "macros"
 			:depends-on ("packages" "definitions"))
+		 (:file "macros"
+			:depends-on ("packages" "utilities" "definitions"))
 		 (:file "definitions"
 			:depends-on ("packages"))
 		 (:file "class-defs"

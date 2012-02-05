@@ -158,40 +158,6 @@
 (defun lift-report-condition (c)
   (format *debug-io* "~&~A." c))
 
-(defun %build-ensure-comparison
-    (form values guard-fn test test-specified-p report arguments
-     ignore-multiple-values?)
-  (setf test (remove-leading-quote test))
-  (when (and (consp test)
-             (eq (first test) 'function))
-    (setf test (second test)))
-  (let ((gblock (gensym "block-"))
-	(ga (gensym "a-"))
-	(gb (gensym "b-"))
-	(gtest (gensym "test-")))
-    `(block ,gblock
-       (flet ((,gtest (,ga ,gb)
-		(,@(cond (test-specified-p
-			  (if (atom test) 
-			      (list test)
-			      `(funcall ,test)))
-			 (t
-			  `(funcall *lift-equality-test*)))
-		   ,ga ,gb)))
-	 (loop for value in (,(if ignore-multiple-values? 
-				  'list 'multiple-value-list) ,form)
-	    for other-value in (,(if ignore-multiple-values? 
-				     'list 'multiple-value-list) ,values) do
-	    (,guard-fn (,gtest value other-value)
-		       (,(ecase guard-fn 
-				(unless 'maybe-raise-not-same-condition)
-				(when 'maybe-raise-ensure-same-condition))
-			 value other-value
-			 ,(if test-specified-p (list 'quote test) '*lift-equality-test*)
-			 ,report ,@arguments)
-		       (return-from ,gblock nil))))
-       (values t))))
-
 (defun maybe-raise-not-same-condition (value-1 value-2 test 
 				       report &rest arguments)
   (let ((condition (make-condition 'ensure-not-same 
@@ -322,12 +288,6 @@
       (push (cons name value) *current-definition*)))
   
   (values value))
-
-(defun def (name &optional (definition *current-definition*))
-  (when definition (cdr (assoc name definition))))
-
-(defun (setf def) (value name)
-  (set-definition name value))
 
 (defstruct (code-block (:type list) (:conc-name nil))
   block-name (priority 0) filter code operate-when)
@@ -1422,15 +1382,6 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
               (append (subseq parsed-spec 0 pos)
                       (subseq parsed-spec (+ pos 2))))
             parsed-spec))))
-
-;; some handy properties
-(defclass-property test-slots)
-(defclass-property test-code->name-table)
-(defclass-property test-name->code-table)
-(defclass-property test-case-documentation)
-(defclass-property testsuite-tests)
-(defclass-property testsuite-dynamic-variables)
-(defclass-property test-name->methods)
 
 ;;?? issue 27: break encapsulation of code blocks
 (defclass-property testsuite-function-specs)
