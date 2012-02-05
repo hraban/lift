@@ -1,6 +1,5 @@
 {include resources/ug-header.md}
 {set-property title "LIFT User's Guide"}
-{set-property style-sheet user-guide}
 {set-property docs-package lift}
 
 # LIFT User's Guide

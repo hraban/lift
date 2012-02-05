@@ -1,3 +1,5 @@
+/* @override http://common-lisp.net/project/lift/user-guide.css */
+
 /* @group toc */
 
 .table-of-contents {
@@ -126,10 +128,12 @@ h3, h4 {
 .documentation.header {
 	display: block;
 	position: relative;
-	border-top-style: solid;
-	border-top-width: 1pt;
 	padding-top: 4px;
 	margin-top: 2em;
+	background-color: white;
+	color: black;
+	border: none;
+	border-top: 1pt solid #000;
 }
 
 .documentation.contents {
