@@ -287,7 +287,7 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
 		    (when old-name
 		      (setf destination
 			    (merge-pathnames
-			     (make-pathname :directory `(:relative ,old-name))
+			     (make-pathname :directory `(:relative ,@(split old-name '(#\/))))
 			     destination)))
 		    (print destination)
 		    (merge-pathnames
