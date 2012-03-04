@@ -53,6 +53,12 @@ In all cases, the report will go into
 (defgeneric handle-config-preference (name args)
   )
 
+(defgeneric validate-report-property (name args))
+
+(defmethod validate-report-property (name args)
+  (declare (ignore name args))
+  t)
+
 (defvar *current-configuration-stream* nil)
 
 (defvar *current-asdf-system-name* nil
@@ -255,7 +261,17 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
 
 (defmethod handle-config-preference ((name (eql :report-property))
 				     args)
-  (setf (test-result-property *test-result* (first args)) (second args)))
+  (let ((name (form-keyword (first args))))
+    (validate-report-property name (second args))
+    (setf (test-result-property *test-result* name) (second args))))
+
+(defmethod validate-report-property ((name (eql :name)) args)
+  ;; report name
+  (assert (stringp args) nil
+	  ":name property must be given a string, was given ~s" args)
+  (assert (null (pathname-directory args)) nil
+	  "The :name property must be a simple name (not a directory), use :full-pathname if
+you need more control"))
 
 (defconfig-variable :profiling-threshold *profiling-threshold*)
 
