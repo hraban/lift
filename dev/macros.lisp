@@ -560,10 +560,10 @@ test failure is generated instead of a warning"
 
 (defmacro newlinify (format &environment e)
   #+allegro
-  `(if (and (constantp ,format ,e)
-	   (stringp (sys:constant-value ,format ,e)))
-      (excl::newlinify-format-string (sys:constant-value ,format ,e))
-    ,format)
+  (if (and (constantp format e)
+           (stringp (sys:constant-value format e)))
+      `(excl::newlinify-format-string ,(sys:constant-value format e))
+      format)
   #-allegro
   format)
 
