@@ -1,15 +1,15 @@
 (in-package #:lift)
 
 (defun compile-quickly (body)
-  "Compile body with as much extra stuff as possible turned `off`. 
+  "Compile body with as much extra stuff as possible turned `off`.
 
 For example, compile without cross-reference information."
-  (#-allegro let #+allegro excl::compiler-let 
+  (#-allegro let #+allegro excl::compiler-let
 	     (#+allegro (excl:*record-xref-info* nil))
      (compile nil body)))
 
 (defmacro defclass-property (property &optional (default nil default-supplied?))
-  "Create getter and setter methods for 'property' on symbol's property lists." 
+  "Create getter and setter methods for 'property' on symbol's property lists."
   (let ((real-name (intern (format nil "~:@(~A~)" property) :keyword)))
     `(progn
        (defgeneric ,property (symbol))
@@ -35,7 +35,7 @@ For example, compile without cross-reference information."
 	   (setf *measures* (remove ,gname *measures* :key #'first))
 	   (error "Measure ~a not found." ,gname))
        ,gname)))
-  
+
 (defmacro defmeasure (name &key (value nil) (finally nil) (type nil)
 		      (documentation nil))
   (declare (ignore documentation))
@@ -56,9 +56,9 @@ For example, compile without cross-reference information."
     `(let ((,gname ,(form-keyword name)))
        (setf *measures* (remove ,gname *measures* :key #'first))
        (push (list ,gname
-		   :value ,value 
+		   :value ,value
 		   :finally ',finally
-		   :type ',type)		   
+		   :type ',type)
 	     *measures*)
        ,gname)))
 
@@ -86,14 +86,14 @@ For example, compile without cross-reference information."
 		 ,@(measure-1 vars measures)))
 	 (values ,gresult (list ,@vars) ,gcondition)))))
 
-#+(or) 
+#+(or)
 (while-measuring (space seconds)
     nil
   (sleep 1)
   (signal "hi"))
 
 #+(or)
-(measure-time-and-conses 
+(measure-time-and-conses
   (sleep 1)
   (signal "hi"))
 
@@ -103,7 +103,7 @@ For example, compile without cross-reference information."
 	(metadata (find (form-keyword measure) *measures* :key 'first)))
     (unless metadata
       (error "Measure `~a` not defined." measure))
-    (destructuring-bind (&key value finally type &allow-other-keys) 
+    (destructuring-bind (&key value finally type &allow-other-keys)
 	(rest metadata)
       `(let ((,ginitial (,value))
 	     (,gresult nil))
@@ -118,18 +118,18 @@ For example, compile without cross-reference information."
 				 ,ginitial)))))
 	 ,gresult))))
 
-(defmacro with-profile-report 
-    ((name style &key 
+(defmacro with-profile-report
+    ((name style &key
 	   (log-name *log-path* ln-supplied?)
 	   (count-calls-p *count-calls-p* ccp-supplied?)
 	   (timeout nil timeout-supplied?)
 	   (destination nil distination-supplied?))
      &body body)
-  `(with-profile-report-fn 
-       ,name ,style 
+  `(with-profile-report-fn
+       ,name ,style
        (compile-quickly (lambda () (progn ,@body)))
        ',body
-       ,@(when ccp-supplied? 
+       ,@(when ccp-supplied?
 	       `(:count-calls-p ,count-calls-p))
        ,@(when ln-supplied?
 	       `(:log-name ,log-name))
@@ -150,7 +150,7 @@ be executed more than a fixnum number of times. The `delay` defaults to
     `(let ((,gfn
 	    (compile
 	     nil
-	     (lambda () 
+	     (lambda ()
 	       (let ((,gevent-count 0)
 		     (,gdelay ,delay))
 		 (declare (type fixnum ,gevent-count))
@@ -165,9 +165,9 @@ be executed more than a fixnum number of times. The `delay` defaults to
 			 (float (/ ,gevent-count ,gdelay))
 			 ,gevent-count))))))))
 	   (funcall ,gfn))))
-  
+
 (defmacro while-counting-repetitions* ((&optional (delay 1.0)) &body body)
-  "Count the number of times `body` executes in `delay` seconds. 
+  "Count the number of times `body` executes in `delay` seconds.
 
 Warning: assumes that `body` will not be executed more than a fixnum
 number of times. The `delay` defaults to 1.0.
@@ -183,7 +183,7 @@ therefore assumes that `body` executes quickly relative to delay."
     `(let ((,gfn
 	    (compile
 	     nil
-	     '(lambda () 
+	     '(lambda ()
 	       (let* ((,gevent-count 0)
 		     (,gdelay (truncate (* ,delay internal-time-units-per-second)))
 		     (,gstart (get-internal-real-time))
@@ -192,7 +192,7 @@ therefore assumes that `body` executes quickly relative to delay."
 		 (loop while (< (get-internal-real-time) ,gend) do
 		      (progn ,@body)
 		      (setf ,gevent-count (the fixnum (1+ ,gevent-count))))
-		 (let ((,gduration (/ (- ,gend ,gstart) 
+		 (let ((,gduration (/ (- ,gend ,gstart)
 				      internal-time-units-per-second)))
 		   (values
 		    (if (plusp ,gevent-count)
@@ -202,7 +202,7 @@ therefore assumes that `body` executes quickly relative to delay."
        (funcall ,gfn))))
 
 (defmacro while-counting-events ((&optional (delay 1.0)) &body body)
-  "Returns the count of the number of times `did-event` was called during 
+  "Returns the count of the number of times `did-event` was called during
 `delay` seconds. See also: [while-counting-repetitions][]."
   (let ((gevent-count (gensym "count")))
     `(let ((,gevent-count 0))
@@ -211,12 +211,12 @@ therefore assumes that `body` executes quickly relative to delay."
 	 (declare (type fixnum ,gevent-count)
 		  (ignorable (function did-event)))
 	 (handler-case
-	     (with-timeout (,delay) 
-	       (loop  
+	     (with-timeout (,delay)
+	       (loop
 		  (progn ,@body)))
 	   (timeout-error (c)
 	     (declare (ignore c))
-	     (float (/ ,gevent-count ,delay)))))))) 
+	     (float (/ ,gevent-count ,delay))))))))
 
 (defmacro while-counting-events* ((&optional (delay 1.0)) &body body)
   "Count the number of times `did-event` is called `body` during `delay`.
@@ -232,16 +232,16 @@ therefore assumes that `body` executes quickly relative to delay."
 	(gfn (gensym "fn-"))
 	(gstart (gensym "start-"))
 	(gend (gensym "end-")))
-    `(let* ((,gfn (lambda () 
+    `(let* ((,gfn (lambda ()
 		    (let* ((,gevent-count 0)
 			   (,gdelay (truncate (* ,delay internal-time-units-per-second)))
 			   (,gstart (get-internal-real-time))
 			   (,gend (+ ,gstart ,gdelay)))
 		      (declare (type fixnum ,gevent-count))
-		      (flet ((did-event () (incf ,gevent-count))) 
+		      (flet ((did-event () (incf ,gevent-count)))
 			(loop while (< (get-internal-real-time) ,gend) do
 			     (progn ,@body)))
-		      (let ((,gduration (float (/ (- ,gend ,gstart) 
+		      (let ((,gduration (float (/ (- ,gend ,gstart)
 						  internal-time-units-per-second))))
 			(values
 			 (if (plusp ,gevent-count)
@@ -251,11 +251,11 @@ therefore assumes that `body` executes quickly relative to delay."
        #+(or)
        (unless (compiled-function-p ,gfn)
 	 (setf ,gfn (compile nil ,gfn)))
-       (funcall ,gfn)))) 
+       (funcall ,gfn))))
 
 ;; stolen from metatilities
 (defmacro muffle-redefinition-warnings (&body body)
-  "Evaluate the body so that redefinition warnings will not be 
+  "Evaluate the body so that redefinition warnings will not be
 signaled. (suppored in Allegro, Clozure CL, CLisp, and Lispworks)"
   #+allegro
   `(excl:without-redefinition-warnings
@@ -298,12 +298,12 @@ signaled. (suppored in Allegro, Clozure CL, CLisp, and Lispworks)"
 ;;;;
 
 (defmacro ensure (predicate &key report arguments)
-  "If ensure's `predicate` evaluates to false, then it will generate a 
+  "If ensure's `predicate` evaluates to false, then it will generate a
 test failure. You can use the `report` and `arguments` keyword parameters
 to customize the report generated in test results. For example:
 
-    (ensure (= 23 12) 
-     :report \"I hope ~a does not = ~a\" 
+    (ensure (= 23 12)
+     :report \"I hope ~a does not = ~a\"
      :arguments (12 23))
 
 will generate a message like
@@ -314,20 +314,20 @@ will generate a message like
     `(let ((,gpredicate ,predicate))
        (if ,gpredicate
 	   (values ,gpredicate)
-	   (let ((condition (make-condition 
-			     'ensure-failed-error 
+	   (let ((condition (make-condition
+			     'ensure-failed-error
 			     :assertion ',predicate
 			     ,@(when report
-				     `(:message 
+				     `(:message
 				       (format nil ,report ,@arguments))))))
 	     (if (find-restart 'ensure-failed)
-		 (invoke-restart 'ensure-failed condition) 
+		 (invoke-restart 'ensure-failed condition)
 		 (warn condition)))))))
 
 (defmacro ensure-null (predicate &key report arguments)
-  "If ensure-null's `predicate` evaluates to true, then it will generate a 
+  "If ensure-null's `predicate` evaluates to true, then it will generate a
 test failure. You can use the `report` and `arguments` keyword parameters
-to customize the report generated in test results. See [ensure][] for more 
+to customize the report generated in test results. See [ensure][] for more
 details."
   (let ((g (gensym)))
     `(let ((,g ,predicate))
@@ -339,7 +339,7 @@ details."
 			    ,@(when report
 				`(:message (format nil ,report ,@arguments))))))
 	   (if (find-restart 'ensure-failed)
-	       (invoke-restart 'ensure-failed condition) 
+	       (invoke-restart 'ensure-failed condition)
 	     (warn condition)))))))
 
 (defmacro ensure-condition (condition &body body)
@@ -348,7 +348,7 @@ details."
 If `condition` is an atom, then non-error conditions will _not_
 cause a failure.
 
-`condition` may also be a list of the form 
+`condition` may also be a list of the form
 
     (condition &key catch-all-conditions? report arguments name validate)
 
@@ -357,14 +357,14 @@ If this form is used then the values are uses as follows:
 * report and arguments are used to display additional information when the
 ensure fails.
 
-* `catch-all-conditions? - if true, then 
+* `catch-all-conditions? - if true, then
 the signaling of _any_ other condition will cause a test failure.
 
-* validate - if supplied, this will be evaluated when the condition is signaled 
-  with the condition bound to the variable `condtion` (unless name is used to 
+* validate - if supplied, this will be evaluated when the condition is signaled
+  with the condition bound to the variable `condtion` (unless name is used to
   change this).  `validate` can be used to ensure additional constaints on the condition.
 
-* name - if supplied, this will be the name of the variable bound to the 
+* name - if supplied, this will be the name of the variable bound to the
   condition in the validate clause.
 
 "
@@ -375,34 +375,34 @@ the signaling of _any_ other condition will cause a test failure.
     (let ((g (gensym)))
       `(let ((,g nil))
          (unwind-protect
-           (handler-case 
+           (handler-case
              (progn ,@body)
-             (,condition (,name) 
+             (,condition (,name)
                          (declare (ignorable ,name)) (setf ,g t) ,validate)
              (,(if catch-all-conditions?
 		   'condition 'error)
-		 (cond) 
+		 (cond)
                         (setf ,g t)
-                        (let ((c (make-condition 
+                        (let ((c (make-condition
                                   'ensure-expected-condition
                                   :expected-condition-type ',condition
                                   :the-condition cond
                                   ,@(when report
-                                      `(:message 
+                                      `(:message
 					(format nil ,report ,arguments))))))
                           (if (find-restart 'ensure-failed)
-                            (invoke-restart 'ensure-failed c) 
+                            (invoke-restart 'ensure-failed c)
                             (warn c)))))
            (when (not ,g)
              (if (find-restart 'ensure-failed)
                (invoke-restart
-		'ensure-failed 
-		(make-condition 
+		'ensure-failed
+		(make-condition
 		 'ensure-expected-condition
 		 :expected-condition-type ',condition
 		 :the-condition nil
 		 ,@(when report
-			 `(:message (format nil ,report ,arguments))))) 
+			 `(:message (format nil ,report ,arguments)))))
                (warn "Ensure-condition didn't get the condition it expected."))))))))
 
 (defmacro ensure-no-warning (&body body)
@@ -412,45 +412,45 @@ the signaling of _any_ other condition will cause a test failure.
     `(let ((,g nil)
 	   (,gcondition nil))
        (unwind-protect
-	    (handler-case 
+	    (handler-case
 		(progn ,@body)
 	      (warning (c)
 		(setf ,gcondition c ,g t)))
 	 (when ,g
-	   (let ((c (make-condition 
+	   (let ((c (make-condition
 		    'ensure-expected-no-warning-condition
 		    :the-condition ,gcondition)))
 	    (if (find-restart 'ensure-failed)
-		(invoke-restart 'ensure-failed c) 
+		(invoke-restart 'ensure-failed c)
 		(warn c))))))))
 
 (defmacro ensure-warning (&body body)
-  "Ensure-warning evaluates its body. If the body does *not* signal a 
+  "Ensure-warning evaluates its body. If the body does *not* signal a
 warning, then ensure-warning will generate a test failure."
   `(ensure-condition warning ,@body))
 
 (defmacro ensure-error (&body body)
-  "Ensure-error evaluates its body. If the body does *not* signal an 
+  "Ensure-error evaluates its body. If the body does *not* signal an
 error, then ensure-error will generate a test failure."
   `(ensure-condition error ,@body))
 
 (defmacro ensure-same
-    (form values &key (test nil test-specified-p) 
+    (form values &key (test nil test-specified-p)
      (report nil) (arguments nil)
      (ignore-multiple-values? nil))
-  "Ensure same compares value-or-values-1 value-or-values-2 or 
-each value of value-or-values-1 value-or-values-2 (if they are 
-multiple values) using test. If a comparison fails  
+  "Ensure same compares value-or-values-1 value-or-values-2 or
+each value of value-or-values-1 value-or-values-2 (if they are
+multiple values) using test. If a comparison fails
 ensure-same raises a warning which uses `report` as a format string
-and `arguments` as arguments to that string (if report and arguments 
-are supplied). If ensure-same is used within a test, a test failure 
+and `arguments` as arguments to that string (if report and arguments
+are supplied). If ensure-same is used within a test, a test failure
 is generated instead of a warning"
-  (%build-ensure-comparison form values 'unless 
+  (%build-ensure-comparison form values 'unless
 			    test test-specified-p report arguments
 			    ignore-multiple-values?))
 
 (defmacro ensure-different
-    (form values &key (test nil test-specified-p) 
+    (form values &key (test nil test-specified-p)
      (report nil) (arguments nil)
      (ignore-multiple-values? nil))
   "Ensure-different compares value-or-values-1 value-or-values-2 or each value of value-or-values-1 and value-or-values-2 (if they are multiple values) using test. If any comparison returns true, then ensure-different raises a warning which uses report as a format string and `arguments` as arguments to that string (if report and `arguments` are supplied). If ensure-different is used within a test, a test failure is generated instead of a warning"
@@ -467,22 +467,22 @@ is generated instead of a warning"
     `(let ((,problems nil) (,errors nil) (,total 0))
        (loop for ,case in ,cases do
 	    (incf ,total)
-	    (tagbody 
+	    (tagbody
 	       (destructuring-bind ,vars ,(if single-var-p `(list ,case) case)
 		 (restart-case
-		     (handler-bind ((warning #'muffle-warning)       
-					; ignore warnings... 
+		     (handler-bind ((warning #'muffle-warning)
+					; ignore warnings...
 				    #+(and allegro)
-				    (excl:interrupt-signal 
+				    (excl:interrupt-signal
 				     (lambda (_)
 				       (declare (ignore _))
 				       (cancel-testing :interrupt)))
-				    (error 
+				    (error
 				     (lambda (condition)
 				       (let ((*in-middle-of-failure?* nil))
 					 (push (list ,case condition) ,errors)
 					 (when (and *test-break-on-errors?*
-						    (not (test-case-expects-error-p 
+						    (not (test-case-expects-error-p
 							  *current-testsuite-name* *current-test-case-name*)))
 					   (invoke-debugger condition))
 					 (go :continue)))))
@@ -490,19 +490,19 @@ is generated instead of a warning"
 		   (ensure-failed (cond)
 		     (push (list ,case cond) ,problems)
 		     (when (and *test-break-on-failures?*
-				(not (test-case-expects-failure-p 
+				(not (test-case-expects-failure-p
 				      *current-testsuite-name* *current-test-case-name*)))
 		       (let ((*in-middle-of-failure?* nil))
 			 (invoke-debugger cond))))))
 	       :continue))
        (if (or ,problems ,errors)
-	 (let ((condition (make-condition 
+	 (let ((condition (make-condition
 			   'ensure-cases-failure
 			   :total ,total
 			   :problems ,problems
 			   :errors ,errors)))
 	   (if (find-restart 'ensure-failed)
-	       (invoke-restart 'ensure-failed condition) 
+	       (invoke-restart 'ensure-failed condition)
 	       (warn condition)))
 	 ;; return true if we're happy
 	 t))))
@@ -510,7 +510,7 @@ is generated instead of a warning"
 
 #+(or)
 (defmacro ensure-member
-    (form values &key (test nil test-specified-p)  
+    (form values &key (test nil test-specified-p)
      (report nil) (arguments nil))
   "`ensure-member` checks to see if `form` is a member of `values`.
 
@@ -522,7 +522,7 @@ test failure is generated instead of a warning"
 )
 
 (defmacro with-test-slots (&body body)
-  `(symbol-macrolet ((lift-result `(getf (test-data *current-test*) :result)))   
+  `(symbol-macrolet ((lift-result `(getf (test-data *current-test*) :result)))
      ;; case111 - LW complains otherwise
      (declare (ignorable lift-result)
 	      ,@(when (def :dynamic-variables)
@@ -535,8 +535,8 @@ test failure is generated instead of a warning"
        (macrolet
 	   ,(mapcar (lambda (spec)
 		      (destructuring-bind (name arglist) spec
-			`(,name ,arglist 
-				`(flet-test-function 
+			`(,name ,arglist
+				`(flet-test-function
 				  *current-test* ',',name ,,@arglist))))
 		    (def :function-specs))
 	 (progn ,@body)))))
@@ -548,11 +548,11 @@ test failure is generated instead of a warning"
 	(gstream (gensym "stream")))
     `(let* ((,gclosep nil)
 	    (,gstream ,output-to)
-	    (,var (etypecase ,gstream 
+	    (,var (etypecase ,gstream
 		    (stream ,gstream)
 		    ((or pathname string)
 		     (setf ,gclosep t)
-		     (open ,gstream 
+		     (open ,gstream
 			   :if-does-not-exist :create
 			   :if-exists :append
 			   :direction :output)))))
@@ -582,7 +582,7 @@ test failure is generated instead of a warning"
   ;; name/options can be a symbol or a list consisting of
   ;; (symbol &key exportp documentation
   (destructuring-bind (name &key documentation (exportp t) slot-names)
-      (if (consp name/options) 
+      (if (consp name/options)
 	  name/options (list name/options))
     (let ((all-slot-names
 	   (remove-duplicates
@@ -599,7 +599,7 @@ test failure is generated instead of a warning"
 		     (t
 		      (push (first slot-spec) all-slot-names)
 		      (unless (find :initarg slot-spec)
-		      `(,@slot-spec 
+		      `(,@slot-spec
 			:initarg ,(intern (symbol-name (first slot-spec)) :keyword)))))))
 	`(progn
 	   (eval-when (:compile-toplevel :load-toplevel :execute)
