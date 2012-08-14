@@ -133,7 +133,7 @@ LIFT during a test run.")
   (:default-initargs 
    :test-problem-kind "Error"))
 
-(defclass test-serious-condition (test-error-mixin testsuite-problem-mixin)
+(defclass test-serious-condition (test-error)
   ()
   (:default-initargs 
    :test-problem-kind "Serious condition"))
@@ -143,7 +143,7 @@ LIFT during a test run.")
   (:default-initargs 
    :test-problem-kind "Testsuite error"))
 
-(defclass testsuite-serious-condition (test-error-mixin testsuite-problem-mixin)
+(defclass testsuite-serious-condition (testsuite-error)
   ()
   (:default-initargs 
    :test-problem-kind "Testsuite serious condition"))
