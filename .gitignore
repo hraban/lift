@@ -16,3 +16,6 @@ lift-local.config
 
 benchmark-data/
 
+# new ASDF stuff
+*.*-warnings
+*.build-report

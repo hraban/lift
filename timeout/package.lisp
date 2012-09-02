@@ -8,7 +8,6 @@
 (defpackage #:com.metabang.trivial-timeout
   (:use #:common-lisp)
   (:nicknames #:trivial-timeout)
-;  #+no
   (:export 
    #:with-timeout
    #:timeout-error)))
