@@ -1092,18 +1092,18 @@ these cancel testing instead.)")
 	 until (eq line :eof) collect line))))
 
 (deftestsuite test-log-file (lift-test)
-  (log-file)
+  (my-log-file)
   (:setup
-   (setf log-file (format nil "/tmp/~a" (gensym "file-")))
-   (when (probe-file log-file)
-     (delete-file log-file))))
+   (setf my-log-file (format nil "/tmp/~a" (gensym "file-")))
+   (when (probe-file my-log-file)
+     (delete-file my-log-file))))
 
 (deftestsuite test-log-file-helper ()
-  (log-file))
+  (my-log-file))
 
 (addtest (test-log-file-helper)
   test-1
-  (let ((lines (slurp log-file)))
+  (let ((lines (slurp my-log-file)))
     (ensure (plusp (length lines)))
     (let* ((last-line (first (last lines)))
 	   (datum (read-from-string last-line nil nil)))
@@ -1115,8 +1115,8 @@ these cancel testing instead.)")
   test-1
   (let ((r (lift:run-tests
 	    :suite 'test-log-file-helper
-	    :report-pathname log-file
-	    :testsuite-initargs `(:log-file ,log-file))))
+	    :report-pathname my-log-file
+	    :testsuite-initargs `(:log-file ,my-log-file))))
     (ensure-null (errors r))
     (ensure-null (failures r))
     (ensure (plusp (length (tests-run r))))))

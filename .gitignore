@@ -15,3 +15,7 @@ lift-local.config
 *.fasl
 
 benchmark-data/
+
+# new ASDF stuff
+*.*-warnings
+*.build-report
