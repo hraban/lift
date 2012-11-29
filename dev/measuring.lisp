@@ -120,8 +120,8 @@ The accuracy can be no greater than {hs internal-time-units-per-second}.")
 		      :log-name log-name))
 
 (defun generate-log-entry (name seconds conses &key (log-name *log-path*) results error
-			   (sample-count (and (plusp (current-profile-sample-count))
-						      (current-profile-sample-count)))
+			   (sample-count (and (current-profile-sample-count)
+                                              (plusp (current-profile-sample-count))))
 			   (additional-data nil))
   (ensure-directories-exist log-name)
   ;;log 
