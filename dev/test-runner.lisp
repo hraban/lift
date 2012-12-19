@@ -251,7 +251,7 @@ nor configuration file options were specified.")))))
     (loop for case in (ensure-list
 		       (test-case-option suite-name test-case-name :depends-on))
        unless (test-case-tested-p suite-name case) do
-	 (run-test-internal suite case result))
+       (run-test-internal suite case result))
     (flet ((maybe-push-result ()
 	     (let ((datum (list suite-name test-case-name (test-data suite))))
 	       (cond ((null result-pushed?)
@@ -291,7 +291,7 @@ nor configuration file options were specified.")))))
 		      (setf (current-step result) :testing)
 		      (multiple-value-bind (result measures error-condition)
 			  (while-measuring (t measure-space measure-seconds)
-			    (do-test suite test-case-name result))
+					   (do-test suite test-case-name result))
 			(declare (ignore result))
 			(setf error error-condition)
 			(destructuring-bind (space seconds) measures
@@ -320,15 +320,18 @@ nor configuration file options were specified.")))))
 	     (go :test-failed))
 	   (retry-test () 
 	     :report (lambda (s) (format s "Re-run test-case ~a"
-			     *current-test-case-name*))
+					 *current-test-case-name*))
 	     (go :test-start)))
-	 :test-failed
+	 (go :test-end)
+
+       :test-failed
 	 (if (and *test-break-on-failures?*
 		  (not (test-case-expects-failure-p 
 			suite-name test-case-name)))
 	     (let ((*in-middle-of-failure?* nil))
 	       (invoke-debugger current-condition))
 	     (go :test-end))
+
        :test-end)
       (maybe-push-result)))
   (when *test-print-test-case-names*
