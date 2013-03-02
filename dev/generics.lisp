@@ -6,11 +6,11 @@
   (:documentation "Setup at the testsuite-level"))
 
 (defgeneric testsuite-expects-error (testsuite)
-  (:documentation 
+  (:documentation
    "Returns whether or not the testsuite as a whole expects an error."))
-  
+
 (defgeneric testsuite-expects-failure (testsuite)
-  (:documentation 
+  (:documentation
    "Returns whether or not the testsuite as a whole expects to fail."))
 
 (defgeneric testsuite-teardown (testsuite result)
@@ -69,9 +69,9 @@ the methods that should be run to do the tests for this testsuite."))
 
 (defgeneric problem-summarization (problem))
 
-(defgeneric report-test-suite-by-suite (format stream remaining current-suite suite))
+(defgeneric report-test-suite-by-suite (format stream remaining current-suite suite kind))
 
-(defgeneric report-test-case-by-suite (format stream suite test-name datum))
+(defgeneric report-test-case-by-suite (format stream suite test-name datum kind))
 
 (defgeneric finish-report-tests-by-suite (format stream current-suite))
 
