@@ -76,10 +76,14 @@ to override them."
 	     (report-test-problem
 	      'testsuite-failure result suite-name 
 	      *current-test-case-name* condition))
-	   (retry-test () 
-	     :report (lambda (s) (format s "Re-run testsuite ~a"
+	   (retry-test-suite () 
+	     :report (lambda (s) (format s "Re-run test-suite ~a"
 					 *current-testsuite-name*))
-	     (go :test-start)))
+	     (go :test-start))
+	   (skip-test-suite ()
+	     :report (lambda (s) (format s "Skip rest of test-suite ~a"
+			     *current-testsuite-name*))
+	     (go :test-end)))
        :test-end)))
   (values result))
 
@@ -282,37 +286,50 @@ nor configuration file options were specified.")))))
 				condition 'test-serious-condition
 				suite-name result)
 			       (go :test-end))))
-	       (setf (current-method suite) test-case-name)
-	       (set-test-case-options suite-name test-case-name)
-	       (record-start-times result suite)
-	       (unwind-protect
-		    (progn
-		      (setup-test suite)
-		      (setf (current-step result) :testing)
-		      (multiple-value-bind (result measures error-condition)
-			  (while-measuring (t measure-space measure-seconds)
-			    (do-test suite test-case-name result))
-			(declare (ignore result))
-			(setf error error-condition)
-			(destructuring-bind (space seconds) measures
-			  (setf (getf (test-data suite) :seconds) seconds
-				(getf (test-data suite) :conses) space)))
-		      (when error
-			(error error))
-		      (check-for-surprises suite-name test-case-name))
-		 ;; cleanup
-		 (maybe-push-result)
-		 (when (run-teardown-p suite :test-case)
-		   (test-case-teardown suite result))
-		 (record-end-times result suite)))
-	   (ensure-failed (condition) 
-	     :test (lambda (c) (declare (ignore c)) 
-			   *in-middle-of-failure?*)
-	     (report-test-problem
-	      'test-failure result suite-name
-	      *current-test-case-name* condition)
-	     (setf current-condition condition)
-	     (go :test-failed))
+	       (restart-case
+		   (progn
+		     (setf (current-method suite) test-case-name)
+		     (set-test-case-options suite-name test-case-name)
+		     (record-start-times result suite)
+		     (unwind-protect
+			  (progn
+			    (setup-test suite)
+			    (setf (current-step result) :testing)
+			    (multiple-value-bind (result measures error-condition)
+				(while-measuring (t measure-space measure-seconds)
+				  (do-test suite test-case-name result))
+			      (declare (ignore result))
+			      (setf error error-condition)
+			      (destructuring-bind (space seconds) measures
+				(setf (getf (test-data suite) :seconds) seconds
+				      (getf (test-data suite) :conses) space)))
+			    (when error
+			      (error error))
+			    (check-for-surprises suite-name test-case-name))
+		       ;; cleanup
+		       (maybe-push-result)
+		       (when (run-teardown-p suite :test-case)
+			 (test-case-teardown suite result))
+		       (record-end-times result suite))
+		     (go :test-end))
+		 (ensure-failed (condition) 
+		   :test (lambda (c) (declare (ignore c)) 
+				 *in-middle-of-failure?*)
+		   (report-test-problem
+		    'test-failure result suite-name
+		    *current-test-case-name* condition)
+		   (setf current-condition condition)
+		   (if (and *test-break-on-failures?*
+			    (not (test-case-expects-failure-p 
+				  suite-name test-case-name)))
+		       (let ((*in-middle-of-failure?* nil))
+			 (invoke-debugger current-condition))
+		       (go :test-end))
+		   (go :test-failed))))
+	   (skip-test-case ()
+	     :report (lambda (s) (format s "Skip test-case ~a"
+			     *current-test-case-name*))
+	     (go :test-end))
 	   (test-failed (condition) 
 	     :test (lambda (c) (declare (ignore c)) 
 			   *in-middle-of-failure?*)
@@ -322,13 +339,7 @@ nor configuration file options were specified.")))))
 	     :report (lambda (s) (format s "Re-run test-case ~a"
 			     *current-test-case-name*))
 	     (go :test-start)))
-	 :test-failed
-	 (if (and *test-break-on-failures?*
-		  (not (test-case-expects-failure-p 
-			suite-name test-case-name)))
-	     (let ((*in-middle-of-failure?* nil))
-	       (invoke-debugger current-condition))
-	     (go :test-end))
+       :test-failed
        :test-end)
       (maybe-push-result)))
   (when *test-print-test-case-names*
