@@ -148,9 +148,10 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
       					    nil :eof nil)) :eof)) 
       	 collect
 	   (tagbody 
-	      (flet ((stop-running-tests ()
+	      (flet (#+(and allegro unix)
+		     (stop-running-tests ()
 		       (setf run-tests-p nil)))
-		#+allegro
+		#+(and allegro unix)
 		(excl:set-signal-handler excl::*sigterm*
 				    (lambda (a b)
 				      (declare (ignore a b))
@@ -207,6 +208,7 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
 		       (handle-configuration-problem
 			'test-configuration-failure "Don't understand '~s' while reading from ~s" 
 			form path))))))
+	      #+(and allegro unix)
 	      :loop-end))))
   (values *test-result*))
 
