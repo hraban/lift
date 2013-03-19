@@ -80,10 +80,6 @@ The accuracy can be no greater than {hs internal-time-units-per-second}.")
        (values-list (nconc (list ,seconds ,conses)
 			   ,results)))))
 
-(defvar *functions-to-profile* nil)
-
-(defvar *profiling-threshold* nil)
-
 (defun make-profiled-function (fn)
   (lambda (style count-calls-p)
     (declare (ignorable count-calls-p))

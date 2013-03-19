@@ -177,10 +177,10 @@ therefore assumes that `body` executes quickly relative to delay."
 	     '(lambda () 
 	       (let* ((,gevent-count 0)
 		     (,gdelay (truncate (* ,delay internal-time-units-per-second)))
-		     (,gstart (get-internal-real-time))
+		     (,gstart (get-test-real-time))
 		     (,gend (+ ,gstart ,gdelay)))
 		 (declare (type fixnum ,gevent-count))
-		 (loop while (< (get-internal-real-time) ,gend) do
+		 (loop while (< (get-test-real-time) ,gend) do
 		      (progn ,@body)
 		      (setf ,gevent-count (the fixnum (1+ ,gevent-count))))
 		 (let ((,gduration (/ (- ,gend ,gstart) 
@@ -226,7 +226,7 @@ therefore assumes that `body` executes quickly relative to delay."
     `(let* ((,gfn (lambda () 
 		    (let* ((,gevent-count 0)
 			   (,gdelay (truncate (* ,delay internal-time-units-per-second)))
-			   (,gstart (get-internal-real-time))
+			   (,gstart (get-test-real-time))
 			   (,gend (+ ,gstart ,gdelay)))
 		      (declare (type fixnum ,gevent-count))
 		      (flet ((did-event () (incf ,gevent-count))) 

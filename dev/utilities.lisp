@@ -122,6 +122,7 @@ pathspac points. For example:
 	(error "Unable to find unique pathname for ~a" pathname))))
 
 (defun date-stamp (&key (datetime (get-universal-time)) (include-time? nil) 
+		   (include-date? t)
 		   (time-delimiter #\-) (date-delimiter #\-) (date-time-separator #\T))
   (multiple-value-bind
 	(second minute hour day month year day-of-the-week)
@@ -130,14 +131,30 @@ pathspac points. For example:
     (let ((date-part (format nil "~d~@[~c~]~2,'0d~@[~c~]~2,'0d"
 			     year date-delimiter month date-delimiter day))
 	  (time-part (and include-time? 
-			  (list (format nil "~@[~c~]~2,'0d~@[~c~]~2,'0d~@[~c~]~2,'0d"
-					date-time-separator hour
-					time-delimiter minute
-					time-delimiter second)))))
-      (if time-part
-	  (apply 'concatenate 'string date-part time-part)
-	  date-part))))
+			  (format nil "~2,'0d~@[~c~]~2,'0d~@[~c~]~2,'0d"
+				  hour time-delimiter minute
+				  time-delimiter second))))
+      (format nil "~@[~a~]~@[~c~]~@[~a~]"
+	      (and include-date? date-part)
+	      (and include-date? include-time? date-time-separator)
+	      (and include-time? time-part)))))
 
+#-allegro
+(defun format-test-time-for-log (test-time)
+  (multiple-value-bind (ut fsecs) 
+      (truncate test-time 1000)
+    (date-stamp :datetime ut :include-date? nil :include-time? t :time-delimiter #\:)))
+
+#+allegro
+(defun format-test-time-for-log (test-time)
+  (multiple-value-bind (ut fsecs) 
+      (truncate test-time 1000)
+    (with-output-to-string (out) 
+      (let* ((time
+	      (excl:locale-print-time ut :fmt "%T" :stream nil)
+	       #+no
+	       (excl:locale-print-time ut :fmt "%Y-%m-%dT%T" :stream nil)))
+	(format out "~a.~3,'0d" time fsecs)))))
 
 #+(or)
 (date-stamp :include-time? t)	

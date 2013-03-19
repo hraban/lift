@@ -217,7 +217,7 @@ nor configuration file options were specified.")))))
 	   (skip-testsuite result suite-name))
 	  (t
 	   (unless (start-time result)
-	     (setf (start-time result) (get-internal-real-time)
+	     (setf (start-time result) (get-test-real-time)
 		   (start-time-universal result) (get-universal-time)))
 	   (unwind-protect
 		(loop for method in methods do

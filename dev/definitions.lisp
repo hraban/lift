@@ -170,3 +170,7 @@ the thing being defined.")
 
 (defvar *profile-style* nil
   "Sets the default profiling style to :time, :space, or nil (for no profiling).")
+
+(defvar *functions-to-profile* nil)
+
+(defvar *profiling-threshold* nil)

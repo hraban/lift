@@ -243,7 +243,7 @@
 (defmethod testsuite-teardown :after
     ((testsuite test-mixin) (result test-result))
   (setf (current-step result) :testsuite-teardown
-	(real-end-time result) (get-internal-real-time)
+	(real-end-time result) (get-test-real-time)
 	(real-end-time-universal result) (get-universal-time)))
 
 ;;;;
@@ -937,13 +937,13 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 (defun record-start-times (result suite) 
   (setf (current-step result) :start-test
 	(test-data suite) 
-	`(:start-time ,(get-internal-real-time)
+	`(:start-time ,(get-test-real-time)
 	  :start-time-universal ,(get-universal-time))))
 
 (defun record-end-times (result suite)
   (setf (current-step result) :end-test
-	(getf (test-data suite) :end-time) (get-internal-real-time)
-	(end-time result) (get-internal-real-time)
+	(getf (test-data suite) :end-time) (get-test-real-time)
+	(end-time result) (get-test-real-time)
 	(getf (test-data suite) :end-time-universal) (get-universal-time)
 	(end-time-universal result) (get-universal-time)))
 
