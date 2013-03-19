@@ -69,7 +69,7 @@
 LIFT during a test run.")
   (:default-initargs
     :test-interactive? *test-is-being-defined?*
-    :real-start-time (get-internal-real-time)
+    :real-start-time (get-test-real-time)
     :real-start-time-universal (get-universal-time)))
 
 (defclass test-problem-mixin ()

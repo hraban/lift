@@ -448,7 +448,11 @@ lift::(progn
 (defmethod report-test-case-by-suite 
     ((format (eql :html)) stream suite test-name datum)
   (format stream "~&<div class=\"test-case\">")
-  (let ((problem (getf datum :problem)))
+  (let ((problem (getf datum :problem))
+	(start (getf datum :start-time)))
+    (when start
+      (format stream "<span class=\"start-time\">~a</span>"
+	      (format-test-time-for-log start)))
     (cond ((typep problem 'test-failure)
 	   (format stream "~&<span class=\"test-name\"><a href=\"~a\" title=\"details\">~a</a></span>"
 		   (details-link suite test-name)
@@ -796,7 +800,7 @@ lift::(progn
       (format out-stream "~&\(~%")
       (out :suite (encode-symbol suite-name))
       (out :name (encode-symbol test-case-name))
-      (out :start-time-universal (get-universal-time)))))
+      (out :start-time (get-test-real-time)))))
 
 (defmethod write-log-test-end 
     ((format (eql :save)) suite-name test-case-name data
@@ -808,7 +812,7 @@ lift::(progn
 		 (let* ((key (form-keyword name))
 			(value (getf source key)))
 		   (out key value))))
-	(write-datum 'end-time-universal)
+	(write-datum 'end-time)
 	(write-datum 'result)
 	(write-datum 'seconds)
 	(write-datum 'conses)

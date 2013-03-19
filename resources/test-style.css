@@ -142,6 +142,16 @@ h3 {
 	width: 35px;
 }
 
+.start-time {
+	float: left;
+	padding-left: 20px;
+	padding-right: 20px;
+	text-align: right;
+	display: run-in;
+//	width: 35px;
+}
+
+
 .test-space {
 	padding-left: 20px;
 	text-align: right;

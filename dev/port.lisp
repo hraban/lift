@@ -224,3 +224,17 @@ returns a string with the corresponding backtrace.")
      destination)
   (declare (ignorable name style fn body log-name count-calls-p timeout destination))
   (funcall fn))
+
+#+allegro
+(eval-when (compile eval)
+  (require :timedefs))
+
+#+allegro
+(defun get-test-real-time ()
+  (multiple-value-bind (secs fsecs)
+      (excl::cl-internal-real-time)
+    (+ (* (+ secs #.excl::seconds-1900-2015) 1000) fsecs)))
+
+#-allegro
+(defun get-test-real-time ()
+  (* 1000 (get-universal-time)))
