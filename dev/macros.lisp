@@ -241,7 +241,7 @@ therefore assumes that `body` executes quickly relative to delay."
 			   (,gend (+ ,gstart ,gdelay)))
 		      (declare (type fixnum ,gevent-count))
 		      (flet ((did-event () (incf ,gevent-count)))
-			(loop while (< (get-internal-real-time) ,gend) do
+			(loop while (< (get-test-real-time) ,gend) do
 			     (progn ,@body)))
 		      (let ((,gduration (float (/ (- ,gend ,gstart)
 						  internal-time-units-per-second))))

@@ -233,6 +233,7 @@ returns a string with the corresponding backtrace.")
     (+ (* (+ secs #.excl::seconds-1900-2015) 1000) fsecs))
   #+(version>= 10 0)
   (excl::get-universal-hi-res-time))
+
 #-allegro
 (defun get-test-real-time ()
   (* 1000 (get-universal-time)))
