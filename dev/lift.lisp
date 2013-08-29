@@ -74,9 +74,10 @@
   "Test ran out of time (longer than ~S-second~:P)" 
   maximum-time)
 
-(defcondition (ensure-failed-error  :slot-names (message)) (test-condition) 
-  ((assertion :initform ""))
-   "Ensure failed: ~S ~@[(~a)~]" assertion message)
+(defcondition (ensure-failed-error  :slot-names (message)) (test-condition)
+  ((assertion :initform "")
+   (called-as :initform ""))
+   "Ensure failed: ~S~%Called as: ~S ~@[(~a)~]" assertion called-as message)
 
 (defcondition (ensure-null-failed-error :slot-names (message)) (ensure-failed-error)
   ((value :initform "")

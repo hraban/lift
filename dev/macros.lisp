@@ -310,19 +310,38 @@ will generate a message like
 
     Warning: Ensure failed: (= 23 12) (I hope 12 does not = 23)
 "
-  (let ((gpredicate (gensym)))
-    `(let ((,gpredicate ,predicate))
-       (if ,gpredicate
-	   (values ,gpredicate)
-	   (let ((condition (make-condition
-			     'ensure-failed-error
-			     :assertion ',predicate
-			     ,@(when report
-				     `(:message
-				       (format nil ,report ,@arguments))))))
-	     (if (find-restart 'ensure-failed)
-		 (invoke-restart 'ensure-failed condition)
-		 (warn condition)))))))
+  (let ((func-name (first predicate))
+        (gpredicate (gensym "RESULT"))
+        (gargs (gensym "ARGS")))
+    (if (and (symbolp func-name)
+			 (fboundp func-name)
+             (not (macro-function func-name)))
+        `(let* ((,gargs (list ,@(rest predicate)))
+                (,gpredicate (apply #',(first predicate) ,gargs)))
+           (if ,gpredicate
+               (values ,gpredicate)
+               (let ((condition (make-condition
+                                 'ensure-failed-error
+                                 :assertion ',predicate
+                                 :called-as (list* ',(first predicate) ,gargs)
+                                 ,@(when report
+                                         `(:message
+                                           (format nil ,report ,@arguments))))))
+                 (if (find-restart'ensure-failed)
+                     (invoke-restart'ensure-failed condition)
+                     (warn condition)))))
+        `(let ((,gpredicate ,predicate))
+           (if ,gpredicate
+               (values ,gpredicate)
+               (let ((condition (make-condition
+                                 'ensure-failed-error
+                                 :assertion ',predicate
+                                 ,@(when report
+                                         `(:message
+                                           (format nil ,report ,@arguments))))))
+                 (if (find-restart 'ensure-failed)
+                     (invoke-restart 'ensure-failed condition)
+                     (warn condition))))))))
 
 (defmacro ensure-null (predicate &key report arguments)
   "If ensure-null's `predicate` evaluates to true, then it will generate a
