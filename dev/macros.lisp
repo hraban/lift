@@ -314,6 +314,7 @@ will generate a message like
         (gpredicate (gensym "RESULT"))
         (gargs (gensym "ARGS")))
     (if (and (symbolp func-name)
+			 (fboundp func-name)
              (not (macro-function func-name)))
         `(let* ((,gargs (list ,@(rest predicate)))
                 (,gpredicate (apply #',(first predicate) ,gargs)))
