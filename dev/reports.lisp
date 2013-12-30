@@ -551,7 +551,9 @@ lift::(progn
 			     stream)))
        (ensure-directories-exist output-pathname)
        (let ((*print-right-margin* 64)
-	     (problem (getf datum :problem)))
+	     (problem (getf datum :problem))
+	     (source-file (gethash test-name (test-case-source-file suite-name)))
+	     (start-time (getf datum :start-time)))
 	 (with-open-file (out output-pathname
 			      :direction :output
 			      :if-does-not-exist :create
@@ -568,12 +570,25 @@ lift::(progn
 					      :type (pathname-type stream))))
 	   (format out "~&<p>Problem occurred during ~a.</p>"
 		   (test-step problem))
+	   	   (format out "<pre>")
+	   (when source-file
+	     (format out "~&Source file: ~a" source-file))
+	   (when start-time
+	     (format out "~&Start time: ~a"
+		     (format-test-time-for-log start-time)))
+	   (format out "~&<pre>")
 	   (format out "~&<p>Reproduce using: <pre>")
 	   (format out "~&  (lift:run-test :suite '~a :name '~a" suite-name test-name)
 	   (when (testsuite-initargs problem)
 	     (format out "~&            :testsuite-initargs '~s" 
 		     (testsuite-initargs problem)))
 	   (format out ")")
+	   (format out "~&  (lift:run-tests :suite '~a" suite-name)
+	   (when (testsuite-initargs problem)
+	     (format out "~&            :testsuite-initargs '~s" 
+		     (testsuite-initargs problem)))
+	   (format out ")")
+	   (format out "~&</pre>")
 	   (format out "~&<pre>")
 	   (format out "~a"
 		   (wrap-encode-pre 

@@ -719,6 +719,11 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 			      ',(def :test-case-name)
 			      (test-case-documentation ',(def :testsuite-name)))
 			    ,documentation)))
+	      ,@(when *compile-file-pathname*
+		      `((setf (gethash 
+			       ',(def :test-case-name)
+			       (test-case-source-file ',(def :testsuite-name)))
+			      ,(namestring *compile-file-pathname*))))
 	      (setf *last-testsuite-name* ',(def :testsuite-name))
 	      (if *test-evaluate-when-defined?*
 		  (unless (or *test-is-being-compiled?*
@@ -1110,7 +1115,9 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 	 (*print-length* (get-test-print-length)))
     (let ((*package* (symbol-package method))
 	  (doc-string (gethash testsuite-name
-			       (test-case-documentation suite-name))))
+			       (test-case-documentation suite-name)))
+	  (source-file (gethash testsuite-name
+			       (test-case-source-file suite-name))))
       (format stream "~&~A ~(~A : ~A~)" prefix suite-name testsuite-name)
       (if show-code-p
 	  (setf code (with-output-to-string (out)
@@ -1118,10 +1125,11 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 	  (setf code nil))
       (format stream "~&~<  ~@;~
                     ~@[Documentation: ~<~@;~a~:>~]~
+                    ~@[~&Source       : ~<~@;~a~:>~]~
                     ~@[~&Condition    : ~<~@;~a~:>~]~
                     ~@[~&During       : ~a~]~
                     ~@[~&Code         : ~a~]~
-                    ~&~:>" (list doc-string (list condition) step code)))))
+                    ~&~:>" (list doc-string source-file (list condition) step code)))))
 
 (defmethod print-test-problem (prefix (report test-configuration-problem-mixin) stream show-code-p)
   (declare (ignore show-code-p))
@@ -1414,7 +1422,9 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
      ,@(when (def :documentation)
 	     `((:documentation ,(def :documentation))))
      (:default-initargs
-       ,@(def :default-initargs))))
+       ,@(def :default-initargs)
+	 ,@(when *load-pathname*
+		 `(:test-source-file ,(namestring *compile-file-pathname*))))))
 
 (defun parse-test-slots (slot-specs)
   (loop for spec in slot-specs collect
@@ -1433,6 +1443,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 (defclass-property testsuite-tests)
 (defclass-property testsuite-dynamic-variables)
 (defclass-property test-name->methods)
+(defclass-property test-case-source-file)
 
 ;;?? issue 27: break encapsulation of code blocks
 (defclass-property testsuite-function-specs)
@@ -1446,6 +1457,8 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
           (test-name->methods test-name)
           (make-hash-table :test #'eq)
           (test-case-documentation test-name)
+          (make-hash-table :test #'equal)
+	  (test-case-source-file test-name)
           (make-hash-table :test #'equal))))
 
 (pushnew :timeout *deftest-clauses*)

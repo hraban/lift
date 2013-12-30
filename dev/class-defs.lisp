@@ -14,6 +14,8 @@
    (current-method :initform nil :accessor current-method)
    (log-file :initform nil :initarg :log-file :reader log-file)
    (test-data :initform nil :accessor test-data)
+   (test-source-file :initform nil :accessor test-source-file
+		     :initarg :test-source-file)
    (profile 
     :initform *profile-style*
     :initarg :profile
