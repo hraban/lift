@@ -236,6 +236,8 @@ use asdf:test-op or bind *current-asdf-system-name* yourself."))))))
 
 (defconfig-variable :break-on-errors? *test-break-on-errors?*)
 
+(defconfig-variable :break-on-failures? *test-break-on-failures?*)
+
 (defconfig-variable :do-children? *test-run-subsuites?*)
 
 (defconfig-variable :equality-test *lift-equality-test*)
