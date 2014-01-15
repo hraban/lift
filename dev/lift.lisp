@@ -1311,12 +1311,12 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
        (unless (find ',test-case-name (testsuite-tests ',suite-name))
 	 (setf (testsuite-tests ',suite-name)
 	       (append (testsuite-tests ',suite-name) (list ',test-case-name))))
-       ;;?? to defer until after compile...?
-       ,@(when options
-          `((defmethod set-test-case-options 
-		((suite-name (eql ',suite-name)) (test-case-name (eql ',test-case-name)))
-	      ,@(build-test-case-options 
-		suite-name test-case-name options))))
+       (setf (gethash ',suite-name *test-case-options*) nil)
+       (defmethod set-test-case-options 
+	   ((suite-name (eql ',suite-name)) (test-case-name (eql ',test-case-name)))
+	 ,@(when options
+		 (build-test-case-options 
+		  suite-name test-case-name options)))
        (setf (gethash ',test-case-name (test-name->methods ',suite-name))
 	     (lambda (testsuite)
 	       (declare (ignorable testsuite))
