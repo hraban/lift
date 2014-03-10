@@ -876,6 +876,14 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 	  (invoke-restart 'ensure-failed condition)
 	  (warn condition)))))
 
+(defun error-okay-p (suite-name test-case-name)
+  (or (test-case-expects-error-p suite-name test-case-name)
+      (test-case-expects-problem-p suite-name test-case-name)))
+
+(defun failure-okay-p (suite-name test-case-name)
+  (or (test-case-expects-failure-p suite-name test-case-name)
+      (test-case-expects-problem-p suite-name test-case-name)))
+
 (defun report-test-problem (problem-type result suite-name method condition
 			    &rest args)
   ;; ick

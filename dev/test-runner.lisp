@@ -255,7 +255,7 @@ nor configuration file options were specified.")))))
     (loop for case in (ensure-list
 		       (test-case-option suite-name test-case-name :depends-on))
        unless (test-case-tested-p suite-name case) do
-	 (run-test-internal suite case result))
+       (run-test-internal suite case result))
     (flet ((maybe-push-result ()
 	     (let ((datum (list suite-name test-case-name (test-data suite))))
 	       (cond ((null result-pushed?)
@@ -297,7 +297,7 @@ nor configuration file options were specified.")))))
 			    (setf (current-step result) :testing)
 			    (multiple-value-bind (result measures error-condition)
 				(while-measuring (t measure-space measure-seconds)
-				  (do-test suite test-case-name result))
+						 (do-test suite test-case-name result))
 			      (declare (ignore result))
 			      (setf error error-condition)
 			      (destructuring-bind (space seconds) measures
@@ -320,15 +320,14 @@ nor configuration file options were specified.")))))
 		    *current-test-case-name* condition)
 		   (setf current-condition condition)
 		   (if (and *test-break-on-failures?*
-			    (not (test-case-expects-failure-p 
-				  suite-name test-case-name)))
+			    (not (failure-okay-p suite-name test-case-name)))
 		       (let ((*in-middle-of-failure?* nil))
 			 (invoke-debugger current-condition))
 		       (go :test-end))
 		   (go :test-failed))))
 	   (skip-test-case ()
 	     :report (lambda (s) (format s "Skip test-case ~a"
-			     *current-test-case-name*))
+					 *current-test-case-name*))
 	     (go :test-end))
 	   (test-failed (condition) 
 	     :test (lambda (c) (declare (ignore c)) 
@@ -337,7 +336,7 @@ nor configuration file options were specified.")))))
 	     (go :test-failed))
 	   (retry-test () 
 	     :report (lambda (s) (format s "Re-run test-case ~a"
-			     *current-test-case-name*))
+					 *current-test-case-name*))
 	     (go :test-start)))
        :test-failed
        :test-end)
@@ -348,7 +347,8 @@ nor configuration file options were specified.")))))
     (print-lift-message "~a"
                         (result-summary-tag (getf (test-data suite) :problem)
                                             *test-print-test-case-names*)))
-  (setf *current-test-case-name* test-case-name	*test-result* result)
+  (setf *current-test-case-name* test-case-name)
+  (setf *test-result* result)
   (third (first (tests-run result))))
 
 (defun handle-error-while-testing (condition error-class suite-name result)
@@ -358,8 +358,7 @@ nor configuration file options were specified.")))))
      *current-test-case-name* condition
      :backtrace (get-backtrace condition))
     (when (and *test-break-on-errors?*
-	       (not (test-case-expects-error-p 
-		     *current-testsuite-name* *current-test-case-name*)))
+	       (not (error-okay-p *current-testsuite-name* *current-test-case-name*)))
       (invoke-debugger condition))))
 
 (defun maybe-add-dribble (stream dribble-stream)
