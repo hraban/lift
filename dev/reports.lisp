@@ -593,7 +593,10 @@ lift::(progn
 	   (format out "~a"
 		   (wrap-encode-pre 
 		    (with-output-to-string (s)
-		      (print-test-problem "" problem s t))
+		      (handler-case
+			  (print-test-problem "" problem s t)
+			(error (c)
+			  (format out "Error while trying to print problem report: ~a" c))))
 		    :width (test-result-property 
 			    *test-result* :print-width 60)))
 	   (format out "~&</pre>") 

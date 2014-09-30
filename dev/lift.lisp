@@ -1100,7 +1100,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 (defun print-test-result-details (stream result show-expected-p show-code-p)
   (loop for report in (errors result) do
        (print-test-problem "ERROR  :" report stream
-			   show-code-p))  
+			   show-code-p))
   (loop for report in (failures result) do
        (print-test-problem "Failure:" report stream 
 			   show-code-p))
@@ -1109,35 +1109,38 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 	 (print-test-problem "Expected failure:" report stream
 			     show-code-p))
     (loop for report in (expected-errors result) do
-	 (print-test-problem "Expected Error :" report stream
+ 	 (print-test-problem "Expected Error :" report stream
 			     show-code-p))))
 
 (defmethod print-test-problem (prefix (report testsuite-problem-mixin) stream show-code-p)
-  (let* ((suite-name (testsuite report))
-         (method (test-method report))
-         (condition (test-condition report))
-         (code (test-report-code suite-name method))
-	 (step (test-step report))
-         (testsuite-name method)	 
-	 (*print-level* (get-test-print-level))
-	 (*print-length* (get-test-print-length)))
-    (let ((*package* (symbol-package method))
-	  (doc-string (gethash testsuite-name
-			       (test-case-documentation suite-name)))
-	  (source-file (gethash testsuite-name
-			       (test-case-source-file suite-name))))
-      (format stream "~&~A ~(~A : ~A~)" prefix suite-name testsuite-name)
-      (if show-code-p
-	  (setf code (with-output-to-string (out)
-		       (pprint code out)))
-	  (setf code nil))
-      (format stream "~&~<  ~@;~
+  (handler-case 
+      (let* ((suite-name (testsuite report))
+	     (method (test-method report))
+	     (condition (test-condition report))
+	     (code (test-report-code suite-name method))
+	     (step (test-step report))
+	     (testsuite-name method)	 
+	     (*print-level* (get-test-print-level))
+	     (*print-length* (get-test-print-length)))
+	(let ((*package* (symbol-package method))
+	      (doc-string (gethash testsuite-name
+				   (test-case-documentation suite-name)))
+	      (source-file (gethash testsuite-name
+				    (test-case-source-file suite-name))))
+	  (format stream "~&~A ~(~A : ~A~)" prefix suite-name testsuite-name)
+	  (if show-code-p
+	      (setf code (with-output-to-string (out)
+			   (pprint code out)))
+	      (setf code nil))
+	  (format stream "~&~<  ~@;~
                     ~@[Documentation: ~<~@;~a~:>~]~
                     ~@[~&Source       : ~<~@;~a~:>~]~
                     ~@[~&Condition    : ~<~@;~a~:>~]~
                     ~@[~&During       : ~a~]~
                     ~@[~&Code         : ~a~]~
-                    ~&~:>" (list doc-string source-file (list condition) step code)))))
+                    ~&~:>" (list doc-string source-file (list condition) step code))))
+    (error (c)
+      (format stream "~&Error printing problem report: ~a" c))))
 
 (defmethod print-test-problem (prefix (report test-configuration-problem-mixin) stream show-code-p)
   (declare (ignore show-code-p))
