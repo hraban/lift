@@ -723,7 +723,12 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 		      `((setf (gethash 
 			       ',(def :test-case-name)
 			       (test-case-source-file ',(def :testsuite-name)))
-			      ,(namestring *compile-file-pathname*))))
+			      ,(namestring *compile-file-pathname*))
+			#+allegro
+			(setf (gethash 
+			       ',(def :test-case-name)
+			       (test-case-source-position ',(def :testsuite-name)))
+			      ,(current-source-position))))
 	      (setf *last-testsuite-name* ',(def :testsuite-name))
 	      (if *test-evaluate-when-defined?*
 		  (unless (or *test-is-being-compiled?*
@@ -1305,7 +1310,25 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
        (:once-per-suite t)
        ((:once-per-test-case t) nil)
        ((:never nil) nil)))))
-     
+
+(defun current-source-position ()
+  #+allegro
+  (or (second comp::*compile-file-last-form-location*)
+      (file-position comp::*compile-file-stream*))
+  #-allegro
+  0)
+
+#+allegro
+(defun test-is-being-redefined-p (test-suite-name test-case-name)
+  (let* ((old-source (gethash test-case-name (test-case-source-file test-suite-name)))
+	 (old-position (gethash test-case-name (test-case-source-position test-suite-name)))
+	 (new-source (namestring *compile-file-pathname*))
+	 (new-position (current-source-position)))
+    (and old-source
+	 old-position
+	 (or (not (string= old-source new-source))
+	     (not (= old-position new-position))))))
+
 (defun build-test-test-method (suite-name test-body options)
   (multiple-value-bind (test-case-name body name-supplied?)
                        (parse-test-body test-body)
@@ -1314,6 +1337,23 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
       (setf body (list body)))
     (setf (def :test-case-name) test-case-name)
     `(progn
+       #+allegro
+       (when *test-is-being-compiled?*
+	 (when (test-is-being-redefined-p ',suite-name ',test-case-name)
+	   (let ((original-source 
+		  (gethash ',test-case-name (test-case-source-file ',suite-name)))
+		 (new-source (namestring *compile-file-pathname*))
+		 (original-pos
+		  (gethash ',test-case-name (test-case-source-position ',suite-name)))
+		 (new-pos (current-source-position)))
+	     (if (string= original-source new-source)
+		 ;; we assume that the environment has already printed the file name
+		 (warn "Test ~a/~a is being redefined from position ~d to ~d"
+		 ',suite-name ',test-case-name original-pos new-pos)
+		 (warn "Test ~a/~a is being redefined from file ~a at position ~d to ~d"
+		 original-source original-pos new-pos))
+	     (when *break-on-redefinition*
+	       (break)))))
        (setf (gethash ',test-case-name (test-name->code-table ',suite-name)) ',body
              (gethash ',body (test-code->name-table ',suite-name)) ',test-case-name)
        #+(or mcl ccl)
@@ -1455,6 +1495,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 (defclass-property testsuite-dynamic-variables)
 (defclass-property test-name->methods)
 (defclass-property test-case-source-file)
+(defclass-property test-case-source-position)
 
 ;;?? issue 27: break encapsulation of code blocks
 (defclass-property testsuite-function-specs)
@@ -1470,6 +1511,8 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
           (test-case-documentation test-name)
           (make-hash-table :test #'equal)
 	  (test-case-source-file test-name)
+          (make-hash-table :test #'equal)
+	  (test-case-source-position test-name)
           (make-hash-table :test #'equal))))
 
 (pushnew :timeout *deftest-clauses*)

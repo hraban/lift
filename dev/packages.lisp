@@ -104,7 +104,8 @@
        #:*test-show-expected-p*
        #:*test-show-details-p*
        #:*test-show-code-p*
-          
+       #:*break-on-redefinition*
+
        ;; Other
        #:ensure
        #:ensure-null
