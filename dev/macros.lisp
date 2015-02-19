@@ -450,6 +450,24 @@ is generated instead of a warning"
 			    ignore-multiple-values?))
 
 (defmacro ensure-cases ((&rest vars) (&rest cases) &body body)
+  "Run `body` with multiple bindings for a set of variables.
+
+* `vars` must be a list of variable names \(not evaluated\)
+* `cases` is a list of lists of bindings for the `vars` \(evaluated\).
+
+If there is only a single variable \(i.e., `vars` is a one-element list\),
+then `cases` can also be a simple list. 
+
+As an example, here is how we could test that an addition function 
+worked correctly:
+
+    \(ensure-cases \(a b result\)
+      `\(\(1 2 3\) \(1 -1 0\) \(1.1 0.9 2.0\)\)
+      \(ensure-same \(add-em a b\) result :test '=\)\)
+
+All cases are evaluated even if there are failures or errors during the
+testing. The test report will contain a list of all of the failing cases."
+
   (let ((case (gensym))
 	(total (gensym))
 	(problems (gensym))
