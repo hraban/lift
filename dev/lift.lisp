@@ -1143,7 +1143,7 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
                     ~@[~&Condition    : ~<~@;~a~:>~]~
                     ~@[~&During       : ~a~]~
                     ~@[~&Code         : ~a~]~
-                    ~&~:>" (list doc-string source-file (list condition) step code))))
+                    ~&~:>" `((,doc-string) (,source-file) (,condition) (,step) (,code)))))
     (error (c)
       (format stream "~&Error printing problem report: ~a" c))))
 
