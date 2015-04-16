@@ -222,15 +222,18 @@ returns a string with the corresponding backtrace.")
   (declare (ignorable name style fn body log-name count-calls-p timeout destination))
   (funcall fn))
 
-#+allegro
+#-(and allegro (version>= 10 0))
 (eval-when (compile eval)
   (require :timedefs))
 
 #+allegro
 (defun get-test-real-time ()
+  #-(version>= 10 0)
   (multiple-value-bind (secs fsecs)
       (excl::cl-internal-real-time)
-    (+ (* (+ secs #.excl::seconds-1900-2015) 1000) fsecs)))
+    (+ (* (+ secs #.excl::seconds-1900-2015) 1000) fsecs))
+  #+(version>= 10 0)
+  (excl::get-universal-hi-res-time))
 
 #-allegro
 (defun get-test-real-time ()
