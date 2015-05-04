@@ -51,7 +51,7 @@ failures. See also [\\*test-maximum-error-count\\*][].")
 (defvar *test-break-on-errors?* nil)
 (defvar *test-break-on-failures?* nil)
 (defvar *test-run-subsuites?* t)
-(defvar *break-on-redefinition* t)
+(defvar *break-on-redefinition* nil)
 
 (defparameter *test-ignore-warnings?* nil
   "If true, LIFT will not cause a test to fail if a warning occurs while

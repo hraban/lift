@@ -1349,9 +1349,11 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 	     (if (string= original-source new-source)
 		 ;; we assume that the environment has already printed the file name
 		 (warn "Test ~a/~a is being redefined from position ~d to ~d"
-		 ',suite-name ',test-case-name original-pos new-pos)
-		 (warn "Test ~a/~a is being redefined from file ~a at position ~d to ~d"
-		 original-source original-pos new-pos))
+                       ',suite-name ',test-case-name original-pos new-pos)
+		 (warn "Test ~a/~a is being redefined from file ~a at position ~
+                       to file ~a position ~d"
+                       ',suite-name ',test-case-name original-source original-pos
+                       new-source new-pos))
 	     (when *break-on-redefinition*
 	       (break)))))
        (setf (gethash ',test-case-name (test-name->code-table ',suite-name)) ',body
