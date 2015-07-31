@@ -252,6 +252,7 @@ nor configuration file options were specified.")))))
 	 (*current-testsuite-name* suite-name)
 	 (error nil)
 	 (current-condition nil))
+    (set-test-case-options suite-name test-case-name)
     (loop for case in (ensure-list
 		       (test-case-option suite-name test-case-name :depends-on))
        unless (test-case-tested-p suite-name case) do
@@ -289,7 +290,6 @@ nor configuration file options were specified.")))))
 	       (restart-case
 		   (progn
 		     (setf (current-method suite) test-case-name)
-		     (set-test-case-options suite-name test-case-name)
 		     (record-start-times result suite)
 		     (unwind-protect
 			  (progn
