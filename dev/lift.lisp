@@ -1630,7 +1630,17 @@ Test options are one of :setup, :teardown, :test, :tests, :documentation, :expor
 
 (defun build-test-case-options (suite-name case-name options)
   (loop for (k v) on options by #'cddr collect
-       `(setf (test-case-option ',suite-name ',case-name ,k) ,v)))
+       (progn
+	 (assert (member k
+			 '(:expected-error
+			   :expected-failure
+			   :expected-problem
+			   :depends-on
+			   :documentation))
+		 nil
+		 "Unknown option-name ~s when trying to set a test-case-option for ~a/~a"
+		 k suite-name case-name)
+	 `(setf (test-case-option ',suite-name ',case-name ,k) ,v))))
 
 #|
 (test-case-option 'test-dependencies-helper 'test-c :depends-on)
