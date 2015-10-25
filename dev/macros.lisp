@@ -19,15 +19,6 @@ For example, compile without cross-reference information."
        (defmethod (setf ,property) (value (class-name symbol))
          (setf (get class-name ,real-name) value)))))
 
-;; some handy properties
-(defclass-property test-slots)
-(defclass-property test-code->name-table)
-(defclass-property test-name->code-table)
-(defclass-property test-case-documentation)
-(defclass-property testsuite-tests)
-(defclass-property testsuite-dynamic-variables)
-(defclass-property test-name->methods)
-
 (defmacro undefmeasure (name)
   (let ((gname (gensym "name-")))
     `(let ((,gname ,(form-keyword name)))
@@ -370,7 +361,7 @@ the signaling of _any_ other condition will cause a test failure.
 "
   (setf condition (remove-leading-quote condition))
   (destructuring-bind (condition &key report arguments catch-all-conditions?
-				 validate (name (gensym (symbol-name '#:name-))))
+				 validate (name 'condition))
       (if (consp condition) condition (list condition))
     (let ((g (gensym)))
       `(let ((,g nil))
@@ -459,6 +450,24 @@ is generated instead of a warning"
 			    ignore-multiple-values?))
 
 (defmacro ensure-cases ((&rest vars) (&rest cases) &body body)
+  "Run `body` with multiple bindings for a set of variables.
+
+* `vars` must be a list of variable names \(not evaluated\)
+* `cases` is a list of lists of bindings for the `vars` \(evaluated\).
+
+If there is only a single variable \(i.e., `vars` is a one-element list\),
+then `cases` can also be a simple list.
+
+As an example, here is how we could test that an addition function
+worked correctly:
+
+    \(ensure-cases \(a b result\)
+      `\(\(1 2 3\) \(1 -1 0\) \(1.1 0.9 2.0\)\)
+      \(ensure-same \(add-em a b\) result :test '=\)\)
+
+All cases are evaluated even if there are failures or errors during the
+testing. The test report will contain a list of all of the failing cases."
+
   (let ((case (gensym))
 	(total (gensym))
 	(problems (gensym))
@@ -571,9 +580,9 @@ test failure is generated instead of a warning"
   (declare (ignorable e))
   #+allegro
   (if (and (constantp format e)
-	   (stringp (sys:constant-value format e)))
-      (excl::newlinify-format-string (sys:constant-value format e))
-      `(excl::newlinify-format-string ,format))
+           (stringp (sys:constant-value format e)))
+      `(excl::newlinify-format-string ,(sys:constant-value format e))
+      format)
   #-allegro
   format)
 

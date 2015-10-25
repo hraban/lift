@@ -78,7 +78,7 @@ lift::(progn
   )
 
 (defgeneric summarize-test-problems-of-type 
-    (format problems stream id heading name)
+    (format problems stream id heading name kind)
   )
 
 (defgeneric write-log-test 
@@ -286,7 +286,8 @@ lift::(progn
   (flet ((doit (stream)
 	   (format stream "~&<div id=\"results\">")
 	   (format stream "~&<h2>Tests Run:</h2>")
-	   (report-tests-by-suite format (tests-run result) stream)
+	   (format stream "<div>(list of test suite and their test cases. Each test case shows its start-time, name, time taken (in seconds), conses used and any additional information).</div>")
+	   (report-tests-by-suite format (tests-run result) stream nil)
 	   (format stream "~&</div>")))
     (cond ((or (failures result) (errors result)
 	       (expected-failures result) (expected-errors result))
@@ -327,24 +328,28 @@ lift::(progn
 	       (format stream "~&<div id=\"problem-summary\">")
 	       (format stream "~&<h2>Problem Summary:</h2>"))
 	     (setf done-header? t)))
-      (loop for (fn id heading name) in 
+      (loop for (fn id heading name kind) in 
 	   `((configuration-failures "configuration-failure-summary" 
-				     "Configuration Failures" "configuration-failures")
-	     (errors "error-summary" "Errors" "errors")
-	     (testsuite-failures "failure-summary" "Failures" "failures")
-	     (expected-failures  "expected-failure-summary" "Expected Failures" "expected-failures")
+				     "Configuration Failures" "configuration-failures" :config-failures)
+	     (errors "error-summary" "Errors" "errors" :errors)
+	     (testsuite-failures "failure-summary" "Failures" "failures" :failures)
+	     (expected-failures  "expected-failure-summary" "Expected Failures" "expected-failures"
+				 :expected-failures)
 	     (expected-errors "expected-failure-summary" 
-			      "Expected Errors" "expected-errors")
+			      "Expected Errors" "expected-errors"
+			      :expected-errors)
 	     (skipped-test-cases "skipped-cases-summary" 
-				 "Skipped test cases" "skipped-tests")
+				 "Skipped test cases" "skipped-tests"
+				 :skipped-test-cases)
 	     (skipped-testsuites  "skipped-suites-summary" 
-				  "Skipped testsuites" "skipped-tests"))
+				  "Skipped testsuites" "skipped-tests"
+				  :skipped-test-suites))
 	   do
 	   (let ((problems (funcall fn result)))
 	     (when problems
 	       (output-header)
 	       (summarize-test-problems-of-type 
-		format problems stream id heading name)))))
+		format problems stream id heading name kind)))))
     (when done-header?
       (format stream "~&</div>"))))
 
@@ -355,33 +360,33 @@ lift::(progn
   `(:configuration :configuration (:problem ,problem)))
 
 (defmethod summarize-test-problems-of-type 
-    (format problems stream id heading name)
+    (format problems stream id heading name kind)
   (when problems
     (format stream "~&<div id=\"~a\">" id)
     (format stream "~&<a name=\"~a\"></a><h3>~a</h3>" name heading)
     (report-tests-by-suite 
-     format (mapcar #'problem-summarization problems) stream)
+     format (mapcar #'problem-summarization problems) stream kind)
     (format stream "~&</div>")))
 
-(defun report-tests-by-suite (format tests stream)
+(defun report-tests-by-suite (format tests stream kind) 
   (let ((current-suite nil))
     (loop for rest = (sort (copy-list tests)
 			   'string-lessp :key 'first) then (rest rest) 
        for (suite test-name datum) = (first rest)
        while rest do
 	 (unless (eq current-suite suite)
-	   (report-test-suite-by-suite format stream rest current-suite suite)
+	   (report-test-suite-by-suite format stream rest current-suite suite kind)
 	   (setf current-suite suite))
-	 (report-test-case-by-suite format stream suite test-name datum))
+	 (report-test-case-by-suite format stream suite test-name datum kind))
     (finish-report-tests-by-suite format stream current-suite)))
 
 (defmethod report-test-suite-by-suite 
-    (format stream remaining current-suite suite)
-  (declare (ignore format stream remaining current-suite suite))
+    (format stream remaining current-suite suite kind)
+  (declare (ignore format stream remaining current-suite suite kind))
   )
 
-(defmethod report-test-case-by-suite (format stream suite test-name datum)
-  (declare (ignore format stream suite test-name datum))
+(defmethod report-test-case-by-suite (format stream suite test-name datum kind)
+  (declare (ignore format stream suite test-name datum kind))
   )
 
 (defmethod finish-report-tests-by-suite (format stream current-suite)
@@ -389,20 +394,20 @@ lift::(progn
   )
 
 (defmethod report-test-suite-by-suite 
-    :around ((format (eql :html)) stream remaining current-suite suite)
-  (declare (ignore remaining suite))
+    :around ((format (eql :html)) stream remaining current-suite suite kind)
+  (declare (ignore remaining suite kind))
   (finish-report-tests-by-suite format stream current-suite)
   (call-next-method)
   (format stream "</div>"))
 
 (defmethod report-test-suite-by-suite 
-    ((format (eql :html)) stream remaining current-suite (suite (eql :configuration)))
-  (declare (ignore remaining current-suite))
+    ((format (eql :html)) stream remaining current-suite (suite (eql :configuration)) kind)
+  (declare (ignore remaining current-suite kind))
   (format stream "~&<div class=\"testsuite\">"))
 
 (defmethod report-test-suite-by-suite 
-    ((format (eql :html)) stream remaining current-suite suite)
-  (declare (ignore current-suite))
+    ((format (eql :html)) stream remaining current-suite suite kind)
+  (declare (ignore current-suite kind))
   (format stream "~&<div class=\"testsuite\">")
   (let* ((this-suite-end (or 
 			  (position-if 
@@ -446,7 +451,7 @@ lift::(progn
     (format stream "</td></tr></table>")))
 
 (defmethod report-test-case-by-suite 
-    ((format (eql :html)) stream suite test-name datum)
+    ((format (eql :html)) stream suite test-name datum kind)
   (format stream "~&<div class=\"test-case\">")
   (let ((problem (getf datum :problem))
 	(start (getf datum :start-time)))
@@ -454,20 +459,20 @@ lift::(progn
       (format stream "<span class=\"start-time\">~a</span>"
 	      (format-test-time-for-log start)))
     (cond ((typep problem 'test-failure)
-	   (format stream "~&<span class=\"test-name\"><a href=\"~a\" title=\"details\">~a</a></span>"
+	   (format stream "~&<span class=\"test-name\"><a href=\"~a\" title=\"details\">~a</a></span>~@[, <span>~a</span>~]"
 		   (details-link suite test-name)
-		   test-name)
+		   test-name (extra-info kind suite test-name))
 	   (format stream 
 		   "~&<span class=\"test-failure\">failure</span>" ))
 	  ((typep problem 'test-error)
-	   (format stream "~&<span class=\"test-name\"><a href=\"~a\" title=\"details\">~a [during ~a]</a></span>"
+	   (format stream "~&<span class=\"test-name\"><a href=\"~a\" title=\"details\">~a [during ~a]</a></span>~@[, <span>~a</span>~]"
 		   (details-link suite test-name)
 		   test-name
-		   (test-step problem))
+		   (test-step problem) (extra-info kind suite test-name))
 	   (format stream "~&<span class=\"test-error\">error</span>"))
 	  (t
-	   (format stream "~&<span class=\"test-name\">~a</span>" 
-		   test-name)
+	   (format stream "~&<span class=\"test-name\">~a</span>~@[, <span>~a</span>~]" 
+		   test-name (extra-info kind suite test-name))
 	   (let ((seconds (getf datum :seconds))
 		 (conses (getf datum :conses)))
 	     (when seconds 
@@ -479,8 +484,8 @@ lift::(progn
     (format stream "~&</div>")))
 
 (defmethod report-test-case-by-suite 
-    ((format (eql :html)) stream (suite (eql :configuration)) test-name datum)
-  (declare (ignore test-name))
+    ((format (eql :html)) stream (suite (eql :configuration)) test-name datum kind)
+  (declare (ignore test-name kind))
   (format stream "~&<div class=\"test-case\">")
   (let ((problem (getf datum :problem)))
     (format stream "~&<span class=\"test-name\">~a</span>: ~a~%"
@@ -546,7 +551,9 @@ lift::(progn
 			     stream)))
        (ensure-directories-exist output-pathname)
        (let ((*print-right-margin* 64)
-	     (problem (getf datum :problem)))
+	     (problem (getf datum :problem))
+	     (source-file (gethash test-name (test-case-source-file suite-name)))
+	     (start-time (getf datum :start-time)))
 	 (with-open-file (out output-pathname
 			      :direction :output
 			      :if-does-not-exist :create
@@ -563,18 +570,33 @@ lift::(progn
 					      :type (pathname-type stream))))
 	   (format out "~&<p>Problem occurred during ~a.</p>"
 		   (test-step problem))
+	   	   (format out "<pre>")
+	   (when source-file
+	     (format out "~&Source file: ~a" source-file))
+	   (when start-time
+	     (format out "~&Start time: ~a"
+		     (format-test-time-for-log start-time)))
+	   (format out "~&<pre>")
 	   (format out "~&<p>Reproduce using: <pre>")
-	   (format out "~&  (lift:run-test :suite '~a " suite-name)
-	   (format out "~&                 :name '~a" test-name)
+	   (format out "~&  (lift:run-test :suite '~a :name '~a" suite-name test-name)
 	   (when (testsuite-initargs problem)
 	     (format out "~&            :testsuite-initargs '~s" 
 		     (testsuite-initargs problem)))
-	   (format out ")</pre>.</p>")
+	   (format out ")")
+	   (format out "~&  (lift:run-tests :suite '~a" suite-name)
+	   (when (testsuite-initargs problem)
+	     (format out "~&            :testsuite-initargs '~s" 
+		     (testsuite-initargs problem)))
+	   (format out ")")
+	   (format out "~&</pre>")
 	   (format out "~&<pre>")
 	   (format out "~a"
 		   (wrap-encode-pre 
 		    (with-output-to-string (s)
-		      (print-test-problem "" problem s t))
+		      (handler-case
+			  (print-test-problem "" problem s t)
+			(error (c)
+			  (format out "Error while trying to print problem report: ~a" c))))
 		    :width (test-result-property 
 			    *test-result* :print-width 60)))
 	   (format out "~&</pre>") 
@@ -1015,6 +1037,16 @@ lift::(progn
 		 (t
 		  (print form stream)))))))
 
+(defmethod extra-info (kind suite name)
+  (declare (ignore kind suite name))
+  nil)
+
+(defmethod extra-info ((kind (eql :expected-errors)) suite name)
+  (test-case-option suite name :expected-error))
+
+(defmethod extra-info ((kind (eql :expected-failures)) suite name)
+  (test-case-option suite name :expected-failure))
+
 (defun build-issues-report (result kind stream)
   (format stream
 	  "~&<h2><a href=\"~a.html\">Test ~a summary</a></h2>~%" 
@@ -1035,8 +1067,9 @@ lift::(progn
        (loop for issue in issues do
 	    (destructuring-bind (_1 suite name _2) issue
 	      (declare (ignore _1 _2))
-	      (format out "~&<li><span>~a</span> <a href=\"~a\"><span>~a</span></a></li>~&" 
-		      suite (details-link suite name) name)))
+	      (format out "~&<li><span>~a</span> <a href=\"~a\"><span>~a</span></a>~@[, <span>~a</span>~]</li>~&" 
+		      suite (details-link suite name) name
+		      (extra-info kind suite name))))
        (format out "~&</ul>~%"))
     (html-footer out)))
 
@@ -1093,21 +1126,21 @@ lift::(progn
 	 (report-tests-by-suite 
 	  format  
 	  (mapcar #'problem-summarization cases)
-	  stream))))
+	  stream tag))))
 
 (defmethod report-test-suite-by-suite 
-    ((format (eql :brief)) stream remaining current-suite suite)
-  (declare (ignore stream remaining current-suite suite))
+    ((format (eql :brief)) stream remaining current-suite suite kind)
+  (declare (ignore stream remaining current-suite suite kind))
   )
 
 (defmethod report-test-case-by-suite 
-    ((format (eql :brief)) stream suite test-name datum)
-  (declare (ignore datum))
-  (format stream "~&  :suite '~a :name '~a~%" suite test-name))
+    ((format (eql :brief)) stream suite test-name datum kind)
+  (declare (ignore datum kind))
+  (format stream "~&  :suite ' ~a :name ' ~a~%" suite test-name))
 
 (defmethod report-test-case-by-suite 
-    ((format (eql :brief)) stream (suite (eql :configuration)) test-name datum)
-  (declare (ignore test-name))
+    ((format (eql :brief)) stream (suite (eql :configuration)) test-name datum kind)
+  (declare (ignore test-name kind))
   (let ((problem (getf datum :problem)))
     (format stream "~&  ~20a: ~a~%"
 	    (test-problem-kind problem)

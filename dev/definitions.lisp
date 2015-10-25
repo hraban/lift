@@ -8,7 +8,7 @@
 
 (defvar *hostname* nil)
 
-(defvar *current-user* 
+(defvar *current-user*
   (first (last (pathname-directory (user-homedir-pathname)))))
 
 (defparameter *log-tag* nil
@@ -28,20 +28,20 @@
 (defvar *test-maximum-error-count* nil
   "The maximum numbers of errors to allow during a [run-tests][].
 
-If `*test-maximum-error-count*` is nil, then a call to run-tests 
+If `*test-maximum-error-count*` is nil, then a call to run-tests
 will continue regardless of the number of errors. If it a positive
 integer, then run-tests will stop as soon as the number of test-errors
-if greater than or equal to its value. Setting this to some small 
+if greater than or equal to its value. Setting this to some small
 value can help prevent running lengthly test-suites when there are many
 errors. See also [\\*test-maximum-failure-count\\*][].")
 
 (defvar *test-maximum-failure-count* nil
   "The maximum numbers of failures to allow during a [run-tests][].
 
-If `*test-maximum-failure-count*` is nil, then a call to run-tests 
+If `*test-maximum-failure-count*` is nil, then a call to run-tests
 will continue regardless of the number of failures. If it a positive
 integer, then run-tests will stop as soon as the number of test-failures
-if greater than or equal to its value. Setting this to some small 
+if greater than or equal to its value. Setting this to some small
 value can help prevent running lengthly test-suites when there are many
 failures. See also [\\*test-maximum-error-count\\*][].")
 
@@ -51,6 +51,7 @@ failures. See also [\\*test-maximum-error-count\\*][].")
 (defvar *test-break-on-errors?* nil)
 (defvar *test-break-on-failures?* nil)
 (defvar *test-run-subsuites?* t)
+(defvar *break-on-redefinition* nil)
 
 (defparameter *test-ignore-warnings?* nil
   "If true, LIFT will not cause a test to fail if a warning occurs while
@@ -93,7 +94,7 @@ during calls to run-tests.")
   "Temporary variable used to 'communicate' between deftestsuite and addtest.")
 
 (defvar *lift-dribble-pathname* nil
-  "If bound, then test output from run-tests will be sent to this file in  
+  "If bound, then test output from run-tests will be sent to this file in
 in addition to *lift-standard-output*. It can be set to nil or to a pathname.")
 
 (defvar *lift-report-pathname* nil
@@ -102,18 +103,18 @@ be written to it for later processing. It can be set to:
 
 * `nil` - generate no output
 * pathname designator - send output to this pathname
-* `t` - send output to a pathname constructed from the name of the system 
+* `t` - send output to a pathname constructed from the name of the system
 being tested (this only works if ASDF is being used to test the system).
 
 As an example of the last case, if LIFT is testing a system named ...
 ")
 
 (defvar *lift-standard-output* *standard-output*
-  "Output from tests will be sent to this stream. If can set to nil or 
+  "Output from tests will be sent to this stream. If can set to nil or
 to an output stream. It defaults to *standard-output*.")
 
 (defvar *lift-if-dribble-exists* :append
-  "Specifies what to do to any existing file at *lift-dribble-pathname*. It 
+  "Specifies what to do to any existing file at *lift-dribble-pathname*. It
 can be :supersede, :append, or :error.")
 
 (defvar *test-show-expected-p* t)
@@ -121,7 +122,7 @@ can be :supersede, :append, or :error.")
 (defvar *test-show-details-p* t)
 
 (defvar *test-show-code-p* t)
- 
+
 (defvar *current-definition* nil
   "An associative-container which saves interesting information about
 the thing being defined.")
@@ -152,11 +153,11 @@ the thing being defined.")
   "Could not find test: ~S.~S")
 
 (defparameter +run-tests-null-test-case+
-  "There is no current testsuite (possibly because 
-   none have been defined yet?). You can specify the 
+  "There is no current testsuite (possibly because
+   none have been defined yet?). You can specify the
    testsuite to test by evaluating (run-tests :suite <suitename>).")
 
-(defparameter +lift-unable-to-parse-test-name-and-class+ 
+(defparameter +lift-unable-to-parse-test-name-and-class+
   "")
 
 
@@ -174,4 +175,3 @@ the thing being defined.")
 (defvar *functions-to-profile* nil)
 
 (defvar *profiling-threshold* nil)
-

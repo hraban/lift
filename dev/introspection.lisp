@@ -367,10 +367,12 @@ control over where in the test hierarchy the search begins."
   (destructuring-bind (suite name condition)
       triple
     (declare (ignore suite name))
-    (let ((string (princ-to-string (test-condition condition))))
-      (setf string (rewrite-unreadables string))
-      (let ((length (length string)))
-	(subseq string 0 (min length 200))))))
+    (let ((string (ignore-errors (princ-to-string (test-condition condition)))))
+      (cond (string
+	      (setf string (rewrite-unreadables string))
+	      (let ((length (length string)))
+		(subseq string 0 (min length 200))))
+	    (t "unable to massage condition string")))))
 
 (defun rewrite-unreadables (string)
   #+allegro
