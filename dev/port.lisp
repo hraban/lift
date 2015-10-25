@@ -222,7 +222,7 @@ returns a string with the corresponding backtrace.")
   (funcall fn))
 
 #-(and allegro (version>= 10 0))
-(eval-when (compile eval)
+(eval-when (:compile-toplevel :load-toplevel :execute)
   (require :timedefs))
 
 #+allegro
