@@ -14,6 +14,7 @@
        #+scl #:clos
        #+abcl #:mop
        #+ecl #:clos
+       #+clasp #:clos
        #:class-direct-subclasses
        #:class-direct-superclasses
        #:class-precedence-list)

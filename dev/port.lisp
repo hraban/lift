@@ -45,6 +45,10 @@ returns a string with the corresponding backtrace.")
 (defun %total-bytes-allocated ()
   (hcl:total-allocation))
 
+#+clasp
+(defun %total-bytes-allocated ()
+  (gctools:bytes-allocated))
+
 #+(or mcl ccl)
 (defun get-backtrace-as-string (error)
   (with-output-to-string (s)
@@ -158,6 +162,12 @@ returns a string with the corresponding backtrace.")
     (let ((debug:*debug-print-level* nil)
           (debug:*debug-print-length* nil))
       (debug:backtrace most-positive-fixnum s))))
+
+#+clasp
+(defun get-backtrace-as-string (error)
+  (declare (ignore error))
+  (with-output-to-string (stream)
+    (core:btcl :stream stream)))
 
 #+allegro
 (defun cancel-current-profile (&key force?)
