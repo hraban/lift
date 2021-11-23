@@ -68,13 +68,17 @@ For example, compile without cross-reference information."
 	     (,gresult nil)
 	     (,gcatch-errors-p ,catch-errors-p)
 	     ,@vars)
-	 (setf ,gresult
-	       (handler-bind
-		   ((error (lambda (c)
-			     (setf ,gcondition c)
-			     (unless ,gcatch-errors-p
-			       (error c)))))
-		 ,@(measure-1 vars measures)))
+	 (block condition-trap
+           (setf ,gresult
+                 (handler-bind
+                     ((error (lambda (c)
+                               (when ,gcatch-errors-p
+                                 (setf ,gcondition c)
+                                 ;; We are using HANDLER-BIND here,
+                                 ;; and have to make a non-local exit
+                                 ;; to prevent other handlers act on this ERROR.
+                                 (return-from condition-trap)))))
+                   ,@(measure-1 vars measures))))
 	 (values ,gresult (list ,@vars) ,gcondition)))))
 
 #+(or)
