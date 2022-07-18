@@ -143,6 +143,7 @@ pathspac points. For example:
 (defun format-test-time-for-log (test-time)
   (multiple-value-bind (ut fsecs) 
       (truncate test-time 1000)
+    (declare (ignore fsecs))  
     (date-stamp :datetime ut :include-date? nil :include-time? t :time-delimiter #\:)))
 
 #+allegro
