@@ -117,8 +117,15 @@ pathspac points. For example:
 			  ,(format nil "~@[~a-~]~a-~d~@[.~a~]" 
 				   base-name date-part index base-type)))
 	    base-pathname) do
-	   (unless (probe-file name)
-	     (return name)))
+	   (unless
+           #-clisp
+           (probe-file name)
+           #+clisp
+           (ignore-errors
+             (let ((directory-form (pathname-as-directory pathname)))
+               (when (ext:probe-directory directory-form)
+                 directory-form)))
+	       (return name)))
 	(error "Unable to find unique pathname for ~a" pathname))))
 
 (defun date-stamp (&key (datetime (get-universal-time)) (include-time? nil) 
