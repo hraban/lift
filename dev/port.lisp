@@ -169,6 +169,18 @@ returns a string with the corresponding backtrace.")
   (with-output-to-string (stream)
     (core:btcl :stream stream)))
 
+#+(or ecl mkcl)
+(defun get-backtrace-as-string (error)
+  (declare (ignore error))
+  (with-output-to-string (stream)
+    (let* ((top (si:ihs-top))
+           (backtrace (loop :for ihs :from 0 :below top
+                            :collect (list (si::ihs-fun ihs)
+                                           (si::ihs-env ihs)))))
+      (loop :for i :from 0 :below top
+            :for frame :in (nreverse backtrace) :do
+              (format stream "~&~D: ~S~%" i frame)))))
+
 #+allegro
 (defun cancel-current-profile (&key force?)
   (when (prof::current-profile-actual prof::*current-profile*)
