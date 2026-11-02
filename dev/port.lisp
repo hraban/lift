@@ -167,7 +167,7 @@ returns a string with the corresponding backtrace.")
 (defun get-backtrace-as-string (error)
   (declare (ignore error))
   (with-output-to-string (stream)
-    (core:btcl :stream stream)))
+    (clasp-debug:print-backtrace :stream stream)))
 
 #+allegro
 (defun cancel-current-profile (&key force?)
